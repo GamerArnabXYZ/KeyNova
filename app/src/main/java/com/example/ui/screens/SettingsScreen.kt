@@ -26,6 +26,7 @@ enum class SettingsDestination {
     MAIN,
     LANGUAGES,
     THEMES,
+    TOOLBAR,
     LAYOUT,
     CLIPBOARD,
     GAMING_CODING,
@@ -90,6 +91,16 @@ fun SettingsScreen(
                     title = "Theme",
                     subtitle = "$currentThemeName • Accent colors",
                     onClick = { onNavigateTo(SettingsDestination.THEMES) }
+                )
+            }
+
+            item {
+                val activeToolsCount = keyboardPreferences.enabledToolbarTools.size
+                SettingsCardItem(
+                    icon = Icons.Outlined.Widgets,
+                    title = "Toolbar Customization",
+                    subtitle = "$activeToolsCount / 7 active tools • Reorder, Toggle on/off",
+                    onClick = { onNavigateTo(SettingsDestination.TOOLBAR) }
                 )
             }
 

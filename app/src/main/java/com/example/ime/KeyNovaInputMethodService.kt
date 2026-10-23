@@ -270,4 +270,23 @@ class KeyNovaInputMethodService : InputMethodService(),
         val ic = currentInputConnection ?: return
         ic.performContextMenuAction(android.R.id.paste)
     }
+
+    override fun onClearAll() {
+        val ic = currentInputConnection ?: return
+        ic.performContextMenuAction(android.R.id.selectAll)
+        ic.commitText("", 1)
+    }
+
+    override fun onCycleCase() {
+        val ic = currentInputConnection ?: return
+        val selected = ic.getSelectedText(0)?.toString()
+        if (!selected.isNullOrEmpty()) {
+            val cycled = when {
+                selected.all { it.isUpperCase() || !it.isLetter() } -> selected.lowercase()
+                selected.all { it.isLowerCase() || !it.isLetter() } -> selected.replaceFirstChar { it.uppercase() }
+                else -> selected.uppercase()
+            }
+            ic.commitText(cycled, 1)
+        }
+    }
 }

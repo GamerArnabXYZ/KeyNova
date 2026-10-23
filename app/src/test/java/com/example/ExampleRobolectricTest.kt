@@ -152,5 +152,46 @@ class ExampleRobolectricTest {
         assertEquals("!", dispDari)
         assertEquals("!", commitDari)
     }
+
+    @Test
+    fun testToolbarCustomizationAndMaxConstraint() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val prefs = KeyboardPreferences(context)
+        prefs.resetToolbarTools()
+
+        // 1. Initial defaults: 7 tools active
+        val defaultTools = prefs.enabledToolbarTools
+        assertEquals(7, defaultTools.size)
+        assertEquals(7, com.example.data.ToolbarTool.MAX_ENABLED_TOOLS)
+
+        // 2. Attempting to add an 8th tool should fail (return false)
+        val unusedTool = com.example.data.ToolbarTool.entries.first { !defaultTools.contains(it) }
+        val addedResult = prefs.toggleToolbarTool(unusedTool, true)
+        org.junit.Assert.assertFalse("Adding 8th tool should be rejected", addedResult)
+        assertEquals(7, prefs.enabledToolbarTools.size)
+
+        // 3. Turning off one tool allows adding a different tool
+        val firstTool = defaultTools.first()
+        val removeResult = prefs.toggleToolbarTool(firstTool, false)
+        assertTrue(removeResult)
+        assertEquals(6, prefs.enabledToolbarTools.size)
+
+        // Now adding the new tool succeeds
+        val addedAfterRemove = prefs.toggleToolbarTool(unusedTool, true)
+        assertTrue(addedAfterRemove)
+        assertEquals(7, prefs.enabledToolbarTools.size)
+        assertTrue(prefs.isToolbarToolEnabled(unusedTool))
+
+        // 4. Test reorder
+        val toolAtZero = prefs.enabledToolbarTools[0]
+        val toolAtOne = prefs.enabledToolbarTools[1]
+        prefs.moveToolbarTool(0, 1)
+        assertEquals(toolAtZero, prefs.enabledToolbarTools[1])
+        assertEquals(toolAtOne, prefs.enabledToolbarTools[0])
+
+        // 5. Test reset
+        prefs.resetToolbarTools()
+        assertEquals(7, prefs.enabledToolbarTools.size)
+    }
 }
 

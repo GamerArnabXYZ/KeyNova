@@ -25,6 +25,7 @@ enum class AppNavigationScreen {
     SETTINGS_MAIN,
     SETTINGS_LANGUAGES,
     SETTINGS_THEMES,
+    SETTINGS_TOOLBAR,
     SETTINGS_LAYOUT,
     SETTINGS_CLIPBOARD,
     SETTINGS_GAMING_CODING,
@@ -101,6 +102,9 @@ fun KeyNovaApp(
                     snippetsRepository = snippetsRepo,
                     onNavigateToSettings = {
                         currentScreen = AppNavigationScreen.SETTINGS_MAIN
+                    },
+                    onNavigateToToolbarSettings = {
+                        currentScreen = AppNavigationScreen.SETTINGS_TOOLBAR
                     }
                 )
             }
@@ -119,6 +123,7 @@ fun KeyNovaApp(
                             SettingsDestination.MAIN -> AppNavigationScreen.SETTINGS_MAIN
                             SettingsDestination.LANGUAGES -> AppNavigationScreen.SETTINGS_LANGUAGES
                             SettingsDestination.THEMES -> AppNavigationScreen.SETTINGS_THEMES
+                            SettingsDestination.TOOLBAR -> AppNavigationScreen.SETTINGS_TOOLBAR
                             SettingsDestination.LAYOUT -> AppNavigationScreen.SETTINGS_LAYOUT
                             SettingsDestination.CLIPBOARD -> AppNavigationScreen.SETTINGS_CLIPBOARD
                             SettingsDestination.GAMING_CODING -> AppNavigationScreen.SETTINGS_GAMING_CODING
@@ -146,6 +151,18 @@ fun KeyNovaApp(
                     currentScreen = AppNavigationScreen.SETTINGS_MAIN
                 }
                 ThemeSelectorScreen(
+                    keyboardPreferences = preferences,
+                    onNavigateBack = {
+                        currentScreen = AppNavigationScreen.SETTINGS_MAIN
+                    }
+                )
+            }
+
+            AppNavigationScreen.SETTINGS_TOOLBAR -> {
+                BackHandler {
+                    currentScreen = AppNavigationScreen.SETTINGS_MAIN
+                }
+                ToolbarSettingsScreen(
                     keyboardPreferences = preferences,
                     onNavigateBack = {
                         currentScreen = AppNavigationScreen.SETTINGS_MAIN

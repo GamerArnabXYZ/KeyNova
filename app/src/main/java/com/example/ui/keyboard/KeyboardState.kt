@@ -37,4 +37,6 @@ interface KeyboardActionTarget {
     fun onSelectAll() {}
     fun onCopy() {}
     fun onPaste() {}
+    fun onClearAll() {}
+    fun onCycleCase() {}
 }

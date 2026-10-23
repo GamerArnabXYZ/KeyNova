@@ -114,6 +114,7 @@ fun KeyNovaKeyboardView(
     actionTarget: KeyboardActionTarget,
     isImeService: Boolean = false,
     onOpenSettings: () -> Unit,
+    onOpenToolbarSettings: () -> Unit = onOpenSettings,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -238,6 +239,7 @@ fun KeyNovaKeyboardView(
                 KeyboardToolbar(
                     theme = currentTheme,
                     activePage = activePage,
+                    keyboardPreferences = keyboardPreferences,
                     onPageSelected = { newPage ->
                         activePage = newPage
                         performHaptic()
@@ -251,9 +253,23 @@ fun KeyNovaKeyboardView(
                         performHaptic()
                     },
                     onOpenSettings = onOpenSettings,
+                    onOpenToolbarSettings = onOpenToolbarSettings,
                     onToggleOneHanded = {
                         oneHandedMode = if (oneHandedMode == OneHandedMode.OFF) OneHandedMode.RIGHT else OneHandedMode.OFF
                         keyboardPreferences.oneHandedMode = oneHandedMode
+                        performHaptic()
+                    },
+                    onClearAll = {
+                        actionTarget.onClearAll()
+                        performHaptic()
+                    },
+                    onCycleCase = {
+                        actionTarget.onCycleCase()
+                        shiftState = when (shiftState) {
+                            ShiftState.OFF -> ShiftState.SHIFTED
+                            ShiftState.SHIFTED -> ShiftState.CAPS_LOCKED
+                            ShiftState.CAPS_LOCKED -> ShiftState.OFF
+                        }
                         performHaptic()
                     }
                 )

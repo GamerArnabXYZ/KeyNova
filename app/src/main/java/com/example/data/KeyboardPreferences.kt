@@ -129,6 +129,104 @@ enum class ActiveKeyboardPage {
     NUMPAD
 }
 
+enum class ToolbarTool(
+    val id: String,
+    val title: String,
+    val description: String,
+    val defaultEnabled: Boolean
+) {
+    EMOJI(
+        id = "emoji",
+        title = "Emoji & Emoticons",
+        description = "Quick access to smileys, emojis, and emotional reactions",
+        defaultEnabled = true
+    ),
+    CLIPBOARD(
+        id = "clipboard",
+        title = "Clipboard Manager",
+        description = "Access recent copied text and pinned quick clips",
+        defaultEnabled = true
+    ),
+    TEXT_EDITING(
+        id = "text_editing",
+        title = "Text Editor & D-Pad",
+        description = "Precision cursor navigation, text selection, copy, cut, and paste",
+        defaultEnabled = true
+    ),
+    NUMPAD(
+        id = "numpad",
+        title = "Numeric Keypad",
+        description = "Calculator-style 10-key numpad with mathematical operators",
+        defaultEnabled = true
+    ),
+    SNIPPETS(
+        id = "snippets",
+        title = "Quick Snippets",
+        description = "Pre-saved code snippets, email templates, and fast replies",
+        defaultEnabled = false
+    ),
+    CODING(
+        id = "coding",
+        title = "Coding Symbols",
+        description = "Programming brackets {}, [], <>, logic operators, and symbols",
+        defaultEnabled = true
+    ),
+    GAMING(
+        id = "gaming",
+        title = "Gaming Keypad",
+        description = "WASD layout, dedicated arrow keys, and gaming hotkeys",
+        defaultEnabled = false
+    ),
+    THEMES(
+        id = "themes",
+        title = "Theme Switcher",
+        description = "Quickly cycle through keyboard color themes on the fly",
+        defaultEnabled = true
+    ),
+    ONE_HANDED(
+        id = "one_handed",
+        title = "One-Handed Mode",
+        description = "Dock keyboard to the left or right for easier single-hand thumb typing",
+        defaultEnabled = false
+    ),
+    CASE_CONVERTER(
+        id = "case_converter",
+        title = "Case Converter",
+        description = "Cycle case of text between lowercase, Title Case, and UPPERCASE",
+        defaultEnabled = false
+    ),
+    CLEAR_TEXT(
+        id = "clear_text",
+        title = "Clear All Text",
+        description = "Instant single-tap wipe of the current input field",
+        defaultEnabled = false
+    ),
+    SETTINGS(
+        id = "settings",
+        title = "Keyboard Settings",
+        description = "Direct shortcut to customize KeyNova preferences",
+        defaultEnabled = true
+    );
+
+    companion object {
+        const val MAX_ENABLED_TOOLS = 7
+
+        val DEFAULT_TOOL_IDS = listOf(
+            EMOJI.id,
+            CLIPBOARD.id,
+            TEXT_EDITING.id,
+            NUMPAD.id,
+            CODING.id,
+            THEMES.id,
+            SETTINGS.id
+        )
+
+        fun fromId(id: String): ToolbarTool? {
+            return entries.firstOrNull { it.id.equals(id, ignoreCase = true) }
+        }
+    }
+}
+
 enum class DeleteHoldMode(val id: String, val displayName: String, val description: String) {
     WORD_BY_WORD(
         "word_by_word",
@@ -229,6 +327,64 @@ class KeyboardPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_DELETE_HAPTIC, true)
         set(value) = prefs.edit().putBoolean(KEY_DELETE_HAPTIC, value).apply()
 
+    var enabledToolbarTools: List<ToolbarTool>
+        get() {
+            val raw = prefs.getString(KEY_ENABLED_TOOLBAR_TOOLS, null)
+            val ids = if (raw != null) {
+                raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+            } else {
+                ToolbarTool.DEFAULT_TOOL_IDS
+            }
+            val tools = ids.mapNotNull { ToolbarTool.fromId(it) }.distinct()
+            return if (tools.isNotEmpty()) tools.take(ToolbarTool.MAX_ENABLED_TOOLS) else ToolbarTool.DEFAULT_TOOL_IDS.mapNotNull { ToolbarTool.fromId(it) }
+        }
+        set(value) {
+            val limited = value.take(ToolbarTool.MAX_ENABLED_TOOLS)
+            val raw = limited.joinToString(",") { it.id }
+            prefs.edit().putString(KEY_ENABLED_TOOLBAR_TOOLS, raw).apply()
+        }
+
+    fun isToolbarToolEnabled(tool: ToolbarTool): Boolean {
+        return enabledToolbarTools.contains(tool)
+    }
+
+    /**
+     * Toggles tool on or off.
+     * Returns true if applied, false if max limit (7) is reached and toggle-on was rejected.
+     */
+    fun toggleToolbarTool(tool: ToolbarTool, enabled: Boolean): Boolean {
+        val current = enabledToolbarTools.toMutableList()
+        if (enabled) {
+            if (current.contains(tool)) return true
+            if (current.size >= ToolbarTool.MAX_ENABLED_TOOLS) {
+                return false
+            }
+            current.add(tool)
+            enabledToolbarTools = current
+            return true
+        } else {
+            current.remove(tool)
+            if (current.isEmpty()) {
+                current.add(ToolbarTool.SETTINGS)
+            }
+            enabledToolbarTools = current
+            return true
+        }
+    }
+
+    fun moveToolbarTool(fromIndex: Int, toIndex: Int) {
+        val current = enabledToolbarTools.toMutableList()
+        if (fromIndex in current.indices && toIndex in current.indices) {
+            val item = current.removeAt(fromIndex)
+            current.add(toIndex, item)
+            enabledToolbarTools = current
+        }
+    }
+
+    fun resetToolbarTools() {
+        enabledToolbarTools = ToolbarTool.DEFAULT_TOOL_IDS.mapNotNull { ToolbarTool.fromId(it) }
+    }
+
     fun cycleLanguage(reverse: Boolean = false): KeyboardLanguage {
         val enabled = enabledLanguages.toList()
         if (enabled.isEmpty()) return KeyboardLanguage.ENGLISH
@@ -264,5 +420,6 @@ class KeyboardPreferences(context: Context) {
         private const val KEY_DELETE_INITIAL_DELAY = "key_delete_initial_delay"
         private const val KEY_DELETE_REPEAT_INTERVAL = "key_delete_repeat_interval"
         private const val KEY_DELETE_HAPTIC = "key_delete_haptic"
+        private const val KEY_ENABLED_TOOLBAR_TOOLS = "key_enabled_toolbar_tools"
     }
 }

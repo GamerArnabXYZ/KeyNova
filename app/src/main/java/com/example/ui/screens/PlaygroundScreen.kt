@@ -40,7 +40,8 @@ fun PlaygroundScreen(
     keyboardPreferences: KeyboardPreferences,
     clipboardRepository: ClipboardRepository,
     snippetsRepository: SnippetsRepository,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToToolbarSettings: () -> Unit = onNavigateToSettings
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
@@ -127,6 +128,20 @@ fun PlaygroundScreen(
                 val clip = clipboardManager.getText()?.text
                 if (!clip.isNullOrEmpty()) {
                     testText += clip
+                }
+            }
+
+            override fun onClearAll() {
+                testText = ""
+            }
+
+            override fun onCycleCase() {
+                if (testText.isNotEmpty()) {
+                    testText = when {
+                        testText.all { it.isUpperCase() || !it.isLetter() } -> testText.lowercase()
+                        testText.all { it.isLowerCase() || !it.isLetter() } -> testText.replaceFirstChar { it.uppercase() }
+                        else -> testText.uppercase()
+                    }
                 }
             }
         }
@@ -389,6 +404,7 @@ fun PlaygroundScreen(
                 snippetsRepository = snippetsRepository,
                 actionTarget = actionTarget,
                 onOpenSettings = onNavigateToSettings,
+                onOpenToolbarSettings = onNavigateToToolbarSettings,
                 modifier = Modifier.fillMaxWidth()
             )
         }
