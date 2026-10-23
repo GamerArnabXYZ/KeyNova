@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">KeyNova</string>
+    <string name="ime_name">KeyNova Keyboard</string>
+    <string name="subtype_en">English (US)</string>
+    <string name="subtype_bn">বাংলা (Bangla)</string>
+    <string name="subtype_hi">हिन्दी (Hindi)</string>
+</resources>

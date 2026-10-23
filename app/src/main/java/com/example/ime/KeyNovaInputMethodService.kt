@@ -1,0 +1,273 @@
+package com.example.ime
+
+import android.content.Intent
+import android.content.res.Configuration
+import android.inputmethodservice.InputMethodService
+import android.os.Bundle
+import android.view.KeyEvent
+import android.view.View
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.lifecycle.*
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.example.MainActivity
+import com.example.data.ClipboardRepository
+import com.example.data.KeyboardPreferences
+import com.example.data.SnippetsRepository
+import com.example.ui.keyboard.KeyNovaKeyboardView
+import com.example.ui.keyboard.KeyboardActionTarget
+
+class KeyNovaInputMethodService : InputMethodService(),
+    LifecycleOwner,
+    SavedStateRegistryOwner,
+    ViewModelStoreOwner,
+    KeyboardActionTarget {
+
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
+    private val vmStore = ViewModelStore()
+
+    override val lifecycle: Lifecycle get() = lifecycleRegistry
+    override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
+    override val viewModelStore: ViewModelStore get() = vmStore
+
+    private lateinit var prefs: KeyboardPreferences
+    private lateinit var clipboardRepo: ClipboardRepository
+    private lateinit var snippetsRepo: SnippetsRepository
+
+    override fun onCreate() {
+        super.onCreate()
+        savedStateRegistryController.performRestore(null)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+
+        prefs = KeyboardPreferences(this)
+        clipboardRepo = ClipboardRepository(this)
+        snippetsRepo = SnippetsRepository(this)
+    }
+
+    override fun onEvaluateInputViewShown(): Boolean {
+        return true
+    }
+
+    override fun onEvaluateFullscreenMode(): Boolean {
+        return false
+    }
+
+    override fun onShowInputRequested(flags: Int, configChange: Boolean): Boolean {
+        return true
+    }
+
+    override fun onCreateInputView(): View {
+        // Ensure decorView on the dialog window has full Jetpack lifecycle awareness
+        window?.window?.decorView?.let { decor ->
+            decor.setViewTreeLifecycleOwner(this)
+            decor.setViewTreeSavedStateRegistryOwner(this)
+            decor.setViewTreeViewModelStoreOwner(this)
+        }
+
+        val composeView = ComposeView(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+
+            // CRITICAL: Keep composition alive across hide/show cycles in other apps
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(this@KeyNovaInputMethodService))
+
+            setViewTreeLifecycleOwner(this@KeyNovaInputMethodService)
+            setViewTreeSavedStateRegistryOwner(this@KeyNovaInputMethodService)
+            setViewTreeViewModelStoreOwner(this@KeyNovaInputMethodService)
+
+            setContent {
+                KeyNovaKeyboardView(
+                    keyboardPreferences = prefs,
+                    clipboardRepository = clipboardRepo,
+                    snippetsRepository = snippetsRepo,
+                    actionTarget = this@KeyNovaInputMethodService,
+                    isImeService = true,
+                    onOpenSettings = {
+                        val intent = Intent(this@KeyNovaInputMethodService, MainActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(intent)
+                    }
+                )
+            }
+        }
+        return composeView
+    }
+
+    override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInputView(info, restarting)
+
+        window?.window?.decorView?.let { decor ->
+            decor.setViewTreeLifecycleOwner(this)
+            decor.setViewTreeSavedStateRegistryOwner(this)
+            decor.setViewTreeViewModelStoreOwner(this)
+        }
+
+        if (lifecycleRegistry.currentState != Lifecycle.State.RESUMED) {
+            if (lifecycleRegistry.currentState == Lifecycle.State.CREATED) {
+                lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+            }
+            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+        }
+    }
+
+    override fun onFinishInputView(finishingInput: Boolean) {
+        super.onFinishInputView(finishingInput)
+        if (lifecycleRegistry.currentState == Lifecycle.State.RESUMED) {
+            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        vmStore.clear()
+    }
+
+    // KeyboardActionTarget Implementation
+    override fun onCommitText(text: String) {
+        val ic = currentInputConnection ?: return
+        ic.commitText(text, 1)
+    }
+
+    override fun onDeleteBackward() {
+        val ic = currentInputConnection ?: return
+        val selectedText = ic.getSelectedText(0)
+        if (selectedText.isNullOrEmpty()) {
+            ic.deleteSurroundingText(1, 0)
+        } else {
+            ic.commitText("", 1)
+        }
+    }
+
+    override fun onDeleteWordBackward() {
+        val ic = currentInputConnection ?: return
+        val selectedText = ic.getSelectedText(0)
+        if (!selectedText.isNullOrEmpty()) {
+            ic.commitText("", 1)
+            return
+        }
+
+        // Look back up to 120 characters before cursor to find the word boundary
+        val textBefore = ic.getTextBeforeCursor(120, 0)?.toString()
+        if (textBefore.isNullOrEmpty()) {
+            ic.deleteSurroundingText(1, 0)
+            return
+        }
+
+        var lenToDelete = 0
+        var i = textBefore.length - 1
+
+        // Skip any trailing spaces/newlines
+        while (i >= 0 && textBefore[i].isWhitespace()) {
+            lenToDelete++
+            i--
+        }
+
+        // Delete previous word characters
+        while (i >= 0 && !textBefore[i].isWhitespace()) {
+            lenToDelete++
+            i--
+        }
+
+        if (lenToDelete == 0) {
+            lenToDelete = 1
+        }
+
+        ic.deleteSurroundingText(lenToDelete, 0)
+    }
+
+    override fun onEnterAction() {
+        val ic = currentInputConnection ?: return
+        val info = currentInputEditorInfo
+        val imeAction = info?.imeOptions?.and(EditorInfo.IME_MASK_ACTION) ?: EditorInfo.IME_ACTION_NONE
+        if (imeAction != EditorInfo.IME_ACTION_NONE && imeAction != EditorInfo.IME_ACTION_UNSPECIFIED) {
+            ic.performEditorAction(imeAction)
+        } else {
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
+        }
+    }
+
+    private var isSelecting = false
+
+    override fun onToggleSelectMode(): Boolean {
+        isSelecting = !isSelecting
+        return isSelecting
+    }
+
+    override fun onMoveCursor(offset: Int) {
+        val ic = currentInputConnection ?: return
+        val keyCode = if (offset < 0) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT
+        val count = kotlin.math.abs(offset).coerceAtLeast(1)
+        for (i in 0 until count) {
+            if (isSelecting) {
+                ic.sendKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_DOWN, keyCode, 0, KeyEvent.META_SHIFT_ON))
+                ic.sendKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_UP, keyCode, 0, KeyEvent.META_SHIFT_ON))
+            } else {
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+            }
+        }
+    }
+
+    override fun onMoveCursorUp() {
+        val ic = currentInputConnection ?: return
+        if (isSelecting) {
+            ic.sendKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_UP, 0, KeyEvent.META_SHIFT_ON))
+            ic.sendKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_UP, 0, KeyEvent.META_SHIFT_ON))
+        } else {
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_UP))
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_UP))
+        }
+    }
+
+    override fun onMoveCursorDown() {
+        val ic = currentInputConnection ?: return
+        if (isSelecting) {
+            ic.sendKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN, 0, KeyEvent.META_SHIFT_ON))
+            ic.sendKeyEvent(KeyEvent(0, 0, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_DOWN, 0, KeyEvent.META_SHIFT_ON))
+        } else {
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN))
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_DOWN))
+        }
+    }
+
+    override fun onMoveCursorToStart() {
+        val ic = currentInputConnection ?: return
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MOVE_HOME))
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MOVE_HOME))
+    }
+
+    override fun onMoveCursorToEnd() {
+        val ic = currentInputConnection ?: return
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MOVE_END))
+        ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MOVE_END))
+    }
+
+    override fun onSelectAll() {
+        val ic = currentInputConnection ?: return
+        ic.performContextMenuAction(android.R.id.selectAll)
+    }
+
+    override fun onCopy() {
+        val ic = currentInputConnection ?: return
+        ic.performContextMenuAction(android.R.id.copy)
+    }
+
+    override fun onPaste() {
+        val ic = currentInputConnection ?: return
+        ic.performContextMenuAction(android.R.id.paste)
+    }
+}

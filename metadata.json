@@ -1,0 +1,6 @@
+{
+  "name": "KeyNova",
+  "description": "Clean, simple, lightweight and offline-first native Android keyboard supporting English, Bangla, Hindi, coding tools and gaming modes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

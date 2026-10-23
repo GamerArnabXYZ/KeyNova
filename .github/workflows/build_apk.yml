@@ -1,0 +1,132 @@
+name: Build & Release KeyNova APKs
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    name: Build 3 Split APKs (v7, v8, Universal)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Ensure Debug Keystore Exists
+        run: |
+          if [ ! -f "debug.keystore" ]; then
+            echo "Generating debug keystore for automated CI build..."
+            keytool -genkeypair -alias androiddebugkey -keypass android -keystore debug.keystore -storepass android -dname "CN=KeyNova,O=Android,C=US" -validity 10000 -keyalg RSA -keysize 2048
+          fi
+
+      - name: Make Gradle Wrapper Executable
+        run: |
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+          fi
+
+      - name: Build 3 APKs (v7, v8, Universal)
+        run: |
+          if [ -f "gradlew" ]; then
+            ./gradlew assembleDebug -PsplitApks=true --no-daemon
+          else
+            gradle assembleDebug -PsplitApks=true --no-daemon
+          fi
+
+      - name: Organize and Rename Output APKs
+        run: |
+          mkdir -p release-apks
+          APK_DIR="app/build/outputs/apk/debug"
+          
+          # Find and copy each ABI split APK
+          V7_APK=$(find "$APK_DIR" -type f -name "*armeabi-v7a*.apk" | head -n 1)
+          V8_APK=$(find "$APK_DIR" -type f -name "*arm64-v8a*.apk" | head -n 1)
+          UNIV_APK=$(find "$APK_DIR" -type f -name "*universal*.apk" | head -n 1)
+
+          # Fallback if names differ
+          if [ -n "$V7_APK" ]; then
+            cp "$V7_APK" release-apks/KeyNova-v1.0.0-armeabi-v7a.apk
+            echo "Copied v7 APK: $V7_APK"
+          fi
+
+          if [ -n "$V8_APK" ]; then
+            cp "$V8_APK" release-apks/KeyNova-v1.0.0-arm64-v8a.apk
+            echo "Copied v8 APK: $V8_APK"
+          fi
+
+          if [ -n "$UNIV_APK" ]; then
+            cp "$UNIV_APK" release-apks/KeyNova-v1.0.0-universal.apk
+            echo "Copied Universal APK: $UNIV_APK"
+          elif [ -f "$APK_DIR/app-debug.apk" ]; then
+            cp "$APK_DIR/app-debug.apk" release-apks/KeyNova-v1.0.0-universal.apk
+            echo "Copied fallback Universal APK"
+          fi
+
+          echo "APKs ready in release-apks:"
+          ls -la release-apks/
+
+      - name: Upload APKs as Workflow Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: KeyNova-APKs
+          path: release-apks/*.apk
+          retention-days: 30
+
+      - name: Determine Release Tag
+        id: release_tag
+        if: github.event_name == 'push'
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="v1.0.${{ github.run_number }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Publish to GitHub Releases
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          name: KeyNova Keyboard ${{ steps.release_tag.outputs.tag }}
+          body: |
+            ## 🚀 KeyNova Native Android Keyboard Release
+            
+            Clean, simple, lightweight and offline-first native Android keyboard.
+            
+            ### 📦 Included APKs:
+            1. **`KeyNova-v1.0.0-arm64-v8a.apk`** — For modern 64-bit Android devices (faster, smaller).
+            2. **`KeyNova-v1.0.0-armeabi-v7a.apk`** — For older 32-bit Android devices.
+            3. **`KeyNova-v1.0.0-universal.apk`** — Works on all Android devices (universal compatible).
+            
+            ### ✨ Features:
+            - **Multilingual Support**: English (QWERTY), Bangla (বাংলা), Hindi (हिन्दी)
+            - **Toolbar**: Text Editing (`⟨ I ⟩`), Number Pad (`123`), Clipboard (`📋`), Emojis (`😊`), Themes (`🏪`), Settings (`⚙️`)
+            - **Text Editing Pad**: Precision cursor arrows (`<`, `>`, `^`, `v`, `|<`, `>|`), Select, Select All, Copy, Paste
+            - **Number Pad**: Dedicated numbers, Bengali/Hindi native digits toggle, arithmetic operators, fast backspace and search/action
+            - **Developer Tools**: Dedicated coding symbols `{ } [ ] ( ) < > / \` and reusable snippets
+            - **Gaming Mode**: Pinned number row, WASD tactical keycaps, instant chat macros (`GG`, `glhf`)
+            - **100% Offline-First**: Zero telemetry, zero internet permission in manifest.
+          files: release-apks/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
