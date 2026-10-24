@@ -23,10 +23,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.KeyboardPreferences
 import com.example.data.ToolbarTool
 import kotlinx.coroutines.launch
@@ -37,6 +40,7 @@ fun ToolbarSettingsScreen(
     keyboardPreferences: KeyboardPreferences,
     onNavigateBack: () -> Unit
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -48,6 +52,9 @@ fun ToolbarSettingsScreen(
     val maxTools = ToolbarTool.MAX_ENABLED_TOOLS
     val activeCount = enabledTools.size
 
+    val toastMaxReached = stringResource(R.string.toolbar_settings_toast_max_reached)
+    val toastReset = stringResource(R.string.toolbar_settings_toast_reset)
+
     fun toggleTool(tool: ToolbarTool, isChecked: Boolean) {
         val success = keyboardPreferences.toggleToolbarTool(tool, isChecked)
         if (success) {
@@ -56,7 +63,7 @@ fun ToolbarSettingsScreen(
             coroutineScope.launch {
                 snackbarHostState.currentSnackbarData?.dismiss()
                 snackbarHostState.showSnackbar(
-                    message = "Maximum $maxTools tools can be active simultaneously. Turn off a tool first.",
+                    message = toastMaxReached,
                     duration = SnackbarDuration.Short
                 )
             }
@@ -72,7 +79,7 @@ fun ToolbarSettingsScreen(
         keyboardPreferences.resetToolbarTools()
         enabledTools = keyboardPreferences.enabledToolbarTools
         coroutineScope.launch {
-            snackbarHostState.showSnackbar("Toolbar restored to default 7 tools")
+            snackbarHostState.showSnackbar(toastReset)
         }
     }
 
@@ -82,13 +89,13 @@ fun ToolbarSettingsScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Toolbar Customization",
+                            text = stringResource(R.string.toolbar_settings_title),
                             fontWeight = FontWeight.Bold,
                             fontSize = 19.sp,
                             color = Color(0xFF0F172A)
                         )
                         Text(
-                            text = "$activeCount of $maxTools tools active",
+                            text = stringResource(R.string.toolbar_settings_active_counter, activeCount, maxTools),
                             fontSize = 12.sp,
                             color = if (activeCount == maxTools) Color(0xFFD97706) else Color(0xFF64748B)
                         )
@@ -101,7 +108,7 @@ fun ToolbarSettingsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = Color(0xFF0F172A)
                         )
                     }
@@ -113,7 +120,7 @@ fun ToolbarSettingsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.RestartAlt,
-                            contentDescription = "Reset to Default",
+                            contentDescription = stringResource(R.string.action_reset),
                             tint = Color(0xFF3B82F6)
                         )
                     }
@@ -151,7 +158,7 @@ fun ToolbarSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Active Toolbar Slots",
+                                text = stringResource(R.string.toolbar_settings_slots_title),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
                                 color = Color(0xFF0F172A)
@@ -161,7 +168,7 @@ fun ToolbarSettingsScreen(
                                 color = if (activeCount == maxTools) Color(0xFFFEF3C7) else Color(0xFFEFF6FF)
                             ) {
                                 Text(
-                                    text = "$activeCount / $maxTools ACTIVE",
+                                    text = stringResource(R.string.toolbar_settings_slots_badge, activeCount, maxTools),
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
@@ -182,9 +189,9 @@ fun ToolbarSettingsScreen(
 
                         Text(
                             text = if (activeCount == maxTools) {
-                                "Maximum limit reached (7 tools). Toggle off an active tool if you want to enable another one."
+                                stringResource(R.string.toolbar_settings_max_reached_desc)
                             } else {
-                                "You can enable up to $maxTools tools simultaneously. Inactive tools are kept off the keyboard bar for a clean, focused typing experience."
+                                stringResource(R.string.toolbar_settings_quota_desc, maxTools)
                             },
                             fontSize = 12.sp,
                             color = Color(0xFF64748B),
@@ -214,14 +221,14 @@ fun ToolbarSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "LIVE KEYBOARD TOOLBAR PREVIEW",
+                                text = stringResource(R.string.toolbar_settings_live_preview_title),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp,
                                 letterSpacing = 1.sp,
                                 color = Color(0xFF64748B)
                             )
                             Text(
-                                text = "Theme: ${currentTheme.displayName}",
+                                text = stringResource(R.string.toolbar_settings_theme_label, currentTheme.displayName),
                                 fontSize = 11.sp,
                                 color = Color(0xFF94A3B8)
                             )
@@ -248,6 +255,7 @@ fun ToolbarSettingsScreen(
                                     enabledTools.forEach { tool ->
                                         val isSelected = previewActiveToolId == tool.id
                                         val icon = getToolbarIconForTool(tool)
+                                        val toolTitle = tool.getLocalizedTitle(context)
                                         Box(
                                             modifier = Modifier
                                                 .size(36.dp)
@@ -269,7 +277,7 @@ fun ToolbarSettingsScreen(
                                         ) {
                                             Icon(
                                                 imageVector = icon,
-                                                contentDescription = tool.title,
+                                                contentDescription = toolTitle,
                                                 tint = if (isSelected) Color(currentTheme.accentHex) else Color(currentTheme.textHex),
                                                 modifier = Modifier.size(19.dp)
                                             )
@@ -287,7 +295,7 @@ fun ToolbarSettingsScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.Widgets,
-                                        contentDescription = "Customize",
+                                        contentDescription = stringResource(R.string.toolbar_settings_title),
                                         tint = Color(currentTheme.accentHex),
                                         modifier = Modifier.size(17.dp)
                                     )
@@ -304,7 +312,7 @@ fun ToolbarSettingsScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
-                                        text = "Selected preview: ${activeTool.title} • ${activeTool.description}",
+                                        text = "${activeTool.getLocalizedTitle(context)} • ${activeTool.getLocalizedDesc(context)}",
                                         fontSize = 11.sp,
                                         color = Color(0xFF334155),
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
@@ -326,14 +334,14 @@ fun ToolbarSettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "AVAILABLE TOOLS (${allTools.size})",
+                        text = stringResource(R.string.toolbar_settings_available_section, allTools.size),
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         letterSpacing = 0.8.sp,
                         color = Color(0xFF64748B)
                     )
                     Text(
-                        text = "Max 7 Active",
+                        text = stringResource(R.string.toolbar_settings_max_badge),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF3B82F6)
@@ -346,6 +354,8 @@ fun ToolbarSettingsScreen(
                 val isEnabled = enabledTools.contains(tool)
                 val orderIndex = enabledTools.indexOf(tool)
                 val isAtMaxAndDisabled = !isEnabled && activeCount >= maxTools
+                val toolTitle = tool.getLocalizedTitle(context)
+                val toolDesc = tool.getLocalizedDesc(context)
 
                 Card(
                     modifier = Modifier
@@ -387,7 +397,7 @@ fun ToolbarSettingsScreen(
                         ) {
                             Icon(
                                 imageVector = icon,
-                                contentDescription = tool.title,
+                                contentDescription = toolTitle,
                                 tint = if (isEnabled) Color(0xFF2563EB) else Color(0xFF64748B),
                                 modifier = Modifier.size(22.dp)
                             )
@@ -403,7 +413,7 @@ fun ToolbarSettingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
-                                    text = tool.title,
+                                    text = toolTitle,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
                                     color = if (isEnabled) Color(0xFF0F172A) else Color(0xFF64748B)
@@ -424,7 +434,7 @@ fun ToolbarSettingsScreen(
                                 }
                             }
                             Text(
-                                text = tool.description,
+                                text = toolDesc,
                                 fontSize = 12.sp,
                                 color = Color(0xFF64748B),
                                 lineHeight = 16.sp
@@ -444,7 +454,7 @@ fun ToolbarSettingsScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.KeyboardArrowUp,
-                                            contentDescription = "Move Left",
+                                            contentDescription = stringResource(R.string.toolbar_settings_move_left),
                                             tint = Color(0xFF64748B),
                                             modifier = Modifier.size(18.dp)
                                         )
@@ -460,7 +470,7 @@ fun ToolbarSettingsScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.KeyboardArrowDown,
-                                            contentDescription = "Move Right",
+                                            contentDescription = stringResource(R.string.toolbar_settings_move_right),
                                             tint = Color(0xFF64748B),
                                             modifier = Modifier.size(18.dp)
                                         )

@@ -24,10 +24,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.ClipboardRepository
 import com.example.data.KeyboardPreferences
 import com.example.data.SnippetsRepository
@@ -168,7 +170,7 @@ fun PlaygroundScreen(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "KeyNova",
+                            text = stringResource(R.string.app_name),
                             fontWeight = FontWeight.Bold,
                             fontSize = 19.sp,
                             color = Color(0xFF0F172A)
@@ -182,9 +184,9 @@ fun PlaygroundScreen(
                         label = {
                             Text(
                                 text = when {
-                                    isDefaultSelected -> "Active Default"
-                                    isEnabledInSystem -> "Enabled (Set Default)"
-                                    else -> "Setup Needed"
+                                    isDefaultSelected -> stringResource(R.string.playground_status_default)
+                                    isEnabledInSystem -> stringResource(R.string.playground_status_enabled)
+                                    else -> stringResource(R.string.playground_status_not_default)
                                 },
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -215,7 +217,7 @@ fun PlaygroundScreen(
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
+                            contentDescription = stringResource(R.string.action_settings),
                             tint = Color(0xFF0F172A)
                         )
                     }
@@ -349,7 +351,7 @@ fun PlaygroundScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.ContentCopy,
-                                        contentDescription = "Copy",
+                                        contentDescription = stringResource(R.string.action_copy),
                                         tint = Color(0xFF64748B),
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -361,7 +363,7 @@ fun PlaygroundScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Clear,
-                                        contentDescription = "Clear",
+                                        contentDescription = stringResource(R.string.action_clear),
                                         tint = Color(0xFF64748B),
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -381,7 +383,7 @@ fun PlaygroundScreen(
                         ) {
                             if (testText.isEmpty()) {
                                 Text(
-                                    text = "Tap keyboard keys below to test typing...",
+                                    text = stringResource(R.string.playground_input_hint),
                                     color = Color(0xFF94A3B8),
                                     fontSize = 15.sp
                                 )

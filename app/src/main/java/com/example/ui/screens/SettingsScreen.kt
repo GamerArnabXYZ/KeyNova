@@ -17,9 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.KeyboardPreferences
 
 enum class SettingsDestination {
@@ -49,7 +51,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Settings",
+                        text = stringResource(R.string.settings_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
                         color = Color(0xFF0F172A)
@@ -59,7 +61,7 @@ fun SettingsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = Color(0xFF0F172A)
                         )
                     }
@@ -79,8 +81,8 @@ fun SettingsScreen(
             item {
                 SettingsCardItem(
                     icon = Icons.Outlined.Language,
-                    title = "Languages",
-                    subtitle = "English, বাংলা, हिन्दी ($enabledLangsCount active)",
+                    title = stringResource(R.string.settings_nav_languages_title),
+                    subtitle = stringResource(R.string.settings_nav_languages_subtitle, enabledLangsCount),
                     onClick = { onNavigateTo(SettingsDestination.LANGUAGES) }
                 )
             }
@@ -88,8 +90,8 @@ fun SettingsScreen(
             item {
                 SettingsCardItem(
                     icon = Icons.Outlined.Palette,
-                    title = "Theme",
-                    subtitle = "$currentThemeName • Accent colors",
+                    title = stringResource(R.string.settings_nav_themes_title),
+                    subtitle = stringResource(R.string.settings_nav_themes_subtitle, currentThemeName),
                     onClick = { onNavigateTo(SettingsDestination.THEMES) }
                 )
             }
@@ -98,8 +100,8 @@ fun SettingsScreen(
                 val activeToolsCount = keyboardPreferences.enabledToolbarTools.size
                 SettingsCardItem(
                     icon = Icons.Outlined.Widgets,
-                    title = "Toolbar Customization",
-                    subtitle = "$activeToolsCount / 7 active tools • Reorder, Toggle on/off",
+                    title = stringResource(R.string.settings_nav_toolbar_title),
+                    subtitle = stringResource(R.string.settings_nav_toolbar_subtitle, activeToolsCount),
                     onClick = { onNavigateTo(SettingsDestination.TOOLBAR) }
                 )
             }
@@ -107,8 +109,8 @@ fun SettingsScreen(
             item {
                 SettingsCardItem(
                     icon = Icons.Outlined.Keyboard,
-                    title = "Keyboard Layout",
-                    subtitle = "Hold-to-delete words, Speed, Key height, Spacing",
+                    title = stringResource(R.string.settings_nav_layout_title),
+                    subtitle = stringResource(R.string.settings_nav_layout_subtitle),
                     onClick = { onNavigateTo(SettingsDestination.LAYOUT) }
                 )
             }
@@ -116,8 +118,8 @@ fun SettingsScreen(
             item {
                 SettingsCardItem(
                     icon = Icons.Outlined.ContentPaste,
-                    title = "Clipboard",
-                    subtitle = "History, Pinned clips, Auto clear",
+                    title = stringResource(R.string.settings_nav_clipboard_title),
+                    subtitle = stringResource(R.string.settings_nav_clipboard_subtitle),
                     onClick = { onNavigateTo(SettingsDestination.CLIPBOARD) }
                 )
             }
@@ -125,8 +127,8 @@ fun SettingsScreen(
             item {
                 SettingsCardItem(
                     icon = Icons.Outlined.SportsEsports,
-                    title = "Gaming & Coding",
-                    subtitle = "Developer symbols, Custom snippets & macros",
+                    title = stringResource(R.string.settings_nav_gaming_coding_title),
+                    subtitle = stringResource(R.string.settings_nav_gaming_coding_subtitle),
                     onClick = { onNavigateTo(SettingsDestination.GAMING_CODING) }
                 )
             }
@@ -134,8 +136,8 @@ fun SettingsScreen(
             item {
                 SettingsCardItem(
                     icon = Icons.Outlined.Security,
-                    title = "Privacy",
-                    subtitle = "No data collection, 100% offline",
+                    title = stringResource(R.string.settings_nav_privacy_title),
+                    subtitle = stringResource(R.string.settings_nav_privacy_subtitle),
                     onClick = { onNavigateTo(SettingsDestination.PRIVACY) }
                 )
             }
@@ -143,8 +145,8 @@ fun SettingsScreen(
             item {
                 SettingsCardItem(
                     icon = Icons.Outlined.Info,
-                    title = "About",
-                    subtitle = "KeyNova v1.0.0 • Open Source",
+                    title = stringResource(R.string.settings_nav_about_title),
+                    subtitle = stringResource(R.string.settings_nav_about_subtitle),
                     onClick = { onNavigateTo(SettingsDestination.ABOUT) }
                 )
             }

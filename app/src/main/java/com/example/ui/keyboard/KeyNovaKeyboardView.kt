@@ -7,11 +7,14 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -39,9 +42,12 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.*
+import com.example.ime.AvroPhoneticParser
+import com.example.ime.DynamicKeyboardLayout
 import com.example.ime.KeyAction
 import com.example.ime.KeyDef
 import com.example.ime.KeyboardLayoutModel
+import com.example.ime.KeyboardLayoutRegistry
 import com.example.ime.KeyboardRow
 import com.example.ime.ShiftState
 import kotlinx.coroutines.withTimeoutOrNull
@@ -49,9 +55,9 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 data class SpacePopupState(
-    val leftLanguage: KeyboardLanguage,
-    val centerLanguage: KeyboardLanguage,
-    val rightLanguage: KeyboardLanguage,
+    val leftLayout: DynamicKeyboardLayout,
+    val centerLayout: DynamicKeyboardLayout,
+    val rightLayout: DynamicKeyboardLayout,
     val selectedIndex: Int, // 0 = left, 1 = center, 2 = right
     val spaceBarBounds: Rect,
     val dragDeltaX: Float = 0f
@@ -65,30 +71,28 @@ data class KeyPopupState(
     val keyBounds: Rect
 )
 
-data class LanguageTriple(
-    val left: KeyboardLanguage,
-    val center: KeyboardLanguage,
-    val right: KeyboardLanguage
+data class DynamicLayoutTriple(
+    val left: DynamicKeyboardLayout,
+    val center: DynamicKeyboardLayout,
+    val right: DynamicKeyboardLayout
 )
 
-fun getLanguageTriple(current: KeyboardLanguage): LanguageTriple {
-    return when (current) {
-        KeyboardLanguage.ENGLISH -> LanguageTriple(
-            left = KeyboardLanguage.BANGLA,
-            center = KeyboardLanguage.ENGLISH,
-            right = KeyboardLanguage.HINDI
-        )
-        KeyboardLanguage.BANGLA -> LanguageTriple(
-            left = KeyboardLanguage.ENGLISH,
-            center = KeyboardLanguage.BANGLA,
-            right = KeyboardLanguage.HINDI
-        )
-        KeyboardLanguage.HINDI -> LanguageTriple(
-            left = KeyboardLanguage.BANGLA,
-            center = KeyboardLanguage.HINDI,
-            right = KeyboardLanguage.ENGLISH
-        )
+fun getLayoutTriple(current: DynamicKeyboardLayout, allEnabled: List<DynamicKeyboardLayout>): DynamicLayoutTriple {
+    if (allEnabled.isEmpty()) {
+        return DynamicLayoutTriple(current, current, current)
     }
+    val currentIdx = allEnabled.indexOfFirst { it.id.equals(current.id, ignoreCase = true) }
+    val effectiveIdx = if (currentIdx == -1) 0 else currentIdx
+    val size = allEnabled.size
+
+    val leftIdx = (effectiveIdx - 1 + size) % size
+    val rightIdx = (effectiveIdx + 1) % size
+
+    return DynamicLayoutTriple(
+        left = allEnabled[leftIdx],
+        center = allEnabled[effectiveIdx],
+        right = allEnabled[rightIdx]
+    )
 }
 
 fun resolveSecondaryText(primary: String, secondary: String?): Pair<String, String> {
@@ -121,10 +125,10 @@ fun KeyNovaKeyboardView(
     val view = LocalView.current
 
     var activePage by remember { mutableStateOf(ActiveKeyboardPage.LETTERS) }
-    var currentLanguage by remember { mutableStateOf(keyboardPreferences.activeLanguage) }
+    var currentLayout by remember { mutableStateOf(keyboardPreferences.getActiveLayout(context)) }
+    var currentLanguage by remember { mutableStateOf(currentLayout.keyboardLanguage) }
     var shiftState by remember { mutableStateOf(ShiftState.OFF) }
-    var isBanglaShifted by remember { mutableStateOf(false) }
-    var isHindiShifted by remember { mutableStateOf(false) }
+    var isShifted by remember { mutableStateOf(false) }
     var currentTheme by remember { mutableStateOf(keyboardPreferences.theme) }
     var oneHandedMode by remember { mutableStateOf(keyboardPreferences.oneHandedMode) }
     var switchMethod by remember { mutableStateOf(keyboardPreferences.languageSwitchMethod) }
@@ -133,8 +137,18 @@ fun KeyNovaKeyboardView(
     val keySpacing = keyboardPreferences.keySpacingDp.dp
     val hapticEnabled = keyboardPreferences.hapticFeedback
 
+    var avroComposingText by remember { mutableStateOf("") }
+    val avroCandidates = remember(avroComposingText) {
+        if (avroComposingText.isNotEmpty()) AvroPhoneticParser.getCandidates(avroComposingText) else emptyList()
+    }
+
     val showGlobeKey = (switchMethod == LanguageSwitchMethod.GLOBE_KEY)
     val bgColor = Color(currentTheme.backgroundHex)
+
+    val allRegisteredLayouts = remember(context) { KeyboardLayoutRegistry.getLayouts(context) }
+    val enabledLayouts = remember(keyboardPreferences.enabledLayoutIds, allRegisteredLayouts) {
+        allRegisteredLayouts.filter { keyboardPreferences.enabledLayoutIds.contains(it.id) }.ifEmpty { allRegisteredLayouts }
+    }
 
     // Keyboard root coordinates for positioning popup overlays accurately
     var keyboardRootCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
@@ -147,13 +161,12 @@ fun KeyNovaKeyboardView(
         }
     }
 
-    // Main Keyboard Layout Rows calculation
+    // Main Keyboard Layout Rows calculation - dynamically built from XML
     val rows: List<KeyboardRow> = remember(
         activePage,
-        currentLanguage,
+        currentLayout,
         shiftState,
-        isBanglaShifted,
-        isHindiShifted,
+        isShifted,
         showNumberRow,
         showGlobeKey
     ) {
@@ -162,23 +175,20 @@ fun KeyNovaKeyboardView(
         when (activePage) {
             ActiveKeyboardPage.LETTERS -> {
                 if (showNumberRow) {
-                    val numberRow = when (currentLanguage) {
-                        KeyboardLanguage.BANGLA -> KeyboardLayoutModel.getBanglaNumberRow()
+                    val numberRow = when (currentLayout.languageCode) {
+                        "bn" -> KeyboardLayoutModel.getBanglaNumberRow()
                         else -> KeyboardLayoutModel.getNumberRow()
                     }
                     result.add(numberRow)
                 }
-                when (currentLanguage) {
-                    KeyboardLanguage.ENGLISH -> {
-                        result.addAll(KeyboardLayoutModel.getEnglishLayout(shiftState, shiftState == ShiftState.CAPS_LOCKED, showGlobeKey))
-                    }
-                    KeyboardLanguage.BANGLA -> {
-                        result.addAll(KeyboardLayoutModel.getBanglaLayout(isBanglaShifted, showGlobeKey))
-                    }
-                    KeyboardLanguage.HINDI -> {
-                        result.addAll(KeyboardLayoutModel.getHindiLayout(isHindiShifted, showGlobeKey))
-                    }
-                }
+                result.addAll(
+                    KeyboardLayoutRegistry.buildRows(
+                        layout = currentLayout,
+                        shiftState = shiftState,
+                        isCaps = shiftState == ShiftState.CAPS_LOCKED || isShifted,
+                        showGlobeKey = showGlobeKey
+                    )
+                )
             }
             ActiveKeyboardPage.SYMBOLS_1 -> {
                 result.addAll(KeyboardLayoutModel.getSymbolsPage1())
@@ -336,6 +346,24 @@ fun KeyNovaKeyboardView(
                                 .padding(vertical = 2.dp),
                             verticalArrangement = Arrangement.spacedBy(keySpacing)
                         ) {
+                            if (activePage == ActiveKeyboardPage.LETTERS && currentLayout.id == "bn_avro") {
+                                AvroPhoneticSuggestionStrip(
+                                    composingText = avroComposingText,
+                                    candidates = avroCandidates,
+                                    theme = currentTheme,
+                                    onSelectCandidate = { chosen ->
+                                        actionTarget.onCommitText(chosen + " ")
+                                        avroComposingText = ""
+                                        performHaptic()
+                                    },
+                                    onClearComposing = {
+                                        avroComposingText = ""
+                                        performHaptic()
+                                    }
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                            }
+
                             rows.forEach { row ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -349,14 +377,15 @@ fun KeyNovaKeyboardView(
                                                 theme = currentTheme,
                                                 height = keyHeight,
                                                 switchMethod = switchMethod,
-                                                currentLanguage = currentLanguage,
+                                                currentLayout = currentLayout,
+                                                enabledLayouts = enabledLayouts,
                                                 isLanguageSpace = activePage == ActiveKeyboardPage.LETTERS,
                                                 rootCoordinates = keyboardRootCoordinates,
                                                 onShowPopup = { left, center, right, bounds, initialIndex ->
                                                     activeSpacePopup = SpacePopupState(
-                                                        leftLanguage = left,
-                                                        centerLanguage = center,
-                                                        rightLanguage = right,
+                                                        leftLayout = left,
+                                                        centerLayout = center,
+                                                        rightLayout = right,
                                                         selectedIndex = initialIndex,
                                                         spaceBarBounds = bounds
                                                     )
@@ -370,14 +399,27 @@ fun KeyNovaKeyboardView(
                                                 onDismissPopup = {
                                                     activeSpacePopup = null
                                                 },
-                                                onSelectLanguage = { chosen ->
-                                                    currentLanguage = chosen
-                                                    keyboardPreferences.activeLanguage = chosen
+                                                onSelectLayout = { chosen ->
+                                                    if (avroComposingText.isNotEmpty()) {
+                                                        val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                        actionTarget.onCommitText(primary)
+                                                        avroComposingText = ""
+                                                    }
+                                                    currentLayout = chosen
+                                                    currentLanguage = chosen.keyboardLanguage
+                                                    keyboardPreferences.activeLayoutId = chosen.id
+                                                    keyboardPreferences.activeLanguage = chosen.keyboardLanguage
                                                 },
                                                 onPerformHaptic = { performHaptic() },
                                                 onTap = {
                                                     performHaptic()
-                                                    actionTarget.onCommitText(" ")
+                                                    if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
+                                                        val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                        actionTarget.onCommitText(primary + " ")
+                                                        avroComposingText = ""
+                                                    } else {
+                                                        actionTarget.onCommitText(" ")
+                                                    }
                                                 },
                                                 modifier = Modifier.weight(keyDef.weight)
                                             )
@@ -388,10 +430,20 @@ fun KeyNovaKeyboardView(
                                                 height = keyHeight,
                                                 keyboardPreferences = keyboardPreferences,
                                                 onDelete = {
-                                                    actionTarget.onDeleteBackward()
+                                                    if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
+                                                        avroComposingText = avroComposingText.dropLast(1)
+                                                        performHaptic()
+                                                    } else {
+                                                        actionTarget.onDeleteBackward()
+                                                    }
                                                 },
                                                 onDeleteWord = {
-                                                    actionTarget.onDeleteWordBackward()
+                                                    if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
+                                                        avroComposingText = ""
+                                                        performHaptic()
+                                                    } else {
+                                                        actionTarget.onDeleteWordBackward()
+                                                    }
                                                 },
                                                 onPerformHaptic = {
                                                     performHaptic()
@@ -422,15 +474,18 @@ fun KeyNovaKeyboardView(
                                                     activeKeyPopup = null
                                                 },
                                                 onCommitAlternate = { text ->
+                                                    if (avroComposingText.isNotEmpty()) {
+                                                        val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                        actionTarget.onCommitText(primary)
+                                                        avroComposingText = ""
+                                                    }
                                                     actionTarget.onCommitText(text)
                                                     if (shiftState == ShiftState.SHIFTED) {
                                                         shiftState = ShiftState.OFF
-                                                    }
-                                                    if (isBanglaShifted) {
-                                                        isBanglaShifted = false
-                                                    }
-                                                    if (isHindiShifted) {
-                                                        isHindiShifted = false
+                                                        isShifted = false
+                                                    } else if (isShifted && currentLayout.languageCode != "en") {
+                                                        isShifted = false
+                                                        shiftState = ShiftState.OFF
                                                     }
                                                 },
                                                 onPerformHaptic = { performHaptic() },
@@ -438,41 +493,59 @@ fun KeyNovaKeyboardView(
                                                     performHaptic()
                                                     when (keyDef.action) {
                                                         KeyAction.CHARACTER -> {
-                                                            actionTarget.onCommitText(keyDef.primaryText)
+                                                            if (currentLayout.id == "bn_avro" && keyDef.primaryText.length == 1 && keyDef.primaryText[0].isLetter()) {
+                                                                avroComposingText += keyDef.primaryText
+                                                            } else {
+                                                                if (avroComposingText.isNotEmpty()) {
+                                                                    val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                                    actionTarget.onCommitText(primary)
+                                                                    avroComposingText = ""
+                                                                }
+                                                                actionTarget.onCommitText(keyDef.primaryText)
+                                                            }
                                                             if (shiftState == ShiftState.SHIFTED) {
                                                                 shiftState = ShiftState.OFF
-                                                            }
-                                                            if (isBanglaShifted) {
-                                                                isBanglaShifted = false
-                                                            }
-                                                            if (isHindiShifted) {
-                                                                isHindiShifted = false
+                                                                isShifted = false
+                                                            } else if (isShifted && currentLayout.languageCode != "en") {
+                                                                isShifted = false
+                                                                shiftState = ShiftState.OFF
                                                             }
                                                         }
                                                         KeyAction.SPACE -> {
-                                                            actionTarget.onCommitText(" ")
+                                                            if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
+                                                                val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                                actionTarget.onCommitText(primary + " ")
+                                                                avroComposingText = ""
+                                                            } else {
+                                                                actionTarget.onCommitText(" ")
+                                                            }
                                                         }
                                                         KeyAction.BACKSPACE -> {
-                                                            actionTarget.onDeleteBackward()
+                                                            if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
+                                                                avroComposingText = avroComposingText.dropLast(1)
+                                                            } else {
+                                                                actionTarget.onDeleteBackward()
+                                                            }
                                                         }
                                                         KeyAction.ENTER -> {
+                                                            if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
+                                                                val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                                actionTarget.onCommitText(primary)
+                                                                avroComposingText = ""
+                                                            }
                                                             actionTarget.onEnterAction()
                                                         }
                                                         KeyAction.SHIFT -> {
-                                                            when (currentLanguage) {
-                                                                KeyboardLanguage.ENGLISH -> {
-                                                                    shiftState = when (shiftState) {
-                                                                        ShiftState.OFF -> ShiftState.SHIFTED
-                                                                        ShiftState.SHIFTED -> ShiftState.CAPS_LOCKED
-                                                                        ShiftState.CAPS_LOCKED -> ShiftState.OFF
-                                                                    }
+                                                            if (currentLayout.languageCode == "en") {
+                                                                shiftState = when (shiftState) {
+                                                                    ShiftState.OFF -> ShiftState.SHIFTED
+                                                                    ShiftState.SHIFTED -> ShiftState.CAPS_LOCKED
+                                                                    ShiftState.CAPS_LOCKED -> ShiftState.OFF
                                                                 }
-                                                                KeyboardLanguage.BANGLA -> {
-                                                                    isBanglaShifted = !isBanglaShifted
-                                                                }
-                                                                KeyboardLanguage.HINDI -> {
-                                                                    isHindiShifted = !isHindiShifted
-                                                                }
+                                                                isShifted = shiftState != ShiftState.OFF
+                                                            } else {
+                                                                isShifted = !isShifted
+                                                                shiftState = if (isShifted) ShiftState.SHIFTED else ShiftState.OFF
                                                             }
                                                         }
                                                         KeyAction.SYMBOL_SWITCH -> {
@@ -484,8 +557,14 @@ fun KeyNovaKeyboardView(
                                                             }
                                                         }
                                                         KeyAction.LANGUAGE_SWITCH -> {
-                                                            val next = keyboardPreferences.cycleLanguage()
-                                                            currentLanguage = next
+                                                            if (avroComposingText.isNotEmpty()) {
+                                                                val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                                actionTarget.onCommitText(primary)
+                                                                avroComposingText = ""
+                                                            }
+                                                            val nextLayout = keyboardPreferences.cycleLayout(context = context)
+                                                            currentLayout = nextLayout
+                                                            currentLanguage = nextLayout.keyboardLanguage
                                                         }
                                                         KeyAction.CODING_PANEL -> {
                                                             activePage = ActiveKeyboardPage.SNIPPETS
@@ -567,8 +646,8 @@ private fun SpaceLanguageSwitcherPopup(
     val surfaceColor = Color(theme.surfaceHex)
     val textColor = Color(theme.textHex)
 
-    val popupWidthDp = 276.dp
-    val popupHeightDp = 50.dp
+    val popupWidthDp = 300.dp
+    val popupHeightDp = 54.dp
     val popupWidthPx = with(density) { popupWidthDp.toPx() }
     val popupHeightPx = with(density) { popupHeightDp.toPx() }
 
@@ -618,7 +697,7 @@ private fun SpaceLanguageSwitcherPopup(
                 .border(1.5.dp, accentColor.copy(alpha = 0.45f), RoundedCornerShape(25.dp))
                 .padding(4.dp)
         ) {
-            val languages = listOf(state.leftLanguage, state.centerLanguage, state.rightLanguage)
+            val layouts = listOf(state.leftLayout, state.centerLayout, state.rightLayout)
             val pillWidthDp = (popupWidthDp - 8.dp) / 3
 
             // Sliding selection indicator pill with smooth spring animation
@@ -634,12 +713,12 @@ private fun SpaceLanguageSwitcherPopup(
                     .background(accentColor)
             )
 
-            // Text labels for the 3 languages
+            // Text labels for the 3 layouts (Language Name on top, Layout Name on bottom)
             Row(
                 modifier = Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                languages.forEachIndexed { index, lang ->
+                layouts.forEachIndexed { index, layout ->
                     val isSelected = state.selectedIndex == index
                     Box(
                         modifier = Modifier
@@ -652,20 +731,20 @@ private fun SpaceLanguageSwitcherPopup(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = lang.nativeName,
-                                color = if (isSelected) Color.White else textColor.copy(alpha = 0.7f),
-                                fontSize = 13.5.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                text = layout.languageName,
+                                color = if (isSelected) Color.White else textColor.copy(alpha = 0.85f),
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                 textAlign = TextAlign.Center
                             )
-                            if (index == 1) {
-                                Text(
-                                    text = "Current",
-                                    color = if (isSelected) Color.White.copy(alpha = 0.85f) else textColor.copy(alpha = 0.45f),
-                                    fontSize = 7.5.sp,
-                                    fontWeight = FontWeight.Normal
-                                )
-                            }
+                            Text(
+                                text = layout.layoutName,
+                                color = if (isSelected) Color.White.copy(alpha = 0.9f) else textColor.copy(alpha = 0.5f),
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Normal,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
                         }
                     }
                 }
@@ -977,13 +1056,14 @@ private fun SpaceKeyItem(
     theme: KeyboardThemeOption,
     height: androidx.compose.ui.unit.Dp,
     switchMethod: LanguageSwitchMethod,
-    currentLanguage: KeyboardLanguage,
+    currentLayout: DynamicKeyboardLayout,
+    enabledLayouts: List<DynamicKeyboardLayout>,
     isLanguageSpace: Boolean,
     rootCoordinates: LayoutCoordinates?,
-    onShowPopup: (left: KeyboardLanguage, center: KeyboardLanguage, right: KeyboardLanguage, bounds: Rect, initialIndex: Int) -> Unit,
+    onShowPopup: (left: DynamicKeyboardLayout, center: DynamicKeyboardLayout, right: DynamicKeyboardLayout, bounds: Rect, initialIndex: Int) -> Unit,
     onUpdatePopupIndex: (newIndex: Int, dragDeltaX: Float) -> Unit,
     onDismissPopup: () -> Unit,
-    onSelectLanguage: (language: KeyboardLanguage) -> Unit,
+    onSelectLayout: (layout: DynamicKeyboardLayout) -> Unit,
     onPerformHaptic: () -> Unit,
     onTap: () -> Unit,
     modifier: Modifier = Modifier
@@ -1014,11 +1094,11 @@ private fun SpaceKeyItem(
             .onGloballyPositioned { coords ->
                 spaceCoordinates = coords
             }
-            .pointerInput(currentLanguage, switchMethod, isLanguageSpace, rootCoordinates) {
+            .pointerInput(currentLayout, switchMethod, isLanguageSpace, rootCoordinates, enabledLayouts) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     isPressed = true
-                    val triple = getLanguageTriple(currentLanguage)
+                    val triple = getLayoutTriple(currentLayout, enabledLayouts)
                     var currentSelectedIndex = 1
                     var isPopupActive = false
 
@@ -1071,16 +1151,16 @@ private fun SpaceKeyItem(
                                     2 -> triple.right
                                     else -> triple.center
                                 }
-                                onSelectLanguage(chosen)
+                                onSelectLayout(chosen)
                                 onPerformHaptic()
                                 break
                             }
 
                             val deltaX = change.position.x - down.position.x
                             val newIndex = when {
-                                deltaX < -thresholdPx -> 0 // Left language
-                                deltaX > thresholdPx -> 2  // Right language
-                                else -> 1                 // Center language
+                                deltaX < -thresholdPx -> 0 // Left layout
+                                deltaX > thresholdPx -> 2  // Right layout
+                                else -> 1                 // Center layout
                             }
 
                             if (newIndex != currentSelectedIndex) {
@@ -1097,48 +1177,48 @@ private fun SpaceKeyItem(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(horizontal = 4.dp)
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
         ) {
-            val label = if (isLanguageSpace) {
-                when (currentLanguage) {
-                    KeyboardLanguage.ENGLISH -> "English"
-                    KeyboardLanguage.BANGLA -> "জাতীয়"
-                    KeyboardLanguage.HINDI -> "हिन्दी"
-                }
-            } else {
-                keyDef.primaryText
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = "◀  ",
-                    color = textColor.copy(alpha = 0.45f),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = label,
-                    color = textColor.copy(alpha = 0.9f),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = "  ▶",
-                    color = textColor.copy(alpha = 0.45f),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
             if (isLanguageSpace) {
+                // Top line: Language Name
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "◀  ",
+                        color = textColor.copy(alpha = 0.4f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = currentLayout.languageName,
+                        color = textColor.copy(alpha = 0.95f),
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "  ▶",
+                        color = textColor.copy(alpha = 0.4f),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Bottom line: Layout Name
                 Text(
-                    text = "Hold & swipe to switch",
-                    color = textColor.copy(alpha = 0.45f),
-                    fontSize = 8.5.sp,
-                    lineHeight = 9.sp
+                    text = currentLayout.layoutName,
+                    color = accentColor.copy(alpha = 0.95f),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+            } else {
+                Text(
+                    text = keyDef.primaryText,
+                    color = textColor.copy(alpha = 0.9f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -1292,6 +1372,99 @@ private fun BackspaceKeyItem(
                     fontWeight = FontWeight.ExtraBold,
                     lineHeight = 7.5.sp
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AvroPhoneticSuggestionStrip(
+    composingText: String,
+    candidates: List<String>,
+    theme: KeyboardThemeOption,
+    onSelectCandidate: (String) -> Unit,
+    onClearComposing: () -> Unit
+) {
+    val accentColor = Color(theme.accentHex)
+    val textColor = Color(theme.textHex)
+    val surfaceColor = Color(theme.surfaceHex)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(34.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(surfaceColor)
+            .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(end = 6.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(4.dp),
+                color = accentColor.copy(alpha = 0.15f)
+            ) {
+                Text(
+                    text = if (composingText.isNotEmpty()) "[$composingText]" else "Avro",
+                    color = accentColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+            Text(
+                text = " ➔ ",
+                color = textColor.copy(alpha = 0.45f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        if (candidates.isEmpty()) {
+            Text(
+                text = "English to Bangla (e.g. ami ➔ আমি)",
+                color = textColor.copy(alpha = 0.5f),
+                fontSize = 11.sp,
+                maxLines = 1
+            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                candidates.forEachIndexed { index, candidate ->
+                    val isFirst = index == 0
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable { onSelectCandidate(candidate) },
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (isFirst) accentColor else surfaceColor,
+                        border = if (isFirst) null else androidx.compose.foundation.BorderStroke(0.5.dp, textColor.copy(alpha = 0.2f))
+                    ) {
+                        Text(
+                            text = candidate,
+                            color = if (isFirst) Color.White else textColor,
+                            fontSize = 13.5.sp,
+                            fontWeight = if (isFirst) FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+            }
+            if (composingText.isNotEmpty()) {
+                IconButton(
+                    onClick = onClearComposing,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Text("✕", color = textColor.copy(alpha = 0.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }

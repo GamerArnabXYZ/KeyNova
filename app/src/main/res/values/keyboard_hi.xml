@@ -1,0 +1,91 @@
+<resources>
+    <!-- Hindi Devanagari (हिन्दी) Layout Characters & Extra Keys -->
+
+    <!-- Hindi Consonants (व्यंजन) Row 1 -->
+    <string-array name="keyboard_hi_row1_consonants">
+        <item>क</item>
+        <item>ख</item>
+        <item>ग</item>
+        <item>घ</item>
+        <item>ङ</item>
+        <item>च</item>
+        <item>छ</item>
+        <item>ज</item>
+        <item>झ</item>
+        <item>ञ</item>
+    </string-array>
+
+    <!-- Hindi Consonants (व्यंजन) Row 2 -->
+    <string-array name="keyboard_hi_row2_consonants">
+        <item>ट</item>
+        <item>ठ</item>
+        <item>ड</item>
+        <item>ढ</item>
+        <item>ण</item>
+        <item>त</item>
+        <item>थ</item>
+        <item>द</item>
+        <item>ध</item>
+        <item>न</item>
+    </string-array>
+
+    <!-- Hindi Consonants (व्यंजन) Row 3 -->
+    <string-array name="keyboard_hi_row3_consonants">
+        <item>प</item>
+        <item>फ</item>
+        <item>ब</item>
+        <item>भ</item>
+        <item>म</item>
+        <item>य</item>
+        <item>र</item>
+        <item>ल</item>
+        <item>व</item>
+    </string-array>
+
+    <!-- Hindi Vowels (स्वर) Row 1 -->
+    <string-array name="keyboard_hi_row1_vowels">
+        <item>अ</item>
+        <item>आ</item>
+        <item>इ</item>
+        <item>ई</item>
+        <item>उ</item>
+        <item>ऊ</item>
+        <item>ऋ</item>
+        <item>ए</item>
+        <item>ऐ</item>
+        <item>ओ</item>
+    </string-array>
+
+    <!-- Hindi Matras (मात्राएं) Row 2 -->
+    <string-array name="keyboard_hi_row2_matras">
+        <item>ा</item>
+        <item>ि</item>
+        <item>ी</item>
+        <item>ु</item>
+        <item>ू</item>
+        <item>ृ</item>
+        <item>े</item>
+        <item>ै</item>
+        <item>ो</item>
+        <item>ौ</item>
+    </string-array>
+
+    <!-- Hindi Special Signs Row 3 -->
+    <string-array name="keyboard_hi_row3_special">
+        <item>্</item>
+        <item>ं</item>
+        <item>ः</item>
+        <item>ँ</item>
+        <item>स</item>
+        <item>ह</item>
+        <item>ड़</item>
+        <item>ढ़</item>
+        <item>औ</item>
+    </string-array>
+
+    <!-- Hindi Action Keys -->
+    <string name="key_hi_space_label">हिन्दी</string>
+    <string name="key_hi_shift_swar">स्वर</string>
+    <string name="key_hi_shift_vyanjan">व्यं</string>
+    <string name="key_hi_symbol_switch">\?123</string>
+</resources>

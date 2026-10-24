@@ -1,0 +1,201 @@
+<resources>
+    <!-- Symbols & Numbers Layout Configurations -->
+
+    <!-- Number Row English Digits -->
+    <string-array name="keyboard_numbers_en">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>7</item>
+        <item>8</item>
+        <item>9</item>
+        <item>0</item>
+    </string-array>
+
+    <!-- Number Row Bangla Digits -->
+    <string-array name="keyboard_numbers_bn">
+        <item>১</item>
+        <item>২</item>
+        <item>৩</item>
+        <item>৪</item>
+        <item>৫</item>
+        <item>৬</item>
+        <item>৭</item>
+        <item>৮</item>
+        <item>৯</item>
+        <item>০</item>
+    </string-array>
+
+    <!-- Symbols Page 1 (?123) Row 1 Primary -->
+    <string-array name="keyboard_symbols1_row1">
+        <item>~</item>
+        <item>\\</item>
+        <item>&lt;</item>
+        <item>&gt;</item>
+        <item>_</item>
+        <item>=</item>
+        <item>[</item>
+        <item>]</item>
+    </string-array>
+
+    <!-- Symbols Page 1 (?123) Row 2 Primary -->
+    <string-array name="keyboard_symbols1_row2">
+        <item>\@</item>
+        <item>#</item>
+        <item>৳</item>
+        <item>%</item>
+        <item>&amp;</item>
+        <item>*</item>
+        <item>-</item>
+        <item>+</item>
+        <item>(</item>
+        <item>)</item>
+    </string-array>
+
+    <!-- Symbols Page 1 (?123) Row 2 Secondary Hints -->
+    <string-array name="keyboard_symbols1_row2_secondary">
+        <item></item>
+        <item></item>
+        <item>$</item>
+        <item></item>
+        <item></item>
+        <item>★</item>
+        <item>_</item>
+        <item></item>
+        <item>&lt;</item>
+        <item>&gt;</item>
+    </string-array>
+
+    <!-- Symbols Page 1 (?123) Row 3 Primary -->
+    <string-array name="keyboard_symbols1_row3">
+        <item>!</item>
+        <item>\"</item>
+        <item>\'</item>
+        <item>:</item>
+        <item>;</item>
+        <item>/</item>
+        <item>\?</item>
+    </string-array>
+
+    <!-- Symbols Page 1 (?123) Row 3 Secondary Hints -->
+    <string-array name="keyboard_symbols1_row3_secondary">
+        <item></item>
+        <item></item>
+        <item></item>
+        <item>°</item>
+        <item></item>
+        <item></item>
+        <item></item>
+    </string-array>
+
+    <!-- Symbols Page 2 (= \ <) Row 0 Primary -->
+    <string-array name="keyboard_symbols2_row0">
+        <item>☞</item>
+        <item>◐</item>
+        <item>⊕</item>
+        <item>✖</item>
+        <item>✔</item>
+        <item>✪</item>
+        <item>∞</item>
+        <item>⇒</item>
+        <item>➤</item>
+        <item>✆</item>
+    </string-array>
+
+    <!-- Symbols Page 2 Row 0 Secondary Hints -->
+    <string-array name="keyboard_symbols2_row0_secondary">
+        <item></item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item>★</item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item>✉</item>
+    </string-array>
+
+    <!-- Symbols Page 2 Row 1 Primary -->
+    <string-array name="keyboard_symbols2_row1">
+        <item>~</item>
+        <item>`</item>
+        <item>|</item>
+        <item>₹</item>
+        <item>√</item>
+        <item>π</item>
+        <item>÷</item>
+        <item>×</item>
+        <item>{</item>
+        <item>}</item>
+    </string-array>
+
+    <!-- Symbols Page 2 Row 1 Secondary Hints -->
+    <string-array name="keyboard_symbols2_row1_secondary">
+        <item></item>
+        <item></item>
+        <item></item>
+        <item>৹</item>
+        <item></item>
+        <item>Π</item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item></item>
+    </string-array>
+
+    <!-- Symbols Page 2 Row 2 Primary -->
+    <string-array name="keyboard_symbols2_row2">
+        <item>£</item>
+        <item>$</item>
+        <item>%</item>
+        <item>^</item>
+        <item>°</item>
+        <item>_</item>
+        <item>=</item>
+        <item>[</item>
+        <item>]</item>
+    </string-array>
+
+    <!-- Symbols Page 2 Row 2 Secondary Hints -->
+    <string-array name="keyboard_symbols2_row2_secondary">
+        <item></item>
+        <item></item>
+        <item></item>
+        <item>→</item>
+        <item>•</item>
+        <item></item>
+        <item>≠</item>
+        <item></item>
+        <item></item>
+    </string-array>
+
+    <!-- Symbols Page 2 Row 3 Primary -->
+    <string-array name="keyboard_symbols2_row3">
+        <item>✥</item>
+        <item>®</item>
+        <item>©</item>
+        <item>™</item>
+        <item>\\</item>
+        <item>&lt;</item>
+        <item>&gt;</item>
+    </string-array>
+
+    <!-- Symbols Page 2 Row 3 Secondary Hints -->
+    <string-array name="keyboard_symbols2_row3_secondary">
+        <item>র‍্য</item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item></item>
+    </string-array>
+
+    <!-- Switch Labels -->
+    <string name="key_symbols_switch_page2">= \\ &lt;</string>
+    <string name="key_symbols_switch_abc">ABC</string>
+</resources>

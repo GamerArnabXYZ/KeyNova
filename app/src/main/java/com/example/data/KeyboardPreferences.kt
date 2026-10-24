@@ -131,82 +131,114 @@ enum class ActiveKeyboardPage {
 
 enum class ToolbarTool(
     val id: String,
+    val titleRes: Int,
+    val descriptionRes: Int,
     val title: String,
     val description: String,
     val defaultEnabled: Boolean
 ) {
     EMOJI(
         id = "emoji",
+        titleRes = com.example.R.string.tool_emoji_title,
+        descriptionRes = com.example.R.string.tool_emoji_desc,
         title = "Emoji & Emoticons",
         description = "Quick access to smileys, emojis, and emotional reactions",
         defaultEnabled = true
     ),
     CLIPBOARD(
         id = "clipboard",
+        titleRes = com.example.R.string.tool_clipboard_title,
+        descriptionRes = com.example.R.string.tool_clipboard_desc,
         title = "Clipboard Manager",
         description = "Access recent copied text and pinned quick clips",
         defaultEnabled = true
     ),
     TEXT_EDITING(
         id = "text_editing",
+        titleRes = com.example.R.string.tool_text_editing_title,
+        descriptionRes = com.example.R.string.tool_text_editing_desc,
         title = "Text Editor & D-Pad",
         description = "Precision cursor navigation, text selection, copy, cut, and paste",
         defaultEnabled = true
     ),
     NUMPAD(
         id = "numpad",
+        titleRes = com.example.R.string.tool_numpad_title,
+        descriptionRes = com.example.R.string.tool_numpad_desc,
         title = "Numeric Keypad",
         description = "Calculator-style 10-key numpad with mathematical operators",
         defaultEnabled = true
     ),
     SNIPPETS(
         id = "snippets",
+        titleRes = com.example.R.string.tool_snippets_title,
+        descriptionRes = com.example.R.string.tool_snippets_desc,
         title = "Quick Snippets",
         description = "Pre-saved code snippets, email templates, and fast replies",
         defaultEnabled = false
     ),
     CODING(
         id = "coding",
+        titleRes = com.example.R.string.tool_coding_title,
+        descriptionRes = com.example.R.string.tool_coding_desc,
         title = "Coding Symbols",
         description = "Programming brackets {}, [], <>, logic operators, and symbols",
         defaultEnabled = true
     ),
     GAMING(
         id = "gaming",
+        titleRes = com.example.R.string.tool_gaming_title,
+        descriptionRes = com.example.R.string.tool_gaming_desc,
         title = "Gaming Keypad",
         description = "WASD layout, dedicated arrow keys, and gaming hotkeys",
         defaultEnabled = false
     ),
     THEMES(
         id = "themes",
+        titleRes = com.example.R.string.tool_themes_title,
+        descriptionRes = com.example.R.string.tool_themes_desc,
         title = "Theme Switcher",
         description = "Quickly cycle through keyboard color themes on the fly",
         defaultEnabled = true
     ),
     ONE_HANDED(
         id = "one_handed",
+        titleRes = com.example.R.string.tool_one_handed_title,
+        descriptionRes = com.example.R.string.tool_one_handed_desc,
         title = "One-Handed Mode",
         description = "Dock keyboard to the left or right for easier single-hand thumb typing",
         defaultEnabled = false
     ),
     CASE_CONVERTER(
         id = "case_converter",
+        titleRes = com.example.R.string.tool_case_converter_title,
+        descriptionRes = com.example.R.string.tool_case_converter_desc,
         title = "Case Converter",
         description = "Cycle case of text between lowercase, Title Case, and UPPERCASE",
         defaultEnabled = false
     ),
     CLEAR_TEXT(
         id = "clear_text",
+        titleRes = com.example.R.string.tool_clear_text_title,
+        descriptionRes = com.example.R.string.tool_clear_text_desc,
         title = "Clear All Text",
         description = "Instant single-tap wipe of the current input field",
         defaultEnabled = false
     ),
     SETTINGS(
         id = "settings",
+        titleRes = com.example.R.string.tool_settings_title,
+        descriptionRes = com.example.R.string.tool_settings_desc,
         title = "Keyboard Settings",
         description = "Direct shortcut to customize KeyNova preferences",
         defaultEnabled = true
     );
+
+    fun getLocalizedTitle(context: Context): String =
+        runCatching { context.getString(titleRes) }.getOrDefault(title)
+
+    fun getLocalizedDesc(context: Context): String =
+        runCatching { context.getString(descriptionRes) }.getOrDefault(description)
 
     companion object {
         const val MAX_ENABLED_TOOLS = 7
@@ -385,6 +417,42 @@ class KeyboardPreferences(context: Context) {
         enabledToolbarTools = ToolbarTool.DEFAULT_TOOL_IDS.mapNotNull { ToolbarTool.fromId(it) }
     }
 
+    var activeLayoutId: String
+        get() = prefs.getString(KEY_ACTIVE_LAYOUT_ID, "en_qwerty") ?: "en_qwerty"
+        set(value) {
+            prefs.edit().putString(KEY_ACTIVE_LAYOUT_ID, value).apply()
+            val layout = com.example.ime.KeyboardLayoutRegistry.getLayoutById(value)
+            prefs.edit().putString(KEY_ACTIVE_LANG, layout.languageCode).apply()
+        }
+
+    var enabledLayoutIds: Set<String>
+        get() {
+            val defaultSet = setOf("en_qwerty", "bn_jatiya", "bn_avro", "hi_devanagari")
+            val raw = prefs.getStringSet(KEY_ENABLED_LAYOUT_IDS, defaultSet) ?: defaultSet
+            return raw.ifEmpty { setOf("en_qwerty") }
+        }
+        set(value) {
+            prefs.edit().putStringSet(KEY_ENABLED_LAYOUT_IDS, value).apply()
+        }
+
+    fun getActiveLayout(context: Context? = null): com.example.ime.DynamicKeyboardLayout {
+        return com.example.ime.KeyboardLayoutRegistry.getLayoutById(activeLayoutId, context)
+    }
+
+    fun cycleLayout(reverse: Boolean = false, context: Context? = null): com.example.ime.DynamicKeyboardLayout {
+        val allLayouts = com.example.ime.KeyboardLayoutRegistry.getLayouts(context)
+        val enabledList = allLayouts.filter { enabledLayoutIds.contains(it.id) }.ifEmpty { allLayouts }
+        val currentIdx = enabledList.indexOfFirst { it.id.equals(activeLayoutId, ignoreCase = true) }
+        val nextIdx = if (reverse) {
+            if (currentIdx <= 0) enabledList.size - 1 else currentIdx - 1
+        } else {
+            if (currentIdx == -1 || currentIdx >= enabledList.size - 1) 0 else currentIdx + 1
+        }
+        val nextLayout = enabledList[nextIdx]
+        activeLayoutId = nextLayout.id
+        return nextLayout
+    }
+
     fun cycleLanguage(reverse: Boolean = false): KeyboardLanguage {
         val enabled = enabledLanguages.toList()
         if (enabled.isEmpty()) return KeyboardLanguage.ENGLISH
@@ -396,6 +464,11 @@ class KeyboardPreferences(context: Context) {
         }
         val nextLang = enabled[nextIndex]
         activeLanguage = nextLang
+        // Also update activeLayoutId if matching
+        val matchingLayout = enabledLayoutIds.firstOrNull { it.startsWith(nextLang.code) }
+        if (matchingLayout != null) {
+            activeLayoutId = matchingLayout
+        }
         return nextLang
     }
 
@@ -421,5 +494,7 @@ class KeyboardPreferences(context: Context) {
         private const val KEY_DELETE_REPEAT_INTERVAL = "key_delete_repeat_interval"
         private const val KEY_DELETE_HAPTIC = "key_delete_haptic"
         private const val KEY_ENABLED_TOOLBAR_TOOLS = "key_enabled_toolbar_tools"
+        private const val KEY_ACTIVE_LAYOUT_ID = "key_active_layout_id"
+        private const val KEY_ENABLED_LAYOUT_IDS = "key_enabled_layout_ids"
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import com.example.data.ClipboardRepository
 import com.example.data.KeyboardPreferences
 import com.example.data.SnippetsRepository
+import com.example.ime.KeyboardLayoutModel
 import com.example.ui.screens.*
 import com.example.ui.theme.MyApplicationTheme
 
@@ -46,6 +47,7 @@ class MainActivity : ComponentActivity() {
         preferences = KeyboardPreferences(this)
         clipboardRepo = ClipboardRepository(this)
         snippetsRepo = SnippetsRepository(this)
+        KeyboardLayoutModel.init(this)
 
         setContent {
             MyApplicationTheme {

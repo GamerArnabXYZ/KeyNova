@@ -1,0 +1,86 @@
+<resources>
+    <!-- Coding Layout Keys -->
+    <string-array name="keyboard_coding_row1">
+        <item>{</item>
+        <item>}</item>
+        <item>[</item>
+        <item>]</item>
+        <item>(</item>
+        <item>)</item>
+        <item>&lt;</item>
+        <item>&gt;</item>
+        <item>/</item>
+        <item>\\</item>
+    </string-array>
+
+    <string-array name="keyboard_coding_row2">
+        <item>\@</item>
+        <item>#</item>
+        <item>$</item>
+        <item>%</item>
+        <item>^</item>
+        <item>&amp;</item>
+        <item>*</item>
+        <item>-</item>
+        <item>+</item>
+        <item>=</item>
+    </string-array>
+
+    <string-array name="keyboard_coding_row4">
+        <item>;</item>
+        <item>:</item>
+        <item>\'</item>
+        <item>\"</item>
+        <item>_</item>
+        <item>|</item>
+        <item>!</item>
+        <item>\?</item>
+    </string-array>
+
+    <string name="key_coding_snippets">&lt;/&gt; Snippets</string>
+    <string name="key_coding_tab">Tab</string>
+    <string name="key_coding_space">Code Space</string>
+
+    <!-- Gaming Layout Keys -->
+    <string name="key_gaming_gg">GG</string>
+    <string name="key_gaming_glhf">glhf</string>
+    <string name="key_gaming_afk">AFK</string>
+    <string name="key_gaming_space">Game Space</string>
+
+    <!-- Toolbar Tools Metadata (Titles & Descriptions) -->
+    <string name="tool_emoji_title">Emoji &amp; Emoticons</string>
+    <string name="tool_emoji_desc">Quick access to smileys, emojis, and emotional reactions</string>
+
+    <string name="tool_clipboard_title">Clipboard Manager</string>
+    <string name="tool_clipboard_desc">Access recent copied text and pinned quick clips</string>
+
+    <string name="tool_text_editing_title">Text Editor &amp; D-Pad</string>
+    <string name="tool_text_editing_desc">Precision cursor navigation, text selection, copy, cut, and paste</string>
+
+    <string name="tool_numpad_title">Numeric Keypad</string>
+    <string name="tool_numpad_desc">Calculator-style 10-key numpad with mathematical operators</string>
+
+    <string name="tool_snippets_title">Quick Snippets</string>
+    <string name="tool_snippets_desc">Pre-saved code snippets, email templates, and fast replies</string>
+
+    <string name="tool_coding_title">Coding Symbols</string>
+    <string name="tool_coding_desc">Programming brackets {}, [], &lt;&gt;, logic operators, and symbols</string>
+
+    <string name="tool_gaming_title">Gaming Keypad</string>
+    <string name="tool_gaming_desc">WASD layout, dedicated arrow keys, and gaming hotkeys</string>
+
+    <string name="tool_themes_title">Theme Switcher</string>
+    <string name="tool_themes_desc">Quickly cycle through keyboard color themes on the fly</string>
+
+    <string name="tool_one_handed_title">One-Handed Mode</string>
+    <string name="tool_one_handed_desc">Dock keyboard to the left or right for easier single-hand thumb typing</string>
+
+    <string name="tool_case_converter_title">Case Converter</string>
+    <string name="tool_case_converter_desc">Cycle case of text between lowercase, Title Case, and UPPERCASE</string>
+
+    <string name="tool_clear_text_title">Clear All Text</string>
+    <string name="tool_clear_text_desc">Instant single-tap wipe of the current input field</string>
+
+    <string name="tool_settings_title">Keyboard Settings</string>
+    <string name="tool_settings_desc">Direct shortcut to customize KeyNova preferences</string>
+</resources>

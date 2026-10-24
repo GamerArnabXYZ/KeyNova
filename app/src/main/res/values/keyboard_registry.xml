@@ -1,0 +1,245 @@
+<resources>
+    <!-- =================================================================== -->
+    <!-- DYNAMIC KEYBOARD LANGUAGE & LAYOUT REGISTRY                         -->
+    <!-- To add a new language or layout, simply:                           -->
+    <!-- 1. Add your layout ID to 'registered_keyboard_layouts' array below -->
+    <!-- 2. Define layout_<id>_lang_code, lang_name, layout_name            -->
+    <!-- 3. Define row1, row2, row3 (and optional shifted rows)              -->
+    <!-- The app will automatically register and adapt without touching Kotlin! -->
+    <!-- =================================================================== -->
+
+    <string-array name="registered_keyboard_layouts">
+        <item>en_qwerty</item>
+        <item>bn_jatiya</item>
+        <item>bn_avro</item>
+        <item>hi_devanagari</item>
+    </string-array>
+
+    <!-- =================================================================== -->
+    <!-- 1. ENGLISH QWERTY                                                   -->
+    <!-- =================================================================== -->
+    <string name="layout_en_qwerty_lang_code">en</string>
+    <string name="layout_en_qwerty_lang_name">English</string>
+    <string name="layout_en_qwerty_layout_name">QWERTY</string>
+    <string name="layout_en_qwerty_script">Latin</string>
+    <string name="layout_en_qwerty_space_label">English</string>
+    <string name="layout_en_qwerty_symbol_switch">\?123</string>
+    <string name="layout_en_qwerty_period">.</string>
+
+    <string-array name="layout_en_qwerty_row1">
+        <item>q</item><item>w</item><item>e</item><item>r</item><item>t</item>
+        <item>y</item><item>u</item><item>i</item><item>o</item><item>p</item>
+    </string-array>
+    <string-array name="layout_en_qwerty_row1_upper">
+        <item>Q</item><item>W</item><item>E</item><item>R</item><item>T</item>
+        <item>Y</item><item>U</item><item>I</item><item>O</item><item>P</item>
+    </string-array>
+    <string-array name="layout_en_qwerty_row1_sec">
+        <item>৳</item><item>%</item><item>_</item><item>;</item><item>&lt;</item>
+        <item>&gt;</item><item>+</item><item>=</item><item>[</item><item>]</item>
+    </string-array>
+
+    <string-array name="layout_en_qwerty_row2">
+        <item>a</item><item>s</item><item>d</item><item>f</item><item>g</item>
+        <item>h</item><item>j</item><item>k</item><item>l</item>
+    </string-array>
+    <string-array name="layout_en_qwerty_row2_upper">
+        <item>A</item><item>S</item><item>D</item><item>F</item><item>G</item>
+        <item>H</item><item>J</item><item>K</item><item>L</item>
+    </string-array>
+    <string-array name="layout_en_qwerty_row2_sec">
+        <item>\@</item><item>#</item><item>&amp;</item><item>*</item><item>-</item>
+        <item>!</item><item>\?</item><item>(</item><item>)</item>
+    </string-array>
+
+    <string-array name="layout_en_qwerty_row3">
+        <item>z</item><item>x</item><item>c</item><item>v</item>
+        <item>b</item><item>n</item><item>m</item>
+    </string-array>
+    <string-array name="layout_en_qwerty_row3_upper">
+        <item>Z</item><item>X</item><item>C</item><item>V</item>
+        <item>B</item><item>N</item><item>M</item>
+    </string-array>
+    <string-array name="layout_en_qwerty_row3_sec">
+        <item>\"</item><item></item><item></item><item></item>
+        <item>\'</item><item>:</item><item>/</item>
+    </string-array>
+
+
+    <!-- =================================================================== -->
+    <!-- 2. BANGLA JATIYA (জাতীয় / National Layout)                          -->
+    <!-- =================================================================== -->
+    <string name="layout_bn_jatiya_lang_code">bn</string>
+    <string name="layout_bn_jatiya_lang_name">বাংলা</string>
+    <string name="layout_bn_jatiya_layout_name">জাতীয় (National)</string>
+    <string name="layout_bn_jatiya_script">Bengali</string>
+    <string name="layout_bn_jatiya_space_label">জাতীয়</string>
+    <string name="layout_bn_jatiya_symbol_switch">\?১২৩</string>
+    <string name="layout_bn_jatiya_period">।</string>
+
+    <string-array name="layout_bn_jatiya_row1">
+        <item>ঙ</item><item>য</item><item>ড</item><item>প</item><item>ট</item>
+        <item>চ</item><item>জ</item><item>হ</item><item>গ</item><item>ড়</item>
+    </string-array>
+    <string-array name="layout_bn_jatiya_row1_sec">
+        <item>ং</item><item>য়</item><item>ঢ</item><item>ফ</item><item>ঠ</item>
+        <item>ছ</item><item>ঝ</item><item>ঞ</item><item>ঘ</item><item>ঢ়</item>
+    </string-array>
+
+    <string-array name="layout_bn_jatiya_row2">
+        <item>ৃ</item><item>ু</item><item>ি</item><item>ব</item><item>্</item>
+        <item>া</item><item>ক</item><item>ত</item><item>দ</item>
+    </string-array>
+    <string-array name="layout_bn_jatiya_row2_sec">
+        <item>ঋ</item><item>উ</item><item>ই</item><item>ভ</item><item></item>
+        <item>আ</item><item>খ</item><item>ৎ</item><item>ধ</item>
+    </string-array>
+
+    <string-array name="layout_bn_jatiya_row3">
+        <item>ঁ</item><item>ো</item><item>ে</item><item>র</item>
+        <item>ন</item><item>স</item><item>ম</item>
+    </string-array>
+    <string-array name="layout_bn_jatiya_row3_sec">
+        <item>ঃ</item><item>ও</item><item>এ</item><item>ল</item>
+        <item>ণ</item><item>ষ</item><item>শ</item>
+    </string-array>
+
+    <!-- Shifted Bangla Jatiya -->
+    <string-array name="layout_bn_jatiya_shift_row1">
+        <item>ং</item><item>্য</item><item>ঢ</item><item>ফ</item><item>ঠ</item>
+        <item>ছ</item><item>ঝ</item><item>ঞ</item><item>ঘ</item><item>ঢ়</item>
+    </string-array>
+    <string-array name="layout_bn_jatiya_shift_row2">
+        <item>ঋ</item><item>ূ</item><item>ী</item><item>ভ</item><item>’</item>
+        <item>অ</item><item>খ</item><item>থ</item><item>ধ</item>
+    </string-array>
+    <string-array name="layout_bn_jatiya_shift_row2_sec">
+        <item></item><item>ঊ</item><item>ঈ</item><item></item><item></item>
+        <item></item><item></item><item></item><item></item>
+    </string-array>
+    <string-array name="layout_bn_jatiya_shift_row3">
+        <item>ঃ</item><item>ৌ</item><item>ৈ</item><item>্র</item>
+        <item>ণ</item><item>ষ</item><item>শ</item>
+    </string-array>
+    <string-array name="layout_bn_jatiya_shift_row3_sec">
+        <item></item><item>ঔ</item><item>ঐ</item><item></item>
+        <item></item><item></item><item></item>
+    </string-array>
+
+
+    <!-- =================================================================== -->
+    <!-- 3. BANGLA AVRO (অভ্র ফনেটিক / Avro Phonetic Layout)                  -->
+    <!-- Requested by user as example of easy XML-based extension            -->
+    <!-- =================================================================== -->
+    <string name="layout_bn_avro_lang_code">bn</string>
+    <string name="layout_bn_avro_lang_name">বাংলা</string>
+    <string name="layout_bn_avro_layout_name">Avro (Phonetic)</string>
+    <string name="layout_bn_avro_script">Bengali Phonetic</string>
+    <string name="layout_bn_avro_space_label">Avro</string>
+    <string name="layout_bn_avro_symbol_switch">\?১২৩</string>
+    <string name="layout_bn_avro_period">।</string>
+
+    <string-array name="layout_bn_avro_row1">
+        <item>q</item><item>w</item><item>e</item><item>r</item><item>t</item>
+        <item>y</item><item>u</item><item>i</item><item>o</item><item>p</item>
+    </string-array>
+    <string-array name="layout_bn_avro_row1_upper">
+        <item>Q</item><item>W</item><item>E</item><item>R</item><item>T</item>
+        <item>Y</item><item>U</item><item>I</item><item>O</item><item>P</item>
+    </string-array>
+    <string-array name="layout_bn_avro_row1_sec">
+        <item>ং</item><item>ও</item><item>এ</item><item>র</item><item>ট</item>
+        <item>য়</item><item>ু</item><item>ি</item><item>অ</item><item>প</item>
+    </string-array>
+
+    <string-array name="layout_bn_avro_row2">
+        <item>a</item><item>s</item><item>d</item><item>f</item><item>g</item>
+        <item>h</item><item>j</item><item>k</item><item>l</item>
+    </string-array>
+    <string-array name="layout_bn_avro_row2_upper">
+        <item>A</item><item>S</item><item>D</item><item>F</item><item>G</item>
+        <item>H</item><item>J</item><item>K</item><item>L</item>
+    </string-array>
+    <string-array name="layout_bn_avro_row2_sec">
+        <item>আ</item><item>স</item><item>ড</item><item>ফ</item><item>গ</item>
+        <item>হ</item><item>জ</item><item>ক</item><item>ল</item>
+    </string-array>
+
+    <string-array name="layout_bn_avro_row3">
+        <item>z</item><item>x</item><item>c</item><item>v</item>
+        <item>b</item><item>n</item><item>m</item>
+    </string-array>
+    <string-array name="layout_bn_avro_row3_upper">
+        <item>Z</item><item>X</item><item>C</item><item>V</item>
+        <item>B</item><item>N</item><item>M</item>
+    </string-array>
+    <string-array name="layout_bn_avro_row3_sec">
+        <item>য</item><item>ক্স</item><item>চ</item><item>ভ</item>
+        <item>ব</item><item>ন</item><item>ম</item>
+    </string-array>
+
+    <!-- Shifted Bangla Avro (uppercase QWERTY with shifted phonetic hints) -->
+    <string-array name="layout_bn_avro_shift_row1">
+        <item>Q</item><item>W</item><item>E</item><item>R</item><item>T</item>
+        <item>Y</item><item>U</item><item>I</item><item>O</item><item>P</item>
+    </string-array>
+    <string-array name="layout_bn_avro_shift_row1_sec">
+        <item>ং</item><item>ঔ</item><item>ঐ</item><item>ড়</item><item>ঠ</item>
+        <item>য়</item><item>ূ</item><item>ী</item><item>ও</item><item>ফ</item>
+    </string-array>
+    <string-array name="layout_bn_avro_shift_row2">
+        <item>A</item><item>S</item><item>D</item><item>F</item><item>G</item>
+        <item>H</item><item>J</item><item>K</item><item>L</item>
+    </string-array>
+    <string-array name="layout_bn_avro_shift_row2_sec">
+        <item>অ</item><item>শ</item><item>ঢ</item><item>ফ</item><item>ঘ</item>
+        <item>ঃ</item><item>ঝ</item><item>খ</item><item>ল</item>
+    </string-array>
+    <string-array name="layout_bn_avro_shift_row3">
+        <item>Z</item><item>X</item><item>C</item><item>V</item>
+        <item>B</item><item>N</item><item>M</item>
+    </string-array>
+    <string-array name="layout_bn_avro_shift_row3_sec">
+        <item>য</item><item>ক্ষ</item><item>ছ</item><item>ভ</item>
+        <item>ব</item><item>ণ</item><item>ম</item>
+    </string-array>
+
+
+    <!-- =================================================================== -->
+    <!-- 4. HINDI DEVANAGARI (हिन्दी)                                        -->
+    <!-- =================================================================== -->
+    <string name="layout_hi_devanagari_lang_code">hi</string>
+    <string name="layout_hi_devanagari_lang_name">हिन्दी</string>
+    <string name="layout_hi_devanagari_layout_name">Devanagari</string>
+    <string name="layout_hi_devanagari_script">Devanagari</string>
+    <string name="layout_hi_devanagari_space_label">हिन्दी</string>
+    <string name="layout_hi_devanagari_symbol_switch">\?123</string>
+    <string name="layout_hi_devanagari_period">।</string>
+
+    <string-array name="layout_hi_devanagari_row1">
+        <item>क</item><item>ख</item><item>ग</item><item>घ</item><item>ङ</item>
+        <item>च</item><item>छ</item><item>ज</item><item>झ</item><item>ञ</item>
+    </string-array>
+    <string-array name="layout_hi_devanagari_row2">
+        <item>ट</item><item>ठ</item><item>ड</item><item>ढ</item><item>ण</item>
+        <item>त</item><item>थ</item><item>द</item><item>ध</item><item>न</item>
+    </string-array>
+    <string-array name="layout_hi_devanagari_row3">
+        <item>प</item><item>फ</item><item>ब</item><item>भ</item>
+        <item>म</item><item>य</item><item>र</item><item>ल</item><item>व</item>
+    </string-array>
+
+    <!-- Shifted Hindi Devanagari (Vowels & Matras) -->
+    <string-array name="layout_hi_devanagari_shift_row1">
+        <item>अ</item><item>आ</item><item>इ</item><item>ई</item><item>उ</item>
+        <item>ऊ</item><item>ऋ</item><item>ए</item><item>ऐ</item><item>ओ</item>
+    </string-array>
+    <string-array name="layout_hi_devanagari_shift_row2">
+        <item>ा</item><item>ि</item><item>ी</item><item>ु</item><item>ू</item>
+        <item>ृ</item><item>े</item><item>ै</item><item>ो</item><item>ौ</item>
+    </string-array>
+    <string-array name="layout_hi_devanagari_shift_row3">
+        <item>্</item><item>ं</item><item>ঃ</item><item>ँ</item>
+        <item>स</item><item>ह</item><item>ड़</item><item>ढ़</item><item>औ</item>
+    </string-array>
+</resources>

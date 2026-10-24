@@ -1,0 +1,146 @@
+<resources>
+    <!-- Bangla Jatiya (জাতীয়) Layout Characters & Extra Keys -->
+
+    <!-- Unshifted Row 1 Primary Keys -->
+    <string-array name="keyboard_bn_row1_unshifted">
+        <item>ঙ</item>
+        <item>য</item>
+        <item>ড</item>
+        <item>প</item>
+        <item>ট</item>
+        <item>চ</item>
+        <item>জ</item>
+        <item>হ</item>
+        <item>গ</item>
+        <item>ড়</item>
+    </string-array>
+
+    <!-- Unshifted Row 1 Secondary Hints -->
+    <string-array name="keyboard_bn_row1_secondary">
+        <item>ং</item>
+        <item>য়</item>
+        <item>ঢ</item>
+        <item>ফ</item>
+        <item>ঠ</item>
+        <item>ছ</item>
+        <item>ঝ</item>
+        <item>ঞ</item>
+        <item>ঘ</item>
+        <item>ঢ়</item>
+    </string-array>
+
+    <!-- Unshifted Row 2 Primary Keys -->
+    <string-array name="keyboard_bn_row2_unshifted">
+        <item>ৃ</item>
+        <item>ু</item>
+        <item>ি</item>
+        <item>ব</item>
+        <item>্</item>
+        <item>া</item>
+        <item>ক</item>
+        <item>ত</item>
+        <item>দ</item>
+    </string-array>
+
+    <!-- Unshifted Row 2 Secondary Hints -->
+    <string-array name="keyboard_bn_row2_secondary">
+        <item>ঋ</item>
+        <item>উ</item>
+        <item>ই</item>
+        <item>ভ</item>
+        <item></item>
+        <item>আ</item>
+        <item>খ</item>
+        <item>ৎ</item>
+        <item>ধ</item>
+    </string-array>
+
+    <!-- Unshifted Row 3 Primary Keys -->
+    <string-array name="keyboard_bn_row3_unshifted">
+        <item>ঁ</item>
+        <item>ো</item>
+        <item>ে</item>
+        <item>র</item>
+        <item>ন</item>
+        <item>স</item>
+        <item>ম</item>
+    </string-array>
+
+    <!-- Unshifted Row 3 Secondary Hints -->
+    <string-array name="keyboard_bn_row3_secondary">
+        <item>ঃ</item>
+        <item>ও</item>
+        <item>এ</item>
+        <item>ল</item>
+        <item>ণ</item>
+        <item>ষ</item>
+        <item>শ</item>
+    </string-array>
+
+    <!-- Shifted Row 1 Primary Keys -->
+    <string-array name="keyboard_bn_row1_shifted">
+        <item>ং</item>
+        <item>্য</item>
+        <item>ঢ</item>
+        <item>ফ</item>
+        <item>ঠ</item>
+        <item>ছ</item>
+        <item>ঝ</item>
+        <item>ঞ</item>
+        <item>ঘ</item>
+        <item>ঢ়</item>
+    </string-array>
+
+    <!-- Shifted Row 2 Primary Keys -->
+    <string-array name="keyboard_bn_row2_shifted">
+        <item>ঋ</item>
+        <item>ূ</item>
+        <item>ী</item>
+        <item>ভ</item>
+        <item>’</item>
+        <item>অ</item>
+        <item>খ</item>
+        <item>থ</item>
+        <item>ধ</item>
+    </string-array>
+
+    <!-- Shifted Row 2 Secondary Hints -->
+    <string-array name="keyboard_bn_row2_shifted_secondary">
+        <item></item>
+        <item>ঊ</item>
+        <item>ঈ</item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item></item>
+    </string-array>
+
+    <!-- Shifted Row 3 Primary Keys -->
+    <string-array name="keyboard_bn_row3_shifted">
+        <item>ঃ</item>
+        <item>ৌ</item>
+        <item>ৈ</item>
+        <item>্র</item>
+        <item>ণ</item>
+        <item>ষ</item>
+        <item>শ</item>
+    </string-array>
+
+    <!-- Shifted Row 3 Secondary Hints -->
+    <string-array name="keyboard_bn_row3_shifted_secondary">
+        <item></item>
+        <item>ঔ</item>
+        <item>ঐ</item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item></item>
+    </string-array>
+
+    <!-- Bangla Spacebar & Action Keys -->
+    <string name="key_bn_space_label">জাতীয়</string>
+    <string name="key_bn_symbol_switch">\?১২৩</string>
+    <string name="key_bn_dariya">।</string>
+</resources>

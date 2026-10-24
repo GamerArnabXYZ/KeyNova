@@ -120,20 +120,14 @@ class ExampleRobolectricTest {
 
     @Test
     fun testLanguageTripleAndSecondaryResolution() {
-        val enTriple = com.example.ui.keyboard.getLanguageTriple(KeyboardLanguage.ENGLISH)
-        assertEquals(KeyboardLanguage.ENGLISH, enTriple.center)
-        assertEquals(KeyboardLanguage.BANGLA, enTriple.left)
-        assertEquals(KeyboardLanguage.HINDI, enTriple.right)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val layouts = com.example.ime.KeyboardLayoutRegistry.getLayouts(context)
+        val enLayout = layouts.first { it.id == "en_qwerty" }
 
-        val bnTriple = com.example.ui.keyboard.getLanguageTriple(KeyboardLanguage.BANGLA)
-        assertEquals(KeyboardLanguage.BANGLA, bnTriple.center)
-        assertEquals(KeyboardLanguage.ENGLISH, bnTriple.left)
-        assertEquals(KeyboardLanguage.HINDI, bnTriple.right)
-
-        val hiTriple = com.example.ui.keyboard.getLanguageTriple(KeyboardLanguage.HINDI)
-        assertEquals(KeyboardLanguage.HINDI, hiTriple.center)
-        assertEquals(KeyboardLanguage.BANGLA, hiTriple.left)
-        assertEquals(KeyboardLanguage.ENGLISH, hiTriple.right)
+        val enTriple = com.example.ui.keyboard.getLayoutTriple(enLayout, layouts)
+        assertEquals(enLayout.id, enTriple.center.id)
+        assertNotNull(enTriple.left)
+        assertNotNull(enTriple.right)
 
         // Secondary text resolution
         val (dispQ, commitQ) = com.example.ui.keyboard.resolveSecondaryText("q", "1")
@@ -192,6 +186,129 @@ class ExampleRobolectricTest {
         // 5. Test reset
         prefs.resetToolbarTools()
         assertEquals(7, prefs.enabledToolbarTools.size)
+    }
+
+    @Test
+    fun testXmlResourceBasedKeyboardLoading() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        KeyboardLayoutModel.init(context)
+
+        // 1. Verify XML array resources exist and are non-empty
+        val enRow1 = context.resources.getStringArray(R.array.keyboard_en_row1_lower)
+        assertEquals(10, enRow1.size)
+        assertEquals("q", enRow1[0])
+        assertEquals("p", enRow1[9])
+
+        val bnRow1 = context.resources.getStringArray(R.array.keyboard_bn_row1_unshifted)
+        assertEquals(10, bnRow1.size)
+        assertEquals("ঙ", bnRow1[0])
+
+        val hiRow1 = context.resources.getStringArray(R.array.keyboard_hi_row1_consonants)
+        assertEquals(10, hiRow1.size)
+        assertEquals("क", hiRow1[0])
+
+        // 2. Verify KeyboardLayoutModel reads from XML
+        val englishLayout = KeyboardLayoutModel.getEnglishLayout(ShiftState.OFF, isCaps = false)
+        assertEquals("q", englishLayout[0].keys[0].primaryText)
+        assertEquals("৳", englishLayout[0].keys[0].secondaryText)
+
+        val banglaLayout = KeyboardLayoutModel.getBanglaLayout(shifted = false)
+        assertEquals("ঙ", banglaLayout[0].keys[0].primaryText)
+        assertEquals("ং", banglaLayout[0].keys[0].secondaryText)
+
+        val hindiLayout = KeyboardLayoutModel.getHindiLayout(shifted = false)
+        assertEquals("क", hindiLayout[0].keys[0].primaryText)
+
+        // 3. Verify Toolbar Tools localized from XML
+        val emojiTool = com.example.data.ToolbarTool.EMOJI
+        val localizedTitle = emojiTool.getLocalizedTitle(context)
+        assertEquals("Emoji & Emoticons", localizedTitle)
+    }
+
+    @Test
+    fun testDynamicXmlKeyboardRegistry() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val layouts = com.example.ime.KeyboardLayoutRegistry.getLayouts(context)
+        assertTrue("Layouts should be loaded from XML registry", layouts.isNotEmpty())
+
+        val layoutIds = layouts.map { it.id }
+        assertTrue("en_qwerty must be registered in XML", layoutIds.contains("en_qwerty"))
+        assertTrue("bn_jatiya must be registered in XML", layoutIds.contains("bn_jatiya"))
+        assertTrue("bn_avro must be registered in XML", layoutIds.contains("bn_avro"))
+        assertTrue("hi_devanagari must be registered in XML", layoutIds.contains("hi_devanagari"))
+
+        // Test Bangla Avro Layout properties (Avro Phonetic with English QWERTY letters and Bangla phonetic hints)
+        val avro = layouts.first { it.id == "bn_avro" }
+        assertEquals("বাংলা", avro.languageName)
+        assertEquals("Avro (Phonetic)", avro.layoutName)
+        assertTrue(avro.row1.isNotEmpty())
+        assertEquals("q", avro.row1[0])
+        assertEquals("p", avro.row1[9])
+        assertTrue("Row 1 must have Bangla phonetic hints", avro.row1Sec.isNotEmpty())
+
+        // Verify buildRows converts DynamicKeyboardLayout into KeyboardRow objects
+        val rows = com.example.ime.KeyboardLayoutRegistry.buildRows(
+            layout = avro,
+            shiftState = ShiftState.OFF,
+            isCaps = false,
+            showGlobeKey = true
+        )
+        assertEquals(4, rows.size)
+        assertEquals("q", rows[0].keys[0].primaryText)
+
+        // Verify Space Key on Row 4
+        val spaceKey = rows[3].keys.firstOrNull { it.action == com.example.ime.KeyAction.SPACE }
+        assertNotNull("Row 4 must contain space key", spaceKey)
+
+        // Verify DynamicLayoutTriple for spacebar swipe switcher
+        val triple = com.example.ui.keyboard.getLayoutTriple(avro, layouts)
+        assertEquals(avro.id, triple.center.id)
+        assertNotNull(triple.left)
+        assertNotNull(triple.right)
+
+        // Verify KeyboardPreferences active layout and cycle
+        val prefs = KeyboardPreferences(context)
+        prefs.activeLayoutId = "bn_avro"
+        assertEquals("bn_avro", prefs.activeLayoutId)
+        val active = prefs.getActiveLayout(context)
+        assertEquals("Avro (Phonetic)", active.layoutName)
+        assertEquals("বাংলা", active.languageName)
+
+        val cycled = prefs.cycleLayout(context = context)
+        assertNotNull(cycled)
+        assertTrue(cycled.id != "bn_avro" || layouts.size == 1)
+    }
+
+    @Test
+    fun testAvroPhoneticParser() {
+        val parser = com.example.ime.AvroPhoneticParser
+
+        // Common Bengali conversational words typed in English
+        assertEquals("আমি", parser.parse("ami"))
+        assertEquals("তুমি", parser.parse("tumi"))
+        assertEquals("কেমন", parser.parse("kemon"))
+        assertEquals("আছো", parser.parse("acho"))
+        assertEquals("ভালো", parser.parse("bhalo"))
+        assertEquals("বাংলা", parser.parse("bangla"))
+        assertEquals("ধন্যবাদ", parser.parse("dhonnobad"))
+        assertEquals("দেশ", parser.parse("desh"))
+        assertEquals("সুন্দর", parser.parse("shundor"))
+
+        // Consonant and kar rule conversions
+        assertEquals("ক", parser.parse("k"))
+        assertEquals("খ", parser.parse("kh"))
+        assertEquals("গ", parser.parse("g"))
+        assertEquals("ঘ", parser.parse("gh"))
+        assertEquals("কা", parser.parse("ka"))
+        assertEquals("কি", parser.parse("ki"))
+        assertEquals("কু", parser.parse("ku"))
+        assertEquals("কে", parser.parse("ke"))
+        assertEquals("কো", parser.parse("ko"))
+
+        // Candidate prediction list
+        val candidates = parser.getCandidates("ami")
+        assertTrue("Candidates must include 'আমি'", candidates.contains("আমি"))
+        assertTrue("Candidates list should have suggestions", candidates.isNotEmpty())
     }
 }
 

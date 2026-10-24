@@ -1,0 +1,129 @@
+<resources>
+    <!-- English QWERTY Layout Characters & Secondary Extra Keys -->
+
+    <!-- Row 1 Lowercase -->
+    <string-array name="keyboard_en_row1_lower">
+        <item>q</item>
+        <item>w</item>
+        <item>e</item>
+        <item>r</item>
+        <item>t</item>
+        <item>y</item>
+        <item>u</item>
+        <item>i</item>
+        <item>o</item>
+        <item>p</item>
+    </string-array>
+
+    <!-- Row 1 Uppercase -->
+    <string-array name="keyboard_en_row1_upper">
+        <item>Q</item>
+        <item>W</item>
+        <item>E</item>
+        <item>R</item>
+        <item>T</item>
+        <item>Y</item>
+        <item>U</item>
+        <item>I</item>
+        <item>O</item>
+        <item>P</item>
+    </string-array>
+
+    <!-- Row 1 Secondary Hints / Long-press Keys -->
+    <string-array name="keyboard_en_row1_secondary">
+        <item>৳</item>
+        <item>%</item>
+        <item>_</item>
+        <item>;</item>
+        <item>&lt;</item>
+        <item>&gt;</item>
+        <item>+</item>
+        <item>=</item>
+        <item>[</item>
+        <item>]</item>
+    </string-array>
+
+    <!-- Row 2 Lowercase -->
+    <string-array name="keyboard_en_row2_lower">
+        <item>a</item>
+        <item>s</item>
+        <item>d</item>
+        <item>f</item>
+        <item>g</item>
+        <item>h</item>
+        <item>j</item>
+        <item>k</item>
+        <item>l</item>
+    </string-array>
+
+    <!-- Row 2 Uppercase -->
+    <string-array name="keyboard_en_row2_upper">
+        <item>A</item>
+        <item>S</item>
+        <item>D</item>
+        <item>F</item>
+        <item>G</item>
+        <item>H</item>
+        <item>J</item>
+        <item>K</item>
+        <item>L</item>
+    </string-array>
+
+    <!-- Row 2 Secondary Hints / Long-press Keys -->
+    <string-array name="keyboard_en_row2_secondary">
+        <item>\@</item>
+        <item>#</item>
+        <item>&amp;</item>
+        <item>*</item>
+        <item>-</item>
+        <item>!</item>
+        <item>\?</item>
+        <item>(</item>
+        <item>)</item>
+    </string-array>
+
+    <!-- Row 3 Lowercase -->
+    <string-array name="keyboard_en_row3_lower">
+        <item>z</item>
+        <item>x</item>
+        <item>c</item>
+        <item>v</item>
+        <item>b</item>
+        <item>n</item>
+        <item>m</item>
+    </string-array>
+
+    <!-- Row 3 Uppercase -->
+    <string-array name="keyboard_en_row3_upper">
+        <item>Z</item>
+        <item>X</item>
+        <item>C</item>
+        <item>V</item>
+        <item>B</item>
+        <item>N</item>
+        <item>M</item>
+    </string-array>
+
+    <!-- Row 3 Secondary Hints / Long-press Keys -->
+    <string-array name="keyboard_en_row3_secondary">
+        <item>\"</item>
+        <item></item>
+        <item></item>
+        <item></item>
+        <item>\'</item>
+        <item>:</item>
+        <item>/</item>
+    </string-array>
+
+    <!-- English Bottom Row & Action Keys -->
+    <string name="key_en_space_label">English</string>
+    <string name="key_en_symbol_switch">\?123</string>
+    <string name="key_en_shift_off">⇧</string>
+    <string name="key_en_shift_caps">⇪</string>
+    <string name="key_en_backspace">⌫</string>
+    <string name="key_en_enter">↵</string>
+    <string name="key_en_globe">🌐</string>
+    <string name="key_en_emoji">☺</string>
+    <string name="key_en_comma">,</string>
+    <string name="key_en_period">.</string>
+</resources>

@@ -50,6 +50,7 @@ class KeyNovaInputMethodService : InputMethodService(),
         prefs = KeyboardPreferences(this)
         clipboardRepo = ClipboardRepository(this)
         snippetsRepo = SnippetsRepository(this)
+        KeyboardLayoutModel.init(this)
     }
 
     override fun onEvaluateInputViewShown(): Boolean {

@@ -1,0 +1,91 @@
+<resources>
+    <!-- Settings Main Navigation -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_nav_languages_title">Languages</string>
+    <string name="settings_nav_languages_subtitle">English, বাংলা, हिन्दी (%1$d active)</string>
+    <string name="settings_nav_themes_title">Theme</string>
+    <string name="settings_nav_themes_subtitle">%1$s • Accent colors</string>
+    <string name="settings_nav_toolbar_title">Toolbar Customization</string>
+    <string name="settings_nav_toolbar_subtitle">%1$d / 7 active tools • Reorder, Toggle on/off</string>
+    <string name="settings_nav_layout_title">Keyboard Layout</string>
+    <string name="settings_nav_layout_subtitle">Hold-to-delete words, Speed, Key height, Spacing</string>
+    <string name="settings_nav_clipboard_title">Clipboard</string>
+    <string name="settings_nav_clipboard_subtitle">History, Pinned clips, Auto clear</string>
+    <string name="settings_nav_gaming_coding_title">Gaming &amp; Coding</string>
+    <string name="settings_nav_gaming_coding_subtitle">Developer symbols, Custom snippets &amp; macros</string>
+    <string name="settings_nav_privacy_title">Privacy</string>
+    <string name="settings_nav_privacy_subtitle">No data collection, 100% offline</string>
+    <string name="settings_nav_about_title">About</string>
+    <string name="settings_nav_about_subtitle">KeyNova v1.0.0 • Open Source</string>
+
+    <!-- Toolbar Customization Screen -->
+    <string name="toolbar_settings_title">Toolbar Customization</string>
+    <string name="toolbar_settings_active_counter">%1$d of %2$d tools active</string>
+    <string name="toolbar_settings_slots_title">Active Toolbar Slots</string>
+    <string name="toolbar_settings_slots_badge">%1$d / %2$d ACTIVE</string>
+    <string name="toolbar_settings_max_reached_desc">Maximum limit reached (7 tools). Toggle off an active tool if you want to enable another one.</string>
+    <string name="toolbar_settings_quota_desc">You can enable up to %1$d tools simultaneously. Inactive tools are kept off the keyboard bar for a clean, focused typing experience.</string>
+    <string name="toolbar_settings_live_preview_title">LIVE KEYBOARD TOOLBAR PREVIEW</string>
+    <string name="toolbar_settings_theme_label">Theme: %1$s</string>
+    <string name="toolbar_settings_available_section">AVAILABLE TOOLS (%1$d)</string>
+    <string name="toolbar_settings_max_badge">Max 7 Active</string>
+    <string name="toolbar_settings_toast_max_reached">Maximum 7 tools can be active simultaneously. Turn off a tool first.</string>
+    <string name="toolbar_settings_toast_reset">Toolbar restored to default 7 tools</string>
+    <string name="toolbar_settings_move_left">Move Left</string>
+    <string name="toolbar_settings_move_right">Move Right</string>
+
+    <!-- Keyboard Layout Settings -->
+    <string name="layout_settings_title">Keyboard Layout</string>
+    <string name="layout_settings_appearance_section">APPEARANCE &amp; SIZING</string>
+    <string name="layout_settings_show_number_row_title">Show Dedicated Number Row</string>
+    <string name="layout_settings_show_number_row_desc">Displays digits (1–0 / ১–০) directly above keyboard rows</string>
+    <string name="layout_settings_key_height_title">Key Height</string>
+    <string name="layout_settings_key_spacing_title">Key Spacing</string>
+    <string name="layout_settings_feedback_section">FEEDBACK &amp; INTERACTION</string>
+    <string name="layout_settings_haptic_title">Haptic Feedback</string>
+    <string name="layout_settings_haptic_desc">Vibrate slightly on each key tap</string>
+    <string name="layout_settings_sound_title">Sound on Keypress</string>
+    <string name="layout_settings_sound_desc">Play click sound on key tap</string>
+    <string name="layout_settings_delete_section">HOLD-TO-DELETE CUSTOMIZATION</string>
+    <string name="layout_settings_delete_mode_title">Delete Hold Mode</string>
+    <string name="layout_settings_delete_mode_word">Word by Word (Auto-removes whole words)</string>
+    <string name="layout_settings_delete_mode_char">Character by Character (Continuous delete)</string>
+    <string name="layout_settings_delete_initial_delay_title">Initial Trigger Delay</string>
+    <string name="layout_settings_delete_repeat_speed_title">Repeat Delete Speed</string>
+    <string name="layout_settings_delete_haptic_title">Vibrate on Repeat Deletions</string>
+    <string name="layout_settings_delete_haptic_desc">Subtle vibration pulse on each deleted word/character</string>
+    <string name="layout_settings_test_delete_title">Test Hold-to-Delete Here</string>
+    <string name="layout_settings_test_delete_sample">The quick brown fox jumps over the lazy dog</string>
+
+    <!-- Theme Selector Screen -->
+    <string name="themes_screen_title">Themes &amp; Colors</string>
+    <string name="themes_screen_subtitle">Choose the visual look of KeyNova</string>
+    <string name="theme_name_light">Light (Default)</string>
+    <string name="theme_name_dark">Dark</string>
+    <string name="theme_name_blue">Midnight Blue</string>
+    <string name="theme_name_green">Forest Emerald</string>
+    <string name="theme_name_purple">Royal Purple</string>
+    <string name="theme_name_red">Crimson Red</string>
+
+    <!-- Language Settings Screen -->
+    <string name="languages_screen_title">Languages &amp; Layouts</string>
+    <string name="languages_screen_switch_method_section">LANGUAGE SWITCH METHOD</string>
+    <string name="lang_switch_globe_title">Dedicated Globe Key (🌐)</string>
+    <string name="lang_switch_globe_desc">Shows a globe key next to spacebar</string>
+    <string name="lang_switch_space_title">Swipe / Hold Spacebar</string>
+    <string name="lang_switch_space_desc">Hold &amp; swipe horizontally on spacebar to switch</string>
+    <string name="lang_name_english">English (Latin QWERTY)</string>
+    <string name="lang_name_bangla">বাংলা (জাতীয় / National Layout)</string>
+    <string name="lang_name_hindi">हिन्दी (Devanagari Layout)</string>
+
+    <!-- Clipboard & Privacy -->
+    <string name="clipboard_screen_title">Clipboard History</string>
+    <string name="clipboard_empty_desc">No copied items yet. Copy any text to see it here.</string>
+    <string name="clipboard_clear_all">Clear Clipboard</string>
+    <string name="privacy_screen_title">Privacy Guarantee</string>
+    <string name="privacy_guarantee_badge">100% Offline &amp; Private</string>
+    <string name="privacy_guarantee_desc">KeyNova does not connect to the internet, does not use trackers, and never transmits your keystrokes or clipboard data.</string>
+    <string name="about_screen_title">About KeyNova</string>
+    <string name="about_version">Version 1.0.0</string>
+    <string name="about_desc">Fast, responsive, multi-language Android keyboard supporting English, Bangla, Hindi, Developer symbols, and WASD gaming layout.</string>
+</resources>

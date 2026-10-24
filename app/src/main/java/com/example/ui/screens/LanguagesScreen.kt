@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -15,12 +16,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.KeyboardLanguage
+import com.example.R
 import com.example.data.KeyboardPreferences
 import com.example.data.LanguageSwitchMethod
+import com.example.ime.DynamicKeyboardLayout
+import com.example.ime.KeyboardLayoutRegistry
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,8 +33,11 @@ fun LanguagesScreen(
     keyboardPreferences: KeyboardPreferences,
     onNavigateBack: () -> Unit
 ) {
-    var enabledLangs by remember { mutableStateOf(keyboardPreferences.enabledLanguages) }
-    var activeLang by remember { mutableStateOf(keyboardPreferences.activeLanguage) }
+    val context = LocalContext.current
+    val registeredLayouts = remember { KeyboardLayoutRegistry.getLayouts(context) }
+
+    var enabledLayoutIds by remember { mutableStateOf(keyboardPreferences.enabledLayoutIds) }
+    var activeLayoutId by remember { mutableStateOf(keyboardPreferences.activeLayoutId) }
     var switchMethod by remember { mutableStateOf(keyboardPreferences.languageSwitchMethod) }
 
     Scaffold(
@@ -37,7 +45,7 @@ fun LanguagesScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Languages",
+                        text = stringResource(R.string.languages_screen_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
                         color = Color(0xFF0F172A)
@@ -47,7 +55,7 @@ fun LanguagesScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = Color(0xFF0F172A)
                         )
                     }
@@ -64,12 +72,14 @@ fun LanguagesScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // 1. Language Switcher Method
             item {
                 Text(
-                    text = "Language Switcher Method",
-                    fontSize = 14.sp,
+                    text = stringResource(R.string.languages_screen_switch_method_section),
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF475569),
+                    letterSpacing = 0.8.sp,
+                    color = Color(0xFF64748B),
                     modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
                 )
             }
@@ -100,7 +110,7 @@ fun LanguagesScreen(
                                         switchMethod = method
                                         keyboardPreferences.languageSwitchMethod = method
                                     }
-                                    .border(if (isSelected) 1.5.dp else 1.dp, borderColor, RoundedCornerShape(10.dp)),
+                                    .border(1.dp, borderColor, RoundedCornerShape(10.dp)),
                                 color = bgColor
                             ) {
                                 Row(
@@ -121,7 +131,7 @@ fun LanguagesScreen(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = method.displayName,
-                                            fontSize = 15.sp,
+                                            fontSize = 14.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color(0xFF0F172A)
                                         )
@@ -139,36 +149,51 @@ fun LanguagesScreen(
                 }
             }
 
+            // 2. Dynamic XML-Registered Keyboards Section
             item {
-                Text(
-                    text = "Enabled Keyboards",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF475569),
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "REGISTERED KEYBOARDS (${registeredLayouts.size})",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp,
+                        color = Color(0xFF64748B)
+                    )
+                    Text(
+                        text = "XML-Configured",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF3B82F6)
+                    )
+                }
             }
 
-            items(KeyboardLanguage.entries.size) { index ->
-                val lang = KeyboardLanguage.entries[index]
-                val isEnabled = enabledLangs.contains(lang)
-                val isDefault = activeLang == lang
+            items(registeredLayouts) { layout ->
+                val isEnabled = enabledLayoutIds.contains(layout.id)
+                val isActive = activeLayoutId == layout.id
 
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
                         .clickable {
-                            val updated = if (isEnabled) {
-                                if (enabledLangs.size > 1) enabledLangs - lang else enabledLangs
-                            } else {
-                                enabledLangs + lang
+                            // Tapping card sets this layout as active default
+                            activeLayoutId = layout.id
+                            keyboardPreferences.activeLayoutId = layout.id
+                            if (!isEnabled) {
+                                val updated = enabledLayoutIds + layout.id
+                                enabledLayoutIds = updated
+                                keyboardPreferences.enabledLayoutIds = updated
                             }
-                            enabledLangs = updated
-                            keyboardPreferences.enabledLanguages = updated
                         }
                         .then(
-                            if (isDefault) Modifier.border(1.5.dp, Color(0xFF2563EB), RoundedCornerShape(14.dp))
+                            if (isActive) Modifier.border(1.5.dp, Color(0xFF2563EB), RoundedCornerShape(14.dp))
                             else Modifier.border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(14.dp))
                         ),
                     colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -176,45 +201,66 @@ fun LanguagesScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = lang.nativeName,
+                                    text = layout.languageName,
                                     fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Bold,
                                     color = Color(0xFF0F172A)
                                 )
-                                if (isDefault) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    AssistChip(
-                                        onClick = {},
-                                        label = { Text("Default", fontSize = 10.sp) },
-                                        colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFFEFF6FF))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (isActive) Color(0xFFDBEAFE) else Color(0xFFF1F5F9)
+                                ) {
+                                    Text(
+                                        text = layout.layoutName,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isActive) Color(0xFF1D4ED8) else Color(0xFF475569),
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                     )
+                                }
+                                if (isActive) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = Color(0xFFDCFCE7)
+                                    ) {
+                                        Text(
+                                            text = "ACTIVE",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF15803D),
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                        )
+                                    }
                                 }
                             }
                             Text(
-                                text = "${lang.name} • ${lang.scriptName} script",
-                                fontSize = 12.sp,
+                                text = "Code: ${layout.languageCode.uppercase()} • Script: ${layout.scriptName} • ID: ${layout.id}",
+                                fontSize = 11.5.sp,
                                 color = Color(0xFF64748B),
-                                modifier = Modifier.padding(top = 2.dp)
+                                modifier = Modifier.padding(top = 3.dp)
                             )
                         }
 
+                        // Toggle checkbox for enabled rotation
                         Checkbox(
                             checked = isEnabled,
                             onCheckedChange = { checked ->
                                 val updated = if (checked) {
-                                    enabledLangs + lang
+                                    enabledLayoutIds + layout.id
                                 } else {
-                                    if (enabledLangs.size > 1) enabledLangs - lang else enabledLangs
+                                    if (enabledLayoutIds.size > 1) enabledLayoutIds - layout.id else enabledLayoutIds
                                 }
-                                enabledLangs = updated
-                                keyboardPreferences.enabledLanguages = updated
+                                enabledLayoutIds = updated
+                                keyboardPreferences.enabledLayoutIds = updated
                             },
                             colors = CheckboxDefaults.colors(checkedColor = Color(0xFF2563EB))
                         )

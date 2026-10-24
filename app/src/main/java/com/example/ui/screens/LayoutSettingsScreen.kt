@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
+import com.example.R
 import com.example.data.DeleteHoldMode
 import com.example.data.KeyboardPreferences
 import com.example.data.OneHandedMode
@@ -46,7 +48,7 @@ fun LayoutSettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Keyboard Layout",
+                        text = stringResource(R.string.layout_settings_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
                         color = Color(0xFF0F172A)
@@ -56,7 +58,7 @@ fun LayoutSettingsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = Color(0xFF0F172A)
                         )
                     }
