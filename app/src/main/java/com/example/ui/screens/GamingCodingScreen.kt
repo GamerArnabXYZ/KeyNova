@@ -74,8 +74,8 @@ fun GamingCodingScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
+                .padding(innerPadding),
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
@@ -111,12 +111,29 @@ fun GamingCodingScreen(
                 ) {
                     Text(
                         text = "Available Snippets & Macros",
+                        modifier = Modifier.weight(1f, fill = false),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF475569)
+                        color = Color(0xFF475569),
+                        maxLines = 1
                     )
-                    TextButton(onClick = { showAddDialog = true }) {
-                        Text("+ New Snippet", color = Color(0xFF2563EB), fontSize = 12.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    FilledTonalButton(
+                        onClick = { showAddDialog = true },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = Color(0xFFEFF6FF),
+                            contentColor = Color(0xFF2563EB)
+                        )
+                    ) {
+                        Text(
+                            text = "+ New Snippet",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false
+                        )
                     }
                 }
             }

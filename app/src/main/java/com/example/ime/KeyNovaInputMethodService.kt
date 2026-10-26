@@ -67,10 +67,13 @@ class KeyNovaInputMethodService : InputMethodService(),
 
     override fun onCreateInputView(): View {
         // Ensure decorView on the dialog window has full Jetpack lifecycle awareness
-        window?.window?.decorView?.let { decor ->
-            decor.setViewTreeLifecycleOwner(this)
-            decor.setViewTreeSavedStateRegistryOwner(this)
-            decor.setViewTreeViewModelStoreOwner(this)
+        window?.window?.let { win ->
+            val bg = prefs.theme.backgroundHex.toInt()
+            win.navigationBarColor = bg
+            win.decorView.setBackgroundColor(bg)
+            win.decorView.setViewTreeLifecycleOwner(this)
+            win.decorView.setViewTreeSavedStateRegistryOwner(this)
+            win.decorView.setViewTreeViewModelStoreOwner(this)
         }
 
         val composeView = ComposeView(this).apply {
@@ -78,6 +81,7 @@ class KeyNovaInputMethodService : InputMethodService(),
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
+            setBackgroundColor(prefs.theme.backgroundHex.toInt())
 
             // CRITICAL: Keep composition alive across hide/show cycles in other apps
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(this@KeyNovaInputMethodService))
@@ -110,10 +114,13 @@ class KeyNovaInputMethodService : InputMethodService(),
 
         prefs.notifyPreferencesChanged()
 
-        window?.window?.decorView?.let { decor ->
-            decor.setViewTreeLifecycleOwner(this)
-            decor.setViewTreeSavedStateRegistryOwner(this)
-            decor.setViewTreeViewModelStoreOwner(this)
+        window?.window?.let { win ->
+            val bg = prefs.theme.backgroundHex.toInt()
+            win.navigationBarColor = bg
+            win.decorView.setBackgroundColor(bg)
+            win.decorView.setViewTreeLifecycleOwner(this)
+            win.decorView.setViewTreeSavedStateRegistryOwner(this)
+            win.decorView.setViewTreeViewModelStoreOwner(this)
         }
 
         if (lifecycleRegistry.currentState != Lifecycle.State.RESUMED) {

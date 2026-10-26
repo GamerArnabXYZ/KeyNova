@@ -223,7 +223,8 @@ fun KeyNovaKeyboardView(
             .fillMaxWidth()
             .wrapContentHeight()
             .background(bgColor)
-            .then(if (!isImeService) Modifier.navigationBarsPadding() else Modifier)
+            .navigationBarsPadding()
+            .padding(bottom = 6.dp)
             .onGloballyPositioned { rootCoords ->
                 keyboardRootCoordinates = rootCoords
             }
@@ -1187,45 +1188,57 @@ private fun SpaceKeyItem(
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
         ) {
             if (isLanguageSpace) {
-                // Top line: Language Name
+                val allowSpaceSwipe = switchMethod == LanguageSwitchMethod.SPACEBAR_SWIPE && enabledLayouts.size > 1
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        text = "◀  ",
-                        color = textColor.copy(alpha = 0.4f),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (allowSpaceSwipe) {
+                        Text(
+                            text = "‹  ",
+                            color = textColor.copy(alpha = 0.5f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     Text(
                         text = currentLayout.languageName,
                         color = textColor.copy(alpha = 0.95f),
-                        fontSize = 12.5.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        softWrap = false
                     )
-                    Text(
-                        text = "  ▶",
-                        color = textColor.copy(alpha = 0.4f),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (allowSpaceSwipe) {
+                        Text(
+                            text = "  ›",
+                            color = textColor.copy(alpha = 0.5f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
-                // Bottom line: Layout Name
-                Text(
-                    text = currentLayout.layoutName,
-                    color = accentColor.copy(alpha = 0.95f),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1
-                )
+                val showSubtitle = !currentLayout.layoutName.equals(currentLayout.languageName, ignoreCase = true)
+                if (showSubtitle) {
+                    Spacer(modifier = Modifier.height(1.dp))
+                    Text(
+                        text = currentLayout.layoutName,
+                        color = accentColor.copy(alpha = 0.9f),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
             } else {
                 Text(
                     text = keyDef.primaryText,
                     color = textColor.copy(alpha = 0.9f),
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
         }

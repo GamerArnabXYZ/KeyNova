@@ -134,8 +134,8 @@ fun ToolbarSettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 6.dp),
+                .padding(innerPadding),
+            contentPadding = PaddingValues(start = 16.dp, top = 6.dp, end = 16.dp, bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // 1. Quota & Status Banner
@@ -222,15 +222,20 @@ fun ToolbarSettingsScreen(
                         ) {
                             Text(
                                 text = stringResource(R.string.toolbar_settings_live_preview_title),
+                                modifier = Modifier.weight(1f, fill = false),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.sp,
                                 letterSpacing = 1.sp,
-                                color = Color(0xFF64748B)
+                                color = Color(0xFF64748B),
+                                maxLines = 1
                             )
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = stringResource(R.string.toolbar_settings_theme_label, currentTheme.displayName),
                                 fontSize = 11.sp,
-                                color = Color(0xFF94A3B8)
+                                color = Color(0xFF94A3B8),
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
 

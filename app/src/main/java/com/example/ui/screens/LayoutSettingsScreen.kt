@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -71,8 +72,8 @@ fun LayoutSettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
+                .padding(innerPadding),
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
@@ -525,7 +526,7 @@ fun LayoutSettingsScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(44.dp)
+                                    .defaultMinSize(minHeight = 48.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(if (isTestDeletePressed) Color(0xFFDC2626) else Color(0xFFEF4444))
                                     .pointerInput(deleteMode, deleteInitialDelay, deleteRepeatInterval) {
@@ -583,14 +584,17 @@ fun LayoutSettingsScreen(
                                                 }
                                             }
                                         }
-                                    },
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "Hold to Test Delete ⌫",
                                     color = Color.White,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2
                                 )
                             }
 
@@ -600,9 +604,10 @@ fun LayoutSettingsScreen(
                                     sampleTestText = "The quick brown fox jumps over the lazy dog"
                                 },
                                 shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.height(44.dp)
+                                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
-                                Text("Reset Text", fontSize = 12.sp)
+                                Text("Reset Text", fontSize = 12.sp, maxLines = 1, softWrap = false)
                             }
                         }
                     }

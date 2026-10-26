@@ -171,7 +171,7 @@ object KeyboardLayoutModel {
         val spaceWeight = if (showGlobeKey) 3.6f else 4.2f
         r4Keys.add(KeyDef(primaryText = spaceLabel, action = KeyAction.SPACE, weight = spaceWeight))
         r4Keys.add(KeyDef(primaryText = periodLabel, secondaryText = "...", weight = 0.9f))
-        r4Keys.add(KeyDef(primaryText = enterLabel, secondaryText = "...", action = KeyAction.ENTER, weight = 1.3f, isSpecial = true))
+        r4Keys.add(KeyDef(primaryText = enterLabel, action = KeyAction.ENTER, weight = 1.3f, isSpecial = true))
 
         return listOf(KeyboardRow(r1), KeyboardRow(r2), KeyboardRow(r3Keys), KeyboardRow(r4Keys))
     }
@@ -220,7 +220,7 @@ object KeyboardLayoutModel {
             val spaceWeight = if (showGlobeKey) 3.6f else 4.2f
             r4Keys.add(KeyDef(primaryText = spaceLabel, action = KeyAction.SPACE, weight = spaceWeight))
             r4Keys.add(KeyDef(primaryText = dariyaLabel, secondaryText = "...", weight = 0.9f))
-            r4Keys.add(KeyDef(primaryText = enterLabel, secondaryText = "...", action = KeyAction.ENTER, weight = 1.3f, isSpecial = true))
+            r4Keys.add(KeyDef(primaryText = enterLabel, action = KeyAction.ENTER, weight = 1.3f, isSpecial = true))
 
             listOf(KeyboardRow(r1), KeyboardRow(r2), KeyboardRow(r3), KeyboardRow(r4Keys))
         } else {
@@ -254,7 +254,7 @@ object KeyboardLayoutModel {
             val spaceWeight = if (showGlobeKey) 3.6f else 4.2f
             r4Keys.add(KeyDef(primaryText = spaceLabel, action = KeyAction.SPACE, weight = spaceWeight))
             r4Keys.add(KeyDef(primaryText = dariyaLabel, secondaryText = "...", weight = 0.9f))
-            r4Keys.add(KeyDef(primaryText = enterLabel, secondaryText = "...", action = KeyAction.ENTER, weight = 1.3f, isSpecial = true))
+            r4Keys.add(KeyDef(primaryText = enterLabel, action = KeyAction.ENTER, weight = 1.3f, isSpecial = true))
 
             listOf(KeyboardRow(r1), KeyboardRow(r2), KeyboardRow(r3), KeyboardRow(r4Keys))
         }
@@ -295,7 +295,7 @@ object KeyboardLayoutModel {
             val spaceWeight = if (showGlobeKey) 3.6f else 4.2f
             r4Keys.add(KeyDef(primaryText = spaceLabel, action = KeyAction.SPACE, weight = spaceWeight))
             r4Keys.add(KeyDef(primaryText = "।", secondaryText = "...", weight = 0.9f))
-            r4Keys.add(KeyDef(primaryText = enterLabel, secondaryText = "...", action = KeyAction.ENTER, weight = 1.3f, isSpecial = true))
+            r4Keys.add(KeyDef(primaryText = enterLabel, action = KeyAction.ENTER, weight = 1.3f, isSpecial = true))
 
             listOf(KeyboardRow(r1), KeyboardRow(r2), KeyboardRow(r3), KeyboardRow(r4Keys))
         } else {
@@ -325,7 +325,7 @@ object KeyboardLayoutModel {
             val spaceWeight = if (showGlobeKey) 3.6f else 4.2f
             r4Keys.add(KeyDef(primaryText = spaceLabel, action = KeyAction.SPACE, weight = spaceWeight))
             r4Keys.add(KeyDef(primaryText = "।", secondaryText = "...", weight = 0.9f))
-            r4Keys.add(KeyDef(primaryText = enterLabel, secondaryText = "...", action = KeyAction.ENTER, weight = 1.3f, isSpecial = true))
+            r4Keys.add(KeyDef(primaryText = enterLabel, action = KeyAction.ENTER, weight = 1.3f, isSpecial = true))
 
             listOf(KeyboardRow(r1), KeyboardRow(r2), KeyboardRow(r3), KeyboardRow(r4Keys))
         }
@@ -368,7 +368,7 @@ object KeyboardLayoutModel {
             KeyDef(",", secondaryText = "...", weight = 0.9f),
             KeyDef("English", action = KeyAction.SPACE, weight = 4.2f),
             KeyDef(".", secondaryText = "...", weight = 0.9f),
-            KeyDef(enterLabel, secondaryText = "...", action = KeyAction.ENTER, weight = 1.4f, isSpecial = true)
+            KeyDef(enterLabel, action = KeyAction.ENTER, weight = 1.4f, isSpecial = true)
         )
         return listOf(r0, KeyboardRow(r1), KeyboardRow(r2), KeyboardRow(r3), KeyboardRow(r4))
     }
@@ -415,7 +415,7 @@ object KeyboardLayoutModel {
             KeyDef(",", secondaryText = "...", weight = 0.9f),
             KeyDef("English", action = KeyAction.SPACE, weight = 4.2f),
             KeyDef(".", secondaryText = "...", weight = 0.9f),
-            KeyDef(enterLabel, secondaryText = "...", action = KeyAction.ENTER, weight = 1.4f, isSpecial = true)
+            KeyDef(enterLabel, action = KeyAction.ENTER, weight = 1.4f, isSpecial = true)
         )
         return listOf(KeyboardRow(r0), KeyboardRow(r1), KeyboardRow(r2), KeyboardRow(r3), KeyboardRow(r4))
     }
