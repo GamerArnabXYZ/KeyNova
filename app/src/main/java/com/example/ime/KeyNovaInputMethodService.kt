@@ -108,6 +108,8 @@ class KeyNovaInputMethodService : InputMethodService(),
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
 
+        prefs.notifyPreferencesChanged()
+
         window?.window?.decorView?.let { decor ->
             decor.setViewTreeLifecycleOwner(this)
             decor.setViewTreeSavedStateRegistryOwner(this)

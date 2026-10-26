@@ -245,7 +245,7 @@ object KeyboardLayoutRegistry {
                 shiftRow1 = listOf("ং", "্য", "ঢ", "ফ", "ঠ", "ছ", "ঝ", "ঞ", "ঘ", "ঢ়"),
                 shiftRow2 = listOf("ঋ", "ূ", "ী", "ভ", "’", "অ", "খ", "থ", "ধ"),
                 shiftRow2Sec = listOf("", "ঊ", "ঈ", "", "", "", "", "", ""),
-                shiftRow3 = listOf("ঃ", "ৌ", "ৈ", "্র", "ণ", "ষ", "শ"),
+                shiftRow3 = listOf("ः", "ৌ", "ৈ", "्র", "ণ", "ষ", "শ"),
                 shiftRow3Sec = listOf("", "ঔ", "ঐ", "", "", "", "")
             ),
             DynamicKeyboardLayout(
@@ -271,7 +271,7 @@ object KeyboardLayoutRegistry {
                 shiftRow2 = listOf("A", "S", "D", "F", "G", "H", "J", "K", "L"),
                 shiftRow2Sec = listOf("অ", "শ", "ঢ", "ফ", "ঘ", "ঃ", "ঝ", "খ", "ল"),
                 shiftRow3 = listOf("Z", "X", "C", "V", "B", "N", "M"),
-                shiftRow3Sec = listOf("য", "ক্ষ", "ছ", "ভ", "ব", "ণ", "ম")
+                shiftRow3Sec = listOf("য", "ক्ষ", "ছ", "ভ", "ব", "ণ", "ম")
             ),
             DynamicKeyboardLayout(
                 id = "hi_devanagari",
@@ -287,7 +287,7 @@ object KeyboardLayoutRegistry {
                 row3 = listOf("प", "फ", "ब", "भ", "म", "य", "र", "ल", "व"),
                 shiftRow1 = listOf("अ", "आ", "इ", "ई", "उ", "ऊ", "ऋ", "ए", "ऐ", "ओ"),
                 shiftRow2 = listOf("ा", "ि", "ी", "ु", "ू", "ृ", "े", "ै", "ो", "ौ"),
-                shiftRow3 = listOf("্", "ं", "ঃ", "ँ", "स", "ह", "ड़", "ढ़", "औ")
+                shiftRow3 = listOf("्", "ं", "ः", "ँ", "स", "ह", "ड़", "ढ़", "औ")
             )
         )
     }

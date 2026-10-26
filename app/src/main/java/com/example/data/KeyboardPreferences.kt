@@ -283,6 +283,20 @@ class KeyboardPreferences(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("keynova_preferences", Context.MODE_PRIVATE)
 
+    val preferenceRevision = androidx.compose.runtime.mutableIntStateOf(0)
+
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+        preferenceRevision.intValue++
+    }
+
+    init {
+        prefs.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
+    }
+
+    fun notifyPreferencesChanged() {
+        preferenceRevision.intValue++
+    }
+
     var theme: KeyboardThemeOption
         get() = KeyboardThemeOption.fromId(prefs.getString(KEY_THEME, KeyboardThemeOption.LIGHT.id) ?: "light")
         set(value) = prefs.edit().putString(KEY_THEME, value.id).apply()

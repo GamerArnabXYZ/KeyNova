@@ -301,7 +301,7 @@ object KeyboardLayoutModel {
         } else {
             val r1Keys = getArray(R.array.keyboard_hi_row1_vowels, listOf("अ", "आ", "इ", "ई", "उ", "ऊ", "ऋ", "ए", "ऐ", "ओ"))
             val r2Keys = getArray(R.array.keyboard_hi_row2_matras, listOf("ा", "ि", "ी", "ु", "ू", "ृ", "े", "ै", "ो", "ौ"))
-            val r3Keys = getArray(R.array.keyboard_hi_row3_special, listOf("্", "ं", "ः", "ँ", "स", "ह", "ड़", "ढ़", "औ"))
+            val r3Keys = getArray(R.array.keyboard_hi_row3_special, listOf("्", "ं", "ः", "ँ", "स", "ह", "ड़", "ढ़", "औ"))
 
             val r1 = r1Keys.map { KeyDef(primaryText = it, weight = 1f) }
             val r2 = r2Keys.map { KeyDef(primaryText = it, weight = 1f) }

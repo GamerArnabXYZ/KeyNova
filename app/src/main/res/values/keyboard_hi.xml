@@ -72,7 +72,7 @@
 
     <!-- Hindi Special Signs Row 3 -->
     <string-array name="keyboard_hi_row3_special">
-        <item>্</item>
+        <item>&#x094D;</item>
         <item>ं</item>
         <item>ः</item>
         <item>ँ</item>

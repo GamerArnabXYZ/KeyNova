@@ -239,7 +239,7 @@
         <item>ृ</item><item>े</item><item>ै</item><item>ो</item><item>ौ</item>
     </string-array>
     <string-array name="layout_hi_devanagari_shift_row3">
-        <item>্</item><item>ं</item><item>ঃ</item><item>ँ</item>
+        <item>&#x094D;</item><item>ं</item><item>&#x0903;</item><item>ँ</item>
         <item>स</item><item>ह</item><item>ड़</item><item>ढ़</item><item>औ</item>
     </string-array>
 </resources>

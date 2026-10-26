@@ -123,19 +123,28 @@ fun KeyNovaKeyboardView(
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    val prefRev = keyboardPreferences.preferenceRevision.intValue
 
     var activePage by remember { mutableStateOf(ActiveKeyboardPage.LETTERS) }
-    var currentLayout by remember { mutableStateOf(keyboardPreferences.getActiveLayout(context)) }
-    var currentLanguage by remember { mutableStateOf(currentLayout.keyboardLanguage) }
+    var currentLayout by remember(keyboardPreferences.activeLayoutId, prefRev) {
+        mutableStateOf(keyboardPreferences.getActiveLayout(context))
+    }
+    var currentLanguage by remember(currentLayout) { mutableStateOf(currentLayout.keyboardLanguage) }
     var shiftState by remember { mutableStateOf(ShiftState.OFF) }
     var isShifted by remember { mutableStateOf(false) }
-    var currentTheme by remember { mutableStateOf(keyboardPreferences.theme) }
-    var oneHandedMode by remember { mutableStateOf(keyboardPreferences.oneHandedMode) }
-    var switchMethod by remember { mutableStateOf(keyboardPreferences.languageSwitchMethod) }
-    val showNumberRow = keyboardPreferences.showNumberRow
-    val keyHeight = keyboardPreferences.keyHeightDp.dp
-    val keySpacing = keyboardPreferences.keySpacingDp.dp
-    val hapticEnabled = keyboardPreferences.hapticFeedback
+    var currentTheme by remember(keyboardPreferences.theme, prefRev) {
+        mutableStateOf(keyboardPreferences.theme)
+    }
+    var oneHandedMode by remember(keyboardPreferences.oneHandedMode, prefRev) {
+        mutableStateOf(keyboardPreferences.oneHandedMode)
+    }
+    var switchMethod by remember(keyboardPreferences.languageSwitchMethod, prefRev) {
+        mutableStateOf(keyboardPreferences.languageSwitchMethod)
+    }
+    val showNumberRow = remember(keyboardPreferences.showNumberRow, prefRev) { keyboardPreferences.showNumberRow }
+    val keyHeight = remember(keyboardPreferences.keyHeightDp, prefRev) { keyboardPreferences.keyHeightDp.dp }
+    val keySpacing = remember(keyboardPreferences.keySpacingDp, prefRev) { keyboardPreferences.keySpacingDp.dp }
+    val hapticEnabled = remember(keyboardPreferences.hapticFeedback, prefRev) { keyboardPreferences.hapticFeedback }
 
     var avroComposingText by remember { mutableStateOf("") }
     val avroCandidates = remember(avroComposingText) {
@@ -933,25 +942,22 @@ private fun KeyItem(
                             var currentSelectedIndex = 1
                             var isPopupActive = false
 
-                            // Wait up to 220ms for pointer release or timeout to trigger hold
-                            val upBeforeTimeout = withTimeoutOrNull(220L) {
+                            // Wait up to 240ms for pointer release. Tap released before timeout -> standard click
+                            var isQuickTap = false
+                            val timeoutResult = withTimeoutOrNull(240L) {
                                 var event = awaitPointerEvent()
                                 while (event.changes.any { it.id == down.id && it.pressed }) {
-                                    val change = event.changes.first { it.id == down.id }
-                                    if ((change.position - down.position).getDistance() > with(density) { 14.dp.toPx() }) {
-                                        break
-                                    }
                                     event = awaitPointerEvent()
                                 }
-                                event.changes.firstOrNull { it.id == down.id && !it.pressed }
+                                isQuickTap = true
+                                false
                             }
 
-                            if (upBeforeTimeout != null) {
-                                // Tap released before 220ms -> standard click
+                            if (isQuickTap) {
                                 isPressed = false
                                 onClick()
-                            } else {
-                                // Long press held past 220ms -> show popup with both base key and extra key!
+                            } else if (timeoutResult == null) {
+                                // Genuine long press held past 240ms -> show popup with both base key and extra key!
                                 isPopupActive = true
                                 onPerformHaptic()
 
@@ -1102,16 +1108,17 @@ private fun SpaceKeyItem(
                     var currentSelectedIndex = 1
                     var isPopupActive = false
 
+                    val allowSpaceSwipe = isLanguageSpace && switchMethod == LanguageSwitchMethod.SPACEBAR_SWIPE
                     val thresholdPx = with(density) { 30.dp.toPx() }
 
-                    // Wait up to 230ms for quick tap or horizontal drag
-                    val upBeforeTimeout = withTimeoutOrNull(230L) {
+                    // Wait up to 240ms for quick tap or horizontal drag
+                    val upBeforeTimeout = withTimeoutOrNull(240L) {
                         var event = awaitPointerEvent()
                         while (event.changes.any { it.id == down.id && it.pressed }) {
                             val change = event.changes.first { it.id == down.id }
                             val deltaX = change.position.x - down.position.x
-                            // If user is already swiping horizontally on spacebar:
-                            if (isLanguageSpace && abs(deltaX) >= thresholdPx) {
+                            // If user is already swiping horizontally on spacebar and swipe is enabled:
+                            if (allowSpaceSwipe && abs(deltaX) >= thresholdPx) {
                                 break
                             }
                             event = awaitPointerEvent()
@@ -1119,8 +1126,8 @@ private fun SpaceKeyItem(
                         event.changes.firstOrNull { it.id == down.id && !it.pressed }
                     }
 
-                    if (upBeforeTimeout != null) {
-                        // Quick tap on spacebar
+                    if (upBeforeTimeout != null || !allowSpaceSwipe) {
+                        // Quick tap on spacebar or swipe disabled
                         isPressed = false
                         onTap()
                     } else {

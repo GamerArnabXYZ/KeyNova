@@ -50,6 +50,7 @@ fun PlaygroundScreen(
     val imm = remember { context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager }
 
     var testText by remember { mutableStateOf("Hello, KeyNova!") }
+    var cursorPosition by remember { mutableIntStateOf(testText.length) }
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
@@ -85,34 +86,77 @@ fun PlaygroundScreen(
     val actionTarget = remember {
         object : KeyboardActionTarget {
             override fun onCommitText(text: String) {
-                testText += text
+                val safePos = cursorPosition.coerceIn(0, testText.length)
+                val before = testText.substring(0, safePos)
+                val after = testText.substring(safePos)
+                testText = before + text + after
+                cursorPosition = safePos + text.length
             }
 
             override fun onDeleteBackward() {
-                if (testText.isNotEmpty()) {
-                    testText = testText.dropLast(1)
+                val safePos = cursorPosition.coerceIn(0, testText.length)
+                if (safePos > 0) {
+                    val before = testText.substring(0, safePos - 1)
+                    val after = testText.substring(safePos)
+                    testText = before + after
+                    cursorPosition = safePos - 1
                 }
             }
 
             override fun onDeleteWordBackward() {
-                if (testText.isNotEmpty()) {
-                    var trimmed = testText
-                    while (trimmed.isNotEmpty() && trimmed.last().isWhitespace()) {
-                        trimmed = trimmed.dropLast(1)
-                    }
-                    while (trimmed.isNotEmpty() && !trimmed.last().isWhitespace()) {
-                        trimmed = trimmed.dropLast(1)
-                    }
-                    testText = trimmed
+                val safePos = cursorPosition.coerceIn(0, testText.length)
+                if (safePos > 0) {
+                    var pos = safePos
+                    while (pos > 0 && testText[pos - 1].isWhitespace()) pos--
+                    while (pos > 0 && !testText[pos - 1].isWhitespace()) pos--
+                    val before = testText.substring(0, pos)
+                    val after = testText.substring(safePos)
+                    testText = before + after
+                    cursorPosition = pos
                 }
             }
 
             override fun onEnterAction() {
-                testText += "\n"
+                onCommitText("\n")
             }
 
             override fun onMoveCursor(offset: Int) {
-                // Playground cursor movement
+                cursorPosition = (cursorPosition + offset).coerceIn(0, testText.length)
+            }
+
+            override fun onMoveCursorUp() {
+                val lines = testText.split("\n")
+                // Jump one line up if multiline
+                val safePos = cursorPosition.coerceIn(0, testText.length)
+                val prevNewline = testText.lastIndexOf('\n', (safePos - 1).coerceAtLeast(0))
+                if (prevNewline >= 0) {
+                    val prevPrevNewline = testText.lastIndexOf('\n', (prevNewline - 1).coerceAtLeast(0))
+                    val col = safePos - prevNewline
+                    cursorPosition = ((prevPrevNewline + 1) + col).coerceIn(prevPrevNewline + 1, prevNewline)
+                } else {
+                    cursorPosition = 0
+                }
+            }
+
+            override fun onMoveCursorDown() {
+                val safePos = cursorPosition.coerceIn(0, testText.length)
+                val nextNewline = testText.indexOf('\n', safePos)
+                if (nextNewline >= 0) {
+                    val curLineStart = testText.lastIndexOf('\n', (safePos - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+                    val col = safePos - curLineStart
+                    val afterNext = testText.indexOf('\n', nextNewline + 1).let { if (it < 0) testText.length else it }
+                    cursorPosition = (nextNewline + 1 + col).coerceIn(nextNewline + 1, afterNext)
+                } else {
+                    cursorPosition = testText.length
+                }
+            }
+
+            override fun onMoveCursorToStart() {
+                cursorPosition = 0
+            }
+
+            override fun onMoveCursorToEnd() {
+                cursorPosition = testText.length
             }
 
             override fun onSelectAll() {
@@ -129,12 +173,13 @@ fun PlaygroundScreen(
             override fun onPaste() {
                 val clip = clipboardManager.getText()?.text
                 if (!clip.isNullOrEmpty()) {
-                    testText += clip
+                    onCommitText(clip)
                 }
             }
 
             override fun onClearAll() {
                 testText = ""
+                cursorPosition = 0
             }
 
             override fun onCycleCase() {
@@ -144,6 +189,7 @@ fun PlaygroundScreen(
                         testText.all { it.isLowerCase() || !it.isLetter() } -> testText.replaceFirstChar { it.uppercase() }
                         else -> testText.uppercase()
                     }
+                    cursorPosition = cursorPosition.coerceIn(0, testText.length)
                 }
             }
         }
@@ -382,14 +428,36 @@ fun PlaygroundScreen(
                                 .padding(10.dp)
                         ) {
                             if (testText.isEmpty()) {
-                                Text(
-                                    text = stringResource(R.string.playground_input_hint),
-                                    color = Color(0xFF94A3B8),
-                                    fontSize = 15.sp
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "|",
+                                        color = Color(0xFF2563EB),
+                                        fontSize = 17.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = stringResource(R.string.playground_input_hint),
+                                        color = Color(0xFF94A3B8),
+                                        fontSize = 15.sp
+                                    )
+                                }
                             } else {
+                                val safeCursor = cursorPosition.coerceIn(0, testText.length)
+                                val annotated = androidx.compose.ui.text.buildAnnotatedString {
+                                    append(testText.substring(0, safeCursor))
+                                    pushStyle(
+                                        androidx.compose.ui.text.SpanStyle(
+                                            color = Color(0xFF2563EB),
+                                            fontWeight = FontWeight.Black
+                                        )
+                                    )
+                                    append("|")
+                                    pop()
+                                    append(testText.substring(safeCursor))
+                                }
                                 Text(
-                                    text = testText,
+                                    text = annotated,
                                     color = Color(0xFF0F172A),
                                     fontSize = 16.sp
                                 )

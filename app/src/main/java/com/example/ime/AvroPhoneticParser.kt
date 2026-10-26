@@ -319,8 +319,8 @@ object AvroPhoneticParser {
                         // Note: "o" after consonant is often implicit inherent vowel in Bengali (e.g. kemon -> কে-ম-ন)
                         // If "o", only add ো if capitalized "O" or followed by another vowel/end in explicit mode
                         if (vKey == "o" && remaining.startsWith("o") && !remaining.startsWith("O")) {
-                            // Implicit vowel - no explicit kar added unless trailing or specific
-                            if (i + 1 == len || (i + 1 < len && isConsonant(input[i + 1]) && i + 2 == len)) {
+                            // Inherent vowel in Bengali: only add ো if at the very end of the word (e.g. "bhalo" -> "ভালো", "koro" -> "করো")
+                            if (i + 1 == len) {
                                 sb.append(vVal)
                             }
                         } else {
