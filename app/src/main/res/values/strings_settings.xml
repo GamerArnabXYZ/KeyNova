@@ -85,6 +85,30 @@
     <string name="privacy_screen_title">Privacy Guarantee</string>
     <string name="privacy_guarantee_badge">100% Offline &amp; Private</string>
     <string name="privacy_guarantee_desc">KeyNova does not connect to the internet, does not use trackers, and never transmits your keystrokes or clipboard data.</string>
+    <!-- Main Settings Categorization & System Status -->
+    <string name="settings_section_status">SYSTEM STATUS</string>
+    <string name="settings_section_input_appearance">INPUT &amp; APPEARANCE</string>
+    <string name="settings_section_productivity">PRODUCTIVITY &amp; TOOLS</string>
+    <string name="settings_section_privacy_system">PRIVACY &amp; SYSTEM</string>
+    <string name="settings_ime_active">KeyNova is Active &amp; Ready</string>
+    <string name="settings_ime_ready_desc">KeyNova is enabled and selected as your default keyboard</string>
+    <string name="settings_ime_not_default">Set as Default Keyboard</string>
+    <string name="settings_ime_not_default_desc">KeyNova is enabled. Tap to select it as your primary keyboard</string>
+    <string name="settings_ime_disabled">KeyNova is Disabled</string>
+    <string name="settings_ime_disabled_desc">Enable KeyNova in Android System Settings to use it anywhere</string>
+    <string name="settings_btn_open_settings">System Settings</string>
+    <string name="settings_btn_switch_ime">Switch Keyboard</string>
+    <string name="settings_btn_playground">Test Playground</string>
+
+    <!-- Additional Layout Settings Strings -->
+    <string name="layout_settings_smart_gestures_section">SMART TYPING &amp; GESTURES</string>
+    <string name="layout_settings_reset_section">RESTORE DEFAULTS</string>
+    <string name="layout_settings_btn_reset">Reset Layout Settings</string>
+    <string name="layout_settings_btn_reset_desc">Restore height, spacing, feedback, gestures, and delete speeds</string>
+    <string name="layout_settings_reset_confirm_title">Reset Layout Settings?</string>
+    <string name="layout_settings_reset_confirm_msg">This will reset key height, spacing, sound, haptics, gestures, and delete-hold speeds to default values. Your custom themes and languages will stay intact.</string>
+    <string name="layout_settings_sound_test">Test Sound</string>
+    <!-- About Screen -->
     <string name="about_screen_title">About KeyNova</string>
     <string name="about_version">Version 1.0.0</string>
     <string name="about_desc">Fast, responsive, multi-language Android keyboard supporting English, Bangla, Hindi, Developer symbols, and WASD gaming layout.</string>

@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.PushPin
@@ -20,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -38,16 +40,17 @@ fun ClipboardPanelView(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val view = LocalView.current
-    var clips by remember { mutableStateOf(clipboardRepository.getItems()) }
+    val clipsList by clipboardRepository.itemsFlow.collectAsState()
     var isManageMode by remember { mutableStateOf(false) }
 
-    fun refresh() {
-        clips = clipboardRepository.getItems()
+    LaunchedEffect(Unit) {
+        clipboardRepository.syncFromSystemClipboard(context)
     }
 
-    val recentClips = remember(clips) { clips.filter { !it.isPinned } }
-    val pinnedClips = remember(clips) { clips.filter { it.isPinned } }
+    val recentClips = remember(clipsList) { clipsList.filter { !it.isPinned } }
+    val pinnedClips = remember(clipsList) { clipsList.filter { it.isPinned } }
 
     val bgColor = Color(theme.backgroundHex)
     val cardBg = if (theme == KeyboardThemeOption.LIGHT) Color(0xFFF1F5F9) else Color(0xFF262626)
@@ -61,7 +64,7 @@ fun ClipboardPanelView(
             .background(bgColor)
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
-        // Subheader: "Recent" on left, "Manage" on right
+        // Subheader: "← Clipboard" on left, "Clear / Manage" on right
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -69,15 +72,35 @@ fun ClipboardPanelView(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Recent",
-                color = textColor,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        onClose()
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back to Keyboard",
+                        tint = textColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Text(
+                    text = "Clipboard",
+                    color = textColor,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (isManageMode && clips.isNotEmpty()) {
+                if (isManageMode && clipsList.isNotEmpty()) {
                     Text(
                         text = "Clear Unpinned",
                         color = Color(0xFFEF4444),
@@ -86,7 +109,6 @@ fun ClipboardPanelView(
                         modifier = Modifier
                             .clickable {
                                 clipboardRepository.clearAll()
-                                refresh()
                             }
                             .padding(4.dp)
                     )
@@ -134,7 +156,6 @@ fun ClipboardPanelView(
                                 .background(Color.White.copy(alpha = 0.15f))
                                 .clickable {
                                     clipboardRepository.togglePin(item.id)
-                                    refresh()
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -156,7 +177,6 @@ fun ClipboardPanelView(
                                     .size(18.dp)
                                     .clickable {
                                         clipboardRepository.deleteItem(item.id)
-                                        refresh()
                                     }
                             )
                         }
@@ -259,7 +279,6 @@ fun ClipboardPanelView(
                                         .size(16.dp)
                                         .clickable {
                                             clipboardRepository.togglePin(pinnedItem.id)
-                                            refresh()
                                         }
                                 )
                             }

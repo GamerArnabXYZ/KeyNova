@@ -109,6 +109,26 @@ object KeyboardLayoutModel {
     }
 
     /**
+     * Hindi Number Row (Hindi digits १-० with English secondary hints 1-0)
+     */
+    fun getHindiNumberRow(): KeyboardRow {
+        val hiDigits = listOf("१", "२", "३", "४", "५", "६", "७", "८", "९", "०")
+        val enDigits = getArray(
+            R.array.keyboard_numbers_en,
+            listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
+        )
+
+        val keys = hiDigits.mapIndexed { index, hi ->
+            KeyDef(
+                primaryText = hi,
+                secondaryText = enDigits.getOrNull(index),
+                weight = 1f
+            )
+        }
+        return KeyboardRow(keys)
+    }
+
+    /**
      * English QWERTY Layout:
      * Loaded dynamically from keyboard_en.xml
      */

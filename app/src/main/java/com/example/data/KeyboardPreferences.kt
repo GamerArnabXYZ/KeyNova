@@ -225,6 +225,14 @@ enum class ToolbarTool(
         description = "Instant single-tap wipe of the current input field",
         defaultEnabled = false
     ),
+    VOICE_TYPING(
+        id = "voice_typing",
+        titleRes = com.example.R.string.tool_voice_typing_title,
+        descriptionRes = com.example.R.string.tool_voice_typing_desc,
+        title = "Voice Typing",
+        description = "Dictate text using Google Speech Recognition",
+        defaultEnabled = false
+    ),
     SETTINGS(
         id = "settings",
         titleRes = com.example.R.string.tool_settings_title,
@@ -373,6 +381,22 @@ class KeyboardPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_DELETE_HAPTIC, true)
         set(value) = prefs.edit().putBoolean(KEY_DELETE_HAPTIC, value).apply()
 
+    var autoCapitalization: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_CAPITALIZATION, true)
+        set(value) = prefs.edit().putBoolean(KEY_AUTO_CAPITALIZATION, value).apply()
+
+    var doubleSpacePeriod: Boolean
+        get() = prefs.getBoolean(KEY_DOUBLE_SPACE_PERIOD, true)
+        set(value) = prefs.edit().putBoolean(KEY_DOUBLE_SPACE_PERIOD, value).apply()
+
+    var spacebarCursorControl: Boolean
+        get() = prefs.getBoolean(KEY_SPACEBAR_CURSOR_CONTROL, true)
+        set(value) = prefs.edit().putBoolean(KEY_SPACEBAR_CURSOR_CONTROL, value).apply()
+
+    var backspaceSwipeDelete: Boolean
+        get() = prefs.getBoolean(KEY_BACKSPACE_SWIPE_DELETE, true)
+        set(value) = prefs.edit().putBoolean(KEY_BACKSPACE_SWIPE_DELETE, value).apply()
+
     var enabledToolbarTools: List<ToolbarTool>
         get() {
             val raw = prefs.getString(KEY_ENABLED_TOOLBAR_TOOLS, null)
@@ -486,6 +510,23 @@ class KeyboardPreferences(context: Context) {
         return nextLang
     }
 
+    fun resetLayoutToDefaults() {
+        showNumberRow = true
+        keyHeightDp = 48
+        keySpacingDp = 4
+        hapticFeedback = true
+        soundFeedback = false
+        oneHandedMode = OneHandedMode.OFF
+        autoCapitalization = true
+        doubleSpacePeriod = true
+        spacebarCursorControl = true
+        backspaceSwipeDelete = true
+        deleteHoldMode = DeleteHoldMode.WORD_BY_WORD
+        deleteInitialDelayMs = 350
+        deleteRepeatIntervalMs = 100
+        deleteHapticOnRepeat = true
+    }
+
     fun resetToDefaults() {
         prefs.edit().clear().apply()
     }
@@ -510,5 +551,9 @@ class KeyboardPreferences(context: Context) {
         private const val KEY_ENABLED_TOOLBAR_TOOLS = "key_enabled_toolbar_tools"
         private const val KEY_ACTIVE_LAYOUT_ID = "key_active_layout_id"
         private const val KEY_ENABLED_LAYOUT_IDS = "key_enabled_layout_ids"
+        private const val KEY_AUTO_CAPITALIZATION = "key_auto_capitalization"
+        private const val KEY_DOUBLE_SPACE_PERIOD = "key_double_space_period"
+        private const val KEY_SPACEBAR_CURSOR_CONTROL = "key_spacebar_cursor_control"
+        private const val KEY_BACKSPACE_SWIPE_DELETE = "key_backspace_swipe_delete"
     }
 }

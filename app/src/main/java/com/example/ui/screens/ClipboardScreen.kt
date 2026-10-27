@@ -27,10 +27,11 @@ fun ClipboardScreen(
     clipboardRepository: ClipboardRepository,
     onNavigateBack: () -> Unit
 ) {
-    var clips by remember { mutableStateOf(clipboardRepository.getItems()) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val clips by clipboardRepository.itemsFlow.collectAsState()
 
-    fun refresh() {
-        clips = clipboardRepository.getItems()
+    LaunchedEffect(Unit) {
+        clipboardRepository.syncFromSystemClipboard(context)
     }
 
     Scaffold(
@@ -57,7 +58,6 @@ fun ClipboardScreen(
                     if (clips.isNotEmpty()) {
                         TextButton(onClick = {
                             clipboardRepository.clearAll()
-                            refresh()
                         }) {
                             Text("Clear Unpinned", color = Color(0xFFEF4444), fontSize = 12.sp)
                         }
@@ -140,7 +140,6 @@ fun ClipboardScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(onClick = {
                                     clipboardRepository.togglePin(item.id)
-                                    refresh()
                                 }) {
                                     Icon(
                                         imageVector = if (item.isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
@@ -151,7 +150,6 @@ fun ClipboardScreen(
 
                                 IconButton(onClick = {
                                     clipboardRepository.deleteItem(item.id)
-                                    refresh()
                                 }) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,

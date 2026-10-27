@@ -163,11 +163,22 @@ fun KeyNovaKeyboardView(
     var keyboardRootCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var activeSpacePopup by remember { mutableStateOf<SpacePopupState?>(null) }
     var activeKeyPopup by remember { mutableStateOf<KeyPopupState?>(null) }
+    var lastSpaceTapTime by remember { mutableLongStateOf(0L) }
 
-    fun performHaptic() {
+    val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager }
+    val soundEnabled = remember(keyboardPreferences.soundFeedback, prefRev) { keyboardPreferences.soundFeedback }
+
+    fun performKeyFeedback(fx: Int = android.media.AudioManager.FX_KEYPRESS_STANDARD) {
         if (hapticEnabled) {
             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         }
+        if (soundEnabled) {
+            audioManager?.playSoundEffect(fx)
+        }
+    }
+
+    fun performHaptic() {
+        performKeyFeedback(android.media.AudioManager.FX_KEYPRESS_STANDARD)
     }
 
     // Main Keyboard Layout Rows calculation - dynamically built from XML
@@ -186,6 +197,7 @@ fun KeyNovaKeyboardView(
                 if (showNumberRow) {
                     val numberRow = when (currentLayout.languageCode) {
                         "bn" -> KeyboardLayoutModel.getBanglaNumberRow()
+                        "hi" -> KeyboardLayoutModel.getHindiNumberRow()
                         else -> KeyboardLayoutModel.getNumberRow()
                     }
                     result.add(numberRow)
@@ -291,6 +303,10 @@ fun KeyNovaKeyboardView(
                             ShiftState.CAPS_LOCKED -> ShiftState.OFF
                         }
                         performHaptic()
+                    },
+                    onVoiceTyping = {
+                        performKeyFeedback(android.media.AudioManager.FX_KEYPRESS_STANDARD)
+                        actionTarget.onVoiceTyping()
                     }
                 )
 
@@ -332,6 +348,7 @@ fun KeyNovaKeyboardView(
                             clipboardRepository = clipboardRepository,
                             onPasteText = { text ->
                                 actionTarget.onCommitText(text)
+                                clipboardRepository.copyToSystemClipboard(text, context)
                                 performHaptic()
                             },
                             onClose = { activePage = ActiveKeyboardPage.LETTERS }
@@ -391,6 +408,8 @@ fun KeyNovaKeyboardView(
                                                 enabledLayouts = enabledLayouts,
                                                 isLanguageSpace = activePage == ActiveKeyboardPage.LETTERS,
                                                 rootCoordinates = keyboardRootCoordinates,
+                                                spacebarCursorControl = keyboardPreferences.spacebarCursorControl,
+                                                onMoveCursor = { offset -> actionTarget.onMoveCursor(offset) },
                                                 onShowPopup = { left, center, right, bounds, initialIndex ->
                                                     activeSpacePopup = SpacePopupState(
                                                         leftLayout = left,
@@ -420,15 +439,27 @@ fun KeyNovaKeyboardView(
                                                     keyboardPreferences.activeLayoutId = chosen.id
                                                     keyboardPreferences.activeLanguage = chosen.keyboardLanguage
                                                 },
-                                                onPerformHaptic = { performHaptic() },
+                                                onPerformHaptic = { performKeyFeedback(android.media.AudioManager.FX_KEYPRESS_SPACEBAR) },
                                                 onTap = {
-                                                    performHaptic()
+                                                    performKeyFeedback(android.media.AudioManager.FX_KEYPRESS_SPACEBAR)
                                                     if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
                                                         val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
                                                         actionTarget.onCommitText(primary + " ")
                                                         avroComposingText = ""
                                                     } else {
-                                                        actionTarget.onCommitText(" ")
+                                                        val now = System.currentTimeMillis()
+                                                        val isDoubleSpace = keyboardPreferences.doubleSpacePeriod && (now - lastSpaceTapTime < 450L) && lastSpaceTapTime != 0L
+                                                        if (isDoubleSpace) {
+                                                            actionTarget.onDoubleSpacePeriod()
+                                                            lastSpaceTapTime = 0L
+                                                            if (keyboardPreferences.autoCapitalization && currentLayout.languageCode == "en") {
+                                                                shiftState = ShiftState.SHIFTED
+                                                                isShifted = true
+                                                            }
+                                                        } else {
+                                                            actionTarget.onCommitText(" ")
+                                                            lastSpaceTapTime = now
+                                                        }
                                                     }
                                                 },
                                                 modifier = Modifier.weight(keyDef.weight)
@@ -538,12 +569,17 @@ fun KeyNovaKeyboardView(
                                                             }
                                                         }
                                                         KeyAction.ENTER -> {
+                                                            performKeyFeedback(android.media.AudioManager.FX_KEYPRESS_RETURN)
                                                             if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
                                                                 val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
                                                                 actionTarget.onCommitText(primary)
                                                                 avroComposingText = ""
                                                             }
                                                             actionTarget.onEnterAction()
+                                                            if (keyboardPreferences.autoCapitalization && currentLayout.languageCode == "en") {
+                                                                shiftState = ShiftState.SHIFTED
+                                                                isShifted = true
+                                                            }
                                                         }
                                                         KeyAction.SHIFT -> {
                                                             if (currentLayout.languageCode == "en") {
@@ -1067,6 +1103,8 @@ private fun SpaceKeyItem(
     enabledLayouts: List<DynamicKeyboardLayout>,
     isLanguageSpace: Boolean,
     rootCoordinates: LayoutCoordinates?,
+    spacebarCursorControl: Boolean = true,
+    onMoveCursor: (Int) -> Unit = {},
     onShowPopup: (left: DynamicKeyboardLayout, center: DynamicKeyboardLayout, right: DynamicKeyboardLayout, bounds: Rect, initialIndex: Int) -> Unit,
     onUpdatePopupIndex: (newIndex: Int, dragDeltaX: Float) -> Unit,
     onDismissPopup: () -> Unit,
@@ -1101,7 +1139,7 @@ private fun SpaceKeyItem(
             .onGloballyPositioned { coords ->
                 spaceCoordinates = coords
             }
-            .pointerInput(currentLayout, switchMethod, isLanguageSpace, rootCoordinates, enabledLayouts) {
+            .pointerInput(currentLayout, switchMethod, isLanguageSpace, rootCoordinates, enabledLayouts, spacebarCursorControl) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     isPressed = true
@@ -1112,38 +1150,79 @@ private fun SpaceKeyItem(
                     val allowSpaceSwipe = isLanguageSpace && switchMethod == LanguageSwitchMethod.SPACEBAR_SWIPE
                     val thresholdPx = with(density) { 30.dp.toPx() }
 
-                    // Wait up to 240ms for quick tap or horizontal drag
-                    val upBeforeTimeout = withTimeoutOrNull(240L) {
-                        var event = awaitPointerEvent()
-                        while (event.changes.any { it.id == down.id && it.pressed }) {
-                            val change = event.changes.first { it.id == down.id }
-                            val deltaX = change.position.x - down.position.x
-                            // If user is already swiping horizontally on spacebar and swipe is enabled:
-                            if (allowSpaceSwipe && abs(deltaX) >= thresholdPx) {
-                                break
+                    if (allowSpaceSwipe) {
+                        // Wait up to 240ms for quick tap or horizontal drag
+                        val upBeforeTimeout = withTimeoutOrNull(240L) {
+                            var event = awaitPointerEvent()
+                            while (event.changes.any { it.id == down.id && it.pressed }) {
+                                val change = event.changes.first { it.id == down.id }
+                                val deltaX = change.position.x - down.position.x
+                                // If user is already swiping horizontally on spacebar and swipe is enabled:
+                                if (abs(deltaX) >= thresholdPx) {
+                                    break
+                                }
+                                event = awaitPointerEvent()
                             }
-                            event = awaitPointerEvent()
+                            event.changes.firstOrNull { it.id == down.id && !it.pressed }
                         }
-                        event.changes.firstOrNull { it.id == down.id && !it.pressed }
-                    }
 
-                    if (upBeforeTimeout != null || !allowSpaceSwipe) {
-                        // Quick tap on spacebar or swipe disabled
-                        isPressed = false
-                        onTap()
-                    } else {
-                        // Spacebar held or swiped -> activate floating language switcher popup!
-                        isPopupActive = true
-                        onPerformHaptic()
+                        if (upBeforeTimeout != null) {
+                            // Quick tap on spacebar
+                            isPressed = false
+                            onTap()
+                        } else {
+                            // Spacebar held or swiped -> activate floating language switcher popup!
+                            isPopupActive = true
+                            onPerformHaptic()
 
-                        val root = rootCoordinates
-                        val space = spaceCoordinates
-                        val bounds = if (root != null && root.isAttached && space != null && space.isAttached) {
-                            val offset = root.localPositionOf(space, Offset.Zero)
-                            Rect(offset.x, offset.y, offset.x + space.size.width, offset.y + space.size.height)
-                        } else Rect.Zero
+                            val root = rootCoordinates
+                            val space = spaceCoordinates
+                            val bounds = if (root != null && root.isAttached && space != null && space.isAttached) {
+                                val offset = root.localPositionOf(space, Offset.Zero)
+                                Rect(offset.x, offset.y, offset.x + space.size.width, offset.y + space.size.height)
+                            } else Rect.Zero
 
-                        onShowPopup(triple.left, triple.center, triple.right, bounds, currentSelectedIndex)
+                            onShowPopup(triple.left, triple.center, triple.right, bounds, currentSelectedIndex)
+
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                                if (!change.pressed) {
+                                    isPressed = false
+                                    change.consume()
+                                    onDismissPopup()
+                                    val chosen = when (currentSelectedIndex) {
+                                        0 -> triple.left
+                                        1 -> triple.center
+                                        2 -> triple.right
+                                        else -> triple.center
+                                    }
+                                    onSelectLayout(chosen)
+                                    onPerformHaptic()
+                                    break
+                                }
+
+                                val deltaX = change.position.x - down.position.x
+                                val newIndex = when {
+                                    deltaX < -thresholdPx -> 0 // Left layout
+                                    deltaX > thresholdPx -> 2  // Right layout
+                                    else -> 1                 // Center layout
+                                }
+
+                                if (newIndex != currentSelectedIndex) {
+                                    currentSelectedIndex = newIndex
+                                    onPerformHaptic()
+                                    onUpdatePopupIndex(currentSelectedIndex, deltaX)
+                                }
+                            }
+                        }
+                    } else if (spacebarCursorControl) {
+                        // Precision Spacebar Cursor Navigation
+                        var lastX = down.position.x
+                        var accumulatedX = 0f
+                        var hasMovedCursor = false
+                        val stepPx = with(density) { 16.dp.toPx() }
 
                         while (true) {
                             val event = awaitPointerEvent()
@@ -1151,32 +1230,36 @@ private fun SpaceKeyItem(
 
                             if (!change.pressed) {
                                 isPressed = false
-                                change.consume()
-                                onDismissPopup()
-                                val chosen = when (currentSelectedIndex) {
-                                    0 -> triple.left
-                                    1 -> triple.center
-                                    2 -> triple.right
-                                    else -> triple.center
+                                if (!hasMovedCursor) {
+                                    onTap()
                                 }
-                                onSelectLayout(chosen)
-                                onPerformHaptic()
                                 break
                             }
 
-                            val deltaX = change.position.x - down.position.x
-                            val newIndex = when {
-                                deltaX < -thresholdPx -> 0 // Left layout
-                                deltaX > thresholdPx -> 2  // Right layout
-                                else -> 1                 // Center layout
-                            }
+                            val dx = change.position.x - lastX
+                            lastX = change.position.x
+                            accumulatedX += dx
 
-                            if (newIndex != currentSelectedIndex) {
-                                currentSelectedIndex = newIndex
+                            if (accumulatedX >= stepPx) {
+                                hasMovedCursor = true
+                                onMoveCursor(1)
                                 onPerformHaptic()
-                                onUpdatePopupIndex(currentSelectedIndex, deltaX)
+                                accumulatedX -= stepPx
+                            } else if (accumulatedX <= -stepPx) {
+                                hasMovedCursor = true
+                                onMoveCursor(-1)
+                                onPerformHaptic()
+                                accumulatedX += stepPx
                             }
                         }
+                    } else {
+                        // Standard tap
+                        var event = awaitPointerEvent()
+                        while (event.changes.any { it.id == down.id && it.pressed }) {
+                            event = awaitPointerEvent()
+                        }
+                        isPressed = false
+                        onTap()
                     }
                 }
             },
@@ -1314,7 +1397,7 @@ private fun BackspaceKeyItem(
                 if (theme == KeyboardThemeOption.LIGHT) Modifier.border(0.5.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
                 else Modifier
             )
-            .pointerInput(keyboardPreferences.deleteHoldMode, keyboardPreferences.deleteInitialDelayMs, keyboardPreferences.deleteRepeatIntervalMs) {
+            .pointerInput(keyboardPreferences.deleteHoldMode, keyboardPreferences.deleteInitialDelayMs, keyboardPreferences.deleteRepeatIntervalMs, keyboardPreferences.backspaceSwipeDelete) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     isPressed = true
@@ -1325,11 +1408,26 @@ private fun BackspaceKeyItem(
                     val repeatInterval = keyboardPreferences.deleteRepeatIntervalMs.toLong()
                     val mode = keyboardPreferences.deleteHoldMode
                     val hapticOnRepeat = keyboardPreferences.deleteHapticOnRepeat
+                    val allowSwipeDelete = keyboardPreferences.backspaceSwipeDelete
+                    val swipeThreshold = with(density) { 26.dp.toPx() }
+                    var lastSwipeX = down.position.x
+                    var didSwipeDelete = false
 
-                    // Wait for initial delay before continuous auto-delete begins
+                    // Wait for initial delay or detect swipe left
                     val upBeforeTimeout = withTimeoutOrNull(initialDelay) {
                         var event = awaitPointerEvent()
                         while (event.changes.any { it.id == down.id && it.pressed }) {
+                            val change = event.changes.first { it.id == down.id }
+                            if (allowSwipeDelete) {
+                                val deltaX = change.position.x - lastSwipeX
+                                if (deltaX <= -swipeThreshold) {
+                                    didSwipeDelete = true
+                                    isHoldingWordDelete = true
+                                    onDeleteWord()
+                                    onPerformHaptic()
+                                    lastSwipeX = change.position.x
+                                }
+                            }
                             event = awaitPointerEvent()
                         }
                         event.changes.firstOrNull { it.id == down.id && !it.pressed }
@@ -1338,8 +1436,9 @@ private fun BackspaceKeyItem(
                     if (upBeforeTimeout != null) {
                         // Quick tap release
                         isPressed = false
-                    } else {
-                        // Hold timed out -> Continuous auto-removal begins!
+                        isHoldingWordDelete = false
+                    } else if (!didSwipeDelete) {
+                        // Hold timed out without swipe -> Continuous auto-removal begins!
                         if (mode == DeleteHoldMode.WORD_BY_WORD) {
                             isHoldingWordDelete = true
                         }
@@ -1366,6 +1465,23 @@ private fun BackspaceKeyItem(
                                 isPressed = false
                                 isHoldingWordDelete = false
                                 break
+                            }
+                        }
+                    } else {
+                        // Swipe delete was triggered, continue tracking swipe left until finger lifts
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) {
+                                isPressed = false
+                                isHoldingWordDelete = false
+                                break
+                            }
+                            val deltaX = change.position.x - lastSwipeX
+                            if (deltaX <= -swipeThreshold) {
+                                onDeleteWord()
+                                onPerformHaptic()
+                                lastSwipeX = change.position.x
                             }
                         }
                     }

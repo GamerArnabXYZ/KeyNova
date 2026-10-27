@@ -120,6 +120,26 @@ fun PlaygroundScreen(
                 onCommitText("\n")
             }
 
+            override fun onDoubleSpacePeriod() {
+                val safePos = cursorPosition.coerceIn(0, testText.length)
+                if (safePos > 0 && testText.getOrNull(safePos - 1) == ' ') {
+                    onDeleteBackward()
+                    onCommitText(". ")
+                } else {
+                    onCommitText(". ")
+                }
+            }
+
+            override fun onVoiceTyping() {
+                try {
+                    val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Speak now to test voice typing...")
+                    }
+                    context.startActivity(intent)
+                } catch (_: Exception) {}
+            }
+
             override fun onMoveCursor(offset: Int) {
                 cursorPosition = (cursorPosition + offset).coerceIn(0, testText.length)
             }

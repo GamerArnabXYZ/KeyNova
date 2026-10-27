@@ -46,6 +46,7 @@ fun KeyboardToolbar(
     onToggleOneHanded: () -> Unit,
     onClearAll: () -> Unit,
     onCycleCase: () -> Unit,
+    onVoiceTyping: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val bgColor = Color(theme.backgroundHex)
@@ -231,6 +232,18 @@ fun KeyboardToolbar(
                             accentColor = accentColor,
                             testTag = "toolbar_tool_clear_text",
                             onClick = onClearAll
+                        )
+                    }
+
+                    ToolbarTool.VOICE_TYPING -> {
+                        ModernToolbarPill(
+                            icon = getToolbarIconForTool(tool),
+                            contentDescription = "Voice Typing",
+                            isSelected = false,
+                            textColor = textColor,
+                            accentColor = accentColor,
+                            testTag = "toolbar_tool_voice_typing",
+                            onClick = onVoiceTyping
                         )
                     }
 

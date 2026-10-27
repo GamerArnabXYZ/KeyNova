@@ -1,9 +1,14 @@
 package com.example.ime
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -39,6 +44,17 @@ class KeyNovaInputMethodService : InputMethodService(),
     private lateinit var prefs: KeyboardPreferences
     private lateinit var clipboardRepo: ClipboardRepository
     private lateinit var snippetsRepo: SnippetsRepository
+    private var clipboardManager: ClipboardManager? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val clipChangedListener = ClipboardManager.OnPrimaryClipChangedListener {
+        syncPrimaryClip()
+    }
+
+    private fun syncPrimaryClip() {
+        try {
+            clipboardRepo.syncFromSystemClipboard(this)
+        } catch (_: Exception) {}
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -51,6 +67,12 @@ class KeyNovaInputMethodService : InputMethodService(),
         clipboardRepo = ClipboardRepository(this)
         snippetsRepo = SnippetsRepository(this)
         KeyboardLayoutModel.init(this)
+
+        clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        try {
+            clipboardManager?.addPrimaryClipChangedListener(clipChangedListener)
+        } catch (_: Exception) {}
+        syncPrimaryClip()
     }
 
     override fun onEvaluateInputViewShown(): Boolean {
@@ -113,6 +135,7 @@ class KeyNovaInputMethodService : InputMethodService(),
         super.onStartInputView(info, restarting)
 
         prefs.notifyPreferencesChanged()
+        syncPrimaryClip()
 
         window?.window?.let { win ->
             val bg = prefs.theme.backgroundHex.toInt()
@@ -140,6 +163,9 @@ class KeyNovaInputMethodService : InputMethodService(),
 
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            clipboardManager?.removePrimaryClipChangedListener(clipChangedListener)
+        } catch (_: Exception) {}
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         vmStore.clear()
@@ -148,6 +174,7 @@ class KeyNovaInputMethodService : InputMethodService(),
     // KeyboardActionTarget Implementation
     override fun onCommitText(text: String) {
         val ic = currentInputConnection ?: return
+        ic.finishComposingText()
         ic.commitText(text, 1)
     }
 
@@ -274,11 +301,25 @@ class KeyNovaInputMethodService : InputMethodService(),
     override fun onCopy() {
         val ic = currentInputConnection ?: return
         ic.performContextMenuAction(android.R.id.copy)
+        mainHandler.postDelayed({
+            syncPrimaryClip()
+        }, 150)
     }
 
     override fun onPaste() {
         val ic = currentInputConnection ?: return
-        ic.performContextMenuAction(android.R.id.paste)
+        val cm = clipboardManager ?: getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val clipText = if (cm != null && cm.hasPrimaryClip()) {
+            cm.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString()
+        } else null
+
+        if (!clipText.isNullOrEmpty()) {
+            ic.finishComposingText()
+            ic.commitText(clipText, 1)
+            clipboardRepo.addItem(clipText)
+        } else {
+            ic.performContextMenuAction(android.R.id.paste)
+        }
     }
 
     override fun onClearAll() {
@@ -297,6 +338,28 @@ class KeyNovaInputMethodService : InputMethodService(),
                 else -> selected.uppercase()
             }
             ic.commitText(cycled, 1)
+        }
+    }
+
+    override fun onVoiceTyping() {
+        try {
+            val intent = Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Speak now to type...")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (_: Exception) {}
+    }
+
+    override fun onDoubleSpacePeriod() {
+        val ic = currentInputConnection ?: return
+        val textBefore = ic.getTextBeforeCursor(2, 0)?.toString()
+        if (textBefore?.endsWith(" ") == true) {
+            ic.deleteSurroundingText(1, 0)
+            ic.commitText(". ", 1)
+        } else {
+            ic.commitText(". ", 1)
         }
     }
 }

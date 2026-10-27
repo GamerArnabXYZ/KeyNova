@@ -39,4 +39,6 @@ interface KeyboardActionTarget {
     fun onPaste() {}
     fun onClearAll() {}
     fun onCycleCase() {}
+    fun onVoiceTyping() {}
+    fun onDoubleSpacePeriod() {}
 }

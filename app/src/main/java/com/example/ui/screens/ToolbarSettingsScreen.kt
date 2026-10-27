@@ -529,6 +529,7 @@ fun getToolbarIconForTool(tool: ToolbarTool): ImageVector {
         ToolbarTool.ONE_HANDED -> Icons.Outlined.TouchApp
         ToolbarTool.CASE_CONVERTER -> Icons.Outlined.TextFields
         ToolbarTool.CLEAR_TEXT -> Icons.Outlined.DeleteSweep
+        ToolbarTool.VOICE_TYPING -> Icons.Outlined.Mic
         ToolbarTool.SETTINGS -> Icons.Outlined.Tune
     }
 }
