@@ -811,16 +811,16 @@ fun LayoutSettingsScreen(
                                             }
                                         }
                                     }
-                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    .padding(horizontal = 10.dp, vertical = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "Hold to Test Delete ⌫",
                                     color = Color.White,
-                                    fontSize = 12.sp,
+                                    fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     textAlign = TextAlign.Center,
-                                    maxLines = 2
+                                    lineHeight = 16.sp
                                 )
                             }
 
@@ -831,9 +831,9 @@ fun LayoutSettingsScreen(
                                 },
                                 shape = RoundedCornerShape(8.dp),
                                 modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
                             ) {
-                                Text("Reset Text", fontSize = 12.sp, maxLines = 1, softWrap = false)
+                                Text("Reset Text", fontSize = 12.5.sp, maxLines = 1, softWrap = false)
                             }
                         }
                     }

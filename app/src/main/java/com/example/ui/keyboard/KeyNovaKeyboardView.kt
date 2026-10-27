@@ -236,7 +236,7 @@ fun KeyNovaKeyboardView(
             .wrapContentHeight()
             .background(bgColor)
             .navigationBarsPadding()
-            .padding(bottom = 6.dp)
+            .padding(bottom = if (isImeService) 8.dp else 4.dp)
             .onGloballyPositioned { rootCoords ->
                 keyboardRootCoordinates = rootCoords
             }
@@ -1272,6 +1272,9 @@ private fun SpaceKeyItem(
         ) {
             if (isLanguageSpace) {
                 val allowSpaceSwipe = switchMethod == LanguageSwitchMethod.SPACEBAR_SWIPE && enabledLayouts.size > 1
+                val showSubtitle = !currentLayout.layoutName.equals(currentLayout.languageName, ignoreCase = true) && currentLayout.languageCode != "en"
+                val displayText = if (showSubtitle) "${currentLayout.languageName} (${currentLayout.layoutName})" else currentLayout.languageName
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
@@ -1279,40 +1282,27 @@ private fun SpaceKeyItem(
                     if (allowSpaceSwipe) {
                         Text(
                             text = "‹  ",
-                            color = textColor.copy(alpha = 0.5f),
+                            color = textColor.copy(alpha = 0.45f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                     Text(
-                        text = currentLayout.languageName,
-                        color = textColor.copy(alpha = 0.95f),
+                        text = displayText,
+                        color = textColor.copy(alpha = 0.85f),
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         softWrap = false
                     )
                     if (allowSpaceSwipe) {
                         Text(
                             text = "  ›",
-                            color = textColor.copy(alpha = 0.5f),
+                            color = textColor.copy(alpha = 0.45f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                }
-
-                val showSubtitle = !currentLayout.layoutName.equals(currentLayout.languageName, ignoreCase = true)
-                if (showSubtitle) {
-                    Spacer(modifier = Modifier.height(1.dp))
-                    Text(
-                        text = currentLayout.layoutName,
-                        color = accentColor.copy(alpha = 0.9f),
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        softWrap = false
-                    )
                 }
             } else {
                 Text(

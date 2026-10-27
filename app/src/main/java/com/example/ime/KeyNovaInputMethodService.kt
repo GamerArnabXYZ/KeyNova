@@ -93,6 +93,7 @@ class KeyNovaInputMethodService : InputMethodService(),
             val bg = prefs.theme.backgroundHex.toInt()
             win.navigationBarColor = bg
             win.decorView.setBackgroundColor(bg)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(win, false)
             win.decorView.setViewTreeLifecycleOwner(this)
             win.decorView.setViewTreeSavedStateRegistryOwner(this)
             win.decorView.setViewTreeViewModelStoreOwner(this)
@@ -141,6 +142,7 @@ class KeyNovaInputMethodService : InputMethodService(),
             val bg = prefs.theme.backgroundHex.toInt()
             win.navigationBarColor = bg
             win.decorView.setBackgroundColor(bg)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(win, false)
             win.decorView.setViewTreeLifecycleOwner(this)
             win.decorView.setViewTreeSavedStateRegistryOwner(this)
             win.decorView.setViewTreeViewModelStoreOwner(this)

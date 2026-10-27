@@ -221,22 +221,24 @@ fun ToolbarSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = stringResource(R.string.toolbar_settings_live_preview_title),
-                                modifier = Modifier.weight(1f, fill = false),
+                                text = "TOOLBAR PREVIEW",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
+                                fontSize = 11.5.sp,
                                 letterSpacing = 1.sp,
-                                color = Color(0xFF64748B),
-                                maxLines = 1
+                                color = Color(0xFF64748B)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.toolbar_settings_theme_label, currentTheme.displayName),
-                                fontSize = 11.sp,
-                                color = Color(0xFF94A3B8),
-                                maxLines = 1,
-                                softWrap = false
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0xFFF1F5F9)
+                            ) {
+                                Text(
+                                    text = "Theme: ${currentTheme.displayName}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF475569),
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
                         }
 
                         // Toolbar Simulation Bar
