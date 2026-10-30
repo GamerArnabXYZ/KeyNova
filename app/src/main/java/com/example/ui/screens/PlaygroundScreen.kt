@@ -7,6 +7,8 @@ import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -48,6 +50,11 @@ fun PlaygroundScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val imm = remember { context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager }
+
+    val prefRev = keyboardPreferences.preferenceRevision.intValue
+    val isFloatingMode = remember(keyboardPreferences.isFloatingMode, prefRev) {
+        keyboardPreferences.isFloatingMode
+    }
 
     var testText by remember { mutableStateOf("Hello, KeyNova!") }
     var cursorPosition by remember { mutableIntStateOf(testText.length) }
@@ -293,16 +300,17 @@ fun PlaygroundScreen(
         },
         containerColor = Color(0xFFF8FAFC)
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(innerPadding)
         ) {
             Column(
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(bottom = if (isFloatingMode) 80.dp else 290.dp)
             ) {
                 // System Setup Assistance Card if not enabled or user wants to switch
                 Card(
@@ -495,7 +503,13 @@ fun PlaygroundScreen(
                 actionTarget = actionTarget,
                 onOpenSettings = onNavigateToSettings,
                 onOpenToolbarSettings = onNavigateToToolbarSettings,
-                modifier = Modifier.fillMaxWidth()
+                modifier = if (isFloatingMode) {
+                    Modifier.fillMaxSize()
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                }
             )
         }
     }

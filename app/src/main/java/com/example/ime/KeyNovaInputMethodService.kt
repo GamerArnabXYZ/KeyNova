@@ -50,20 +50,32 @@ class KeyNovaInputMethodService : InputMethodService(),
         syncPrimaryClip()
     }
 
+    private var composeView: ComposeView? = null
+    private var floatingCardBounds: android.graphics.Rect? = null
     private val prefChangeListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == "key_is_floating_mode" || key == "key_theme") {
+        if (key == "key_is_floating_mode" || key == "key_theme" || key == "key_is_custom_theme" || key == "key_custom_theme_config") {
             updateWindowAppearance()
         }
     }
 
     private fun updateWindowAppearance() {
         mainHandler.post {
-            window?.window?.let { win ->
-                val isFloating = prefs.isFloatingMode
-                val bg = if (isFloating) android.graphics.Color.TRANSPARENT else prefs.theme.backgroundHex.toInt()
-                win.navigationBarColor = bg
-                win.decorView.setBackgroundColor(bg)
-            }
+            try {
+                val win = window?.window ?: return@post
+                val isFloating = if (::prefs.isInitialized) prefs.isFloatingMode else false
+                val isCustom = if (::prefs.isInitialized) (prefs.isCustomThemeActive || prefs.theme == com.example.data.KeyboardThemeOption.CUSTOM) else false
+                val customConfig = if (isCustom && ::prefs.isInitialized) prefs.customThemeConfig else null
+                val bg = when {
+                    isFloating -> android.graphics.Color.TRANSPARENT
+                    customConfig?.backgroundImagePath != null -> android.graphics.Color.TRANSPARENT
+                    customConfig != null -> customConfig.backgroundColor.toInt()
+                    ::prefs.isInitialized -> prefs.theme.backgroundHex.toInt()
+                    else -> android.graphics.Color.WHITE
+                }
+
+                win.navigationBarColor = if (isFloating) android.graphics.Color.TRANSPARENT else bg
+                win.decorView.setBackgroundColor(if (isFloating) android.graphics.Color.TRANSPARENT else bg)
+            } catch (_: Exception) {}
         }
     }
 
@@ -108,11 +120,36 @@ class KeyNovaInputMethodService : InputMethodService(),
 
     override fun onComputeInsets(outInsets: Insets) {
         super.onComputeInsets(outInsets)
-        if (::prefs.isInitialized && prefs.isFloatingMode) {
-            val decor = window?.window?.decorView ?: return
-            outInsets.contentTopInsets = decor.height
-            outInsets.visibleTopInsets = decor.height
-        }
+        try {
+            if (::prefs.isInitialized && prefs.isFloatingMode) {
+                val decor = window?.window?.decorView
+                val decorHeight = decor?.height ?: 0
+                val decorWidth = decor?.width ?: 0
+
+                if (decorHeight > 0 && decorWidth > 0) {
+                    outInsets.contentTopInsets = decorHeight
+                    outInsets.visibleTopInsets = decorHeight
+
+                    outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
+                    outInsets.touchableRegion.setEmpty()
+
+                    val bounds = floatingCardBounds
+                    if (bounds != null && bounds.width() > 0 && bounds.height() > 0) {
+                        val safeLeft = bounds.left.coerceIn(0, decorWidth)
+                        val safeTop = bounds.top.coerceIn(0, decorHeight)
+                        val safeRight = bounds.right.coerceIn(0, decorWidth)
+                        val safeBottom = bounds.bottom.coerceIn(0, decorHeight)
+                        if (safeRight > safeLeft && safeBottom > safeTop) {
+                            outInsets.touchableRegion.set(safeLeft, safeTop, safeRight, safeBottom)
+                        } else {
+                            outInsets.touchableRegion.set(0, 0, decorWidth, decorHeight)
+                        }
+                    } else {
+                        outInsets.touchableRegion.set(0, 0, decorWidth, decorHeight)
+                    }
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     override fun onCreateInputView(): View {
@@ -124,7 +161,7 @@ class KeyNovaInputMethodService : InputMethodService(),
             win.decorView.setViewTreeViewModelStoreOwner(this)
         }
 
-        val composeView = ComposeView(this).apply {
+        val newComposeView = ComposeView(this).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -150,11 +187,18 @@ class KeyNovaInputMethodService : InputMethodService(),
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
                         startActivity(intent)
+                    },
+                    onFloatingBoundsChanged = { rect ->
+                        floatingCardBounds = rect
+                        mainHandler.post {
+                            composeView?.requestLayout()
+                        }
                     }
                 )
             }
         }
-        return composeView
+        composeView = newComposeView
+        return newComposeView
     }
 
     override fun onWindowShown() {

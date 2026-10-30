@@ -72,6 +72,16 @@ enum class KeyboardThemeOption(
         textHex = 0xFFFFFFFF,
         accentHex = 0xFFF87171,
         secondaryTextHex = 0xFFFECACA
+    ),
+    CUSTOM(
+        id = "custom",
+        displayName = "Custom Theme",
+        backgroundHex = 0xFF121212,
+        surfaceHex = 0xFF1E1E1E,
+        keyHex = 0xFF2C2C2C,
+        textHex = 0xFFF8FAFC,
+        accentHex = 0xFF22C55E,
+        secondaryTextHex = 0xFF94A3B8
     );
 
     companion object {
@@ -315,7 +325,24 @@ class KeyboardPreferences(context: Context) {
 
     var theme: KeyboardThemeOption
         get() = KeyboardThemeOption.fromId(prefs.getString(KEY_THEME, KeyboardThemeOption.LIGHT.id) ?: "light")
-        set(value) = prefs.edit().putString(KEY_THEME, value.id).apply()
+        set(value) {
+            prefs.edit().putString(KEY_THEME, value.id).apply()
+            notifyPreferencesChanged()
+        }
+
+    var customThemeConfig: CustomThemeConfig
+        get() = CustomThemeConfig.fromJson(prefs.getString(KEY_CUSTOM_THEME_CONFIG, null))
+        set(value) {
+            prefs.edit().putString(KEY_CUSTOM_THEME_CONFIG, value.toJson()).apply()
+            notifyPreferencesChanged()
+        }
+
+    var isCustomThemeActive: Boolean
+        get() = prefs.getBoolean(KEY_IS_CUSTOM_THEME, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_IS_CUSTOM_THEME, value).apply()
+            notifyPreferencesChanged()
+        }
 
     var activeLanguage: KeyboardLanguage
         get() = KeyboardLanguage.fromCode(prefs.getString(KEY_ACTIVE_LANG, KeyboardLanguage.ENGLISH.code) ?: "en")
@@ -571,6 +598,8 @@ class KeyboardPreferences(context: Context) {
 
     companion object {
         private const val KEY_THEME = "key_theme"
+        private const val KEY_CUSTOM_THEME_CONFIG = "key_custom_theme_config"
+        private const val KEY_IS_CUSTOM_THEME = "key_is_custom_theme"
         private const val KEY_ACTIVE_LANG = "key_active_lang"
         private const val KEY_ENABLED_LANGS = "key_enabled_langs"
         private const val KEY_SHOW_NUMBER_ROW = "key_show_number_row"

@@ -50,9 +50,22 @@ fun KeyboardToolbar(
     onVoiceTyping: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val bgColor = Color(theme.backgroundHex)
-    val textColor = Color(theme.textHex)
-    val accentColor = Color(theme.accentHex)
+    val isCustomTheme = (theme == KeyboardThemeOption.CUSTOM || keyboardPreferences.isCustomThemeActive)
+    val customConfig = if (isCustomTheme) keyboardPreferences.customThemeConfig else null
+
+    val bgColor = when {
+        customConfig?.expandImageBehindSuggestion == true -> Color.Transparent
+        customConfig != null -> Color(customConfig.suggestionBackgroundColor).copy(alpha = customConfig.suggestionBrightness)
+        else -> Color(theme.backgroundHex)
+    }
+    val textColor = when {
+        customConfig != null -> Color(customConfig.suggestionTextColor)
+        else -> Color(theme.textHex)
+    }
+    val accentColor = when {
+        customConfig != null -> Color(customConfig.funcKeyBackgroundColor)
+        else -> Color(theme.accentHex)
+    }
 
     val enabledTools = keyboardPreferences.enabledToolbarTools.take(ToolbarTool.MAX_ENABLED_TOOLS)
 

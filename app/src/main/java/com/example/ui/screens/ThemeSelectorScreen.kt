@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,7 +29,8 @@ import com.example.data.KeyboardThemeOption
 @Composable
 fun ThemeSelectorScreen(
     keyboardPreferences: KeyboardPreferences,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToCustomThemeBuilder: () -> Unit = {}
 ) {
     var selectedTheme by remember { mutableStateOf(keyboardPreferences.theme) }
     var selectedTab by remember { mutableStateOf("Basic") }
@@ -53,6 +55,18 @@ fun ThemeSelectorScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Color(0xFF0F172A)
+                        )
+                    }
+                },
+                actions = {
+                    TextButton(
+                        onClick = onNavigateToCustomThemeBuilder,
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF16A34A))
+                    ) {
+                        Text(
+                            text = "+ Custom",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
                         )
                     }
                 },
@@ -179,6 +193,62 @@ fun ThemeSelectorScreen(
                     }
                 }
 
+                // Custom Theme Creator Banner
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { onNavigateToCustomThemeBuilder() },
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+                    border = BorderStroke(1.5.dp, Color(0xFF86EFAC))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFFDCFCE7)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("🎨", fontSize = 20.sp)
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Custom Theme Maker",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = Color(0xFF14532D)
+                                )
+                                Text(
+                                    text = "Gallery background, custom keys & colors",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF166534)
+                                )
+                            }
+                        }
+                        Button(
+                            onClick = onNavigateToCustomThemeBuilder,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(if (selectedTheme == KeyboardThemeOption.CUSTOM) "Edit" else "Create", fontSize = 13.sp)
+                        }
+                    }
+                }
+
                 Text(
                     text = "Select Theme",
                     fontSize = 14.sp,
@@ -192,7 +262,7 @@ fun ThemeSelectorScreen(
                     columns = GridCells.Fixed(2),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.height(220.dp)
+                    modifier = Modifier.height(200.dp)
                 ) {
                     items(themes) { theme ->
                         val isSelected = selectedTheme == theme
@@ -203,6 +273,11 @@ fun ThemeSelectorScreen(
                                 .clickable {
                                     selectedTheme = theme
                                     keyboardPreferences.theme = theme
+                                    if (theme == KeyboardThemeOption.CUSTOM) {
+                                        keyboardPreferences.isCustomThemeActive = true
+                                    } else {
+                                        keyboardPreferences.isCustomThemeActive = false
+                                    }
                                 }
                                 .then(
                                     if (isSelected) Modifier.border(2.dp, Color(0xFF2563EB), RoundedCornerShape(12.dp))

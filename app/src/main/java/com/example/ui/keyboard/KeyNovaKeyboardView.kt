@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.DragIndicator
@@ -38,9 +40,15 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
+import coil.compose.AsyncImage
+import java.io.File
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -128,11 +136,17 @@ fun KeyNovaKeyboardView(
     isImeService: Boolean = false,
     onOpenSettings: () -> Unit,
     onOpenToolbarSettings: () -> Unit = onOpenSettings,
+    onFloatingBoundsChanged: (android.graphics.Rect?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val view = LocalView.current
     val prefRev = keyboardPreferences.preferenceRevision.intValue
+
+    val density = LocalDensity.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
 
     var activePage by remember { mutableStateOf(ActiveKeyboardPage.LETTERS) }
     var currentLayout by remember(keyboardPreferences.activeLayoutId, prefRev) {
@@ -159,6 +173,7 @@ fun KeyNovaKeyboardView(
     var floatingScale by remember(keyboardPreferences.floatingScale, prefRev) {
         mutableFloatStateOf(keyboardPreferences.floatingScale)
     }
+    var isResizeModeActive by remember { mutableStateOf(false) }
     var floatingOpacity by remember(keyboardPreferences.floatingOpacity, prefRev) {
         mutableFloatStateOf(keyboardPreferences.floatingOpacity)
     }
@@ -168,11 +183,11 @@ fun KeyNovaKeyboardView(
     val showNumberRow = remember(keyboardPreferences.showNumberRow, prefRev) { keyboardPreferences.showNumberRow }
     val keyHeight = remember(keyboardPreferences.keyHeightDp, prefRev) { keyboardPreferences.keyHeightDp.dp }
     val keySpacing = remember(keyboardPreferences.keySpacingDp, prefRev) { keyboardPreferences.keySpacingDp.dp }
-    val currentKeyHeight = remember(keyHeight, isFloatingMode, floatingScale) {
-        if (isFloatingMode) keyHeight * floatingScale else keyHeight
+    val currentKeyHeight = remember(keyHeight, isFloatingMode) {
+        if (isFloatingMode) 40.dp else keyHeight
     }
-    val currentKeySpacing = remember(keySpacing, isFloatingMode, floatingScale) {
-        if (isFloatingMode) keySpacing * floatingScale else keySpacing
+    val currentKeySpacing = remember(keySpacing, isFloatingMode) {
+        if (isFloatingMode) 2.dp else keySpacing
     }
     val hapticEnabled = remember(keyboardPreferences.hapticFeedback, prefRev) { keyboardPreferences.hapticFeedback }
     val longPressDelayMs = remember(keyboardPreferences.keyLongPressDelayMs, prefRev) { keyboardPreferences.keyLongPressDelayMs.toLong() }
@@ -192,7 +207,17 @@ fun KeyNovaKeyboardView(
     }
 
     val showGlobeKey = (switchMethod == LanguageSwitchMethod.GLOBE_KEY)
-    val bgColor = Color(currentTheme.backgroundHex)
+    val isCustomTheme = (currentTheme == KeyboardThemeOption.CUSTOM || keyboardPreferences.isCustomThemeActive)
+    val customThemeConfig = remember(keyboardPreferences.customThemeConfig, isCustomTheme, prefRev) {
+        if (isCustomTheme) keyboardPreferences.customThemeConfig else null
+    }
+    val bgColor = remember(currentTheme, customThemeConfig) {
+        if (customThemeConfig != null) {
+            Color(customThemeConfig.backgroundColor).copy(alpha = customThemeConfig.backgroundBrightness)
+        } else {
+            Color(currentTheme.backgroundHex)
+        }
+    }
 
     val allRegisteredLayouts = remember(context) { KeyboardLayoutRegistry.getLayouts(context) }
     val enabledLayouts = remember(keyboardPreferences.enabledLayoutIds, allRegisteredLayouts) {
@@ -295,8 +320,12 @@ fun KeyNovaKeyboardView(
                 performHaptic()
             },
             onToggleFloating = {
-                isFloatingMode = !inFloating
-                keyboardPreferences.isFloatingMode = !inFloating
+                val newState = !inFloating
+                isFloatingMode = newState
+                keyboardPreferences.isFloatingMode = newState
+                if (!newState) {
+                    onFloatingBoundsChanged(null)
+                }
                 performHaptic()
             },
             onClearAll = {
@@ -448,6 +477,7 @@ fun KeyNovaKeyboardView(
                                                 isLanguageSpace = activePage == ActiveKeyboardPage.LETTERS,
                                                 rootCoordinates = keyboardRootCoordinates,
                                                 spacebarCursorControl = keyboardPreferences.spacebarCursorControl,
+                                                customConfig = customThemeConfig,
                                                 onMoveCursor = { offset -> actionTarget.onMoveCursor(offset) },
                                                 onShowPopup = { left, center, right, bounds, initialIndex ->
                                                     activeSpacePopup = SpacePopupState(
@@ -511,6 +541,7 @@ fun KeyNovaKeyboardView(
                                                 theme = currentTheme,
                                                 height = currentKeyHeight,
                                                 keyboardPreferences = keyboardPreferences,
+                                                customConfig = customThemeConfig,
                                                 onDelete = {
                                                     if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
                                                         avroComposingText = avroComposingText.dropLast(1)
@@ -544,6 +575,7 @@ fun KeyNovaKeyboardView(
                                                 isGamingMode = activePage == ActiveKeyboardPage.GAMING,
                                                 rootCoordinates = keyboardRootCoordinates,
                                                 longPressDelayMs = longPressDelayMs,
+                                                customConfig = customThemeConfig,
                                                 onShowPopup = { targetKey, bounds, initialIndex ->
                                                     val (disp, commit) = resolveSecondaryText(targetKey.primaryText, targetKey.secondaryText)
                                                     activeKeyPopup = KeyPopupState(
@@ -703,11 +735,23 @@ fun KeyNovaKeyboardView(
         }
     }
 
-    Box(
-        modifier = modifier
+    val latestBoundsRect = remember { android.graphics.Rect() }
+    val cardDimensions = remember { FloatArray(2) }
+
+    val containerModifier = if (isFloatingMode) {
+        Modifier
+            .fillMaxWidth()
+            .height(configuration.screenHeightDp.dp)
+    } else {
+        Modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .background(if (isFloatingMode) Color.Transparent else bgColor)
+    }
+
+    Box(
+        modifier = modifier
+            .then(containerModifier)
+            .background(if (isFloatingMode || (customThemeConfig?.backgroundImagePath != null)) Color.Transparent else bgColor)
             .then(if (isFloatingMode) Modifier else Modifier.navigationBarsPadding())
             .padding(bottom = if (!isFloatingMode && isImeService) 8.dp else 4.dp)
             .onGloballyPositioned { rootCoords ->
@@ -715,9 +759,23 @@ fun KeyNovaKeyboardView(
             },
         contentAlignment = if (isFloatingMode) Alignment.BottomCenter else Alignment.TopStart
     ) {
+        // Custom Theme Background Image support
+        if (customThemeConfig?.backgroundImagePath != null) {
+            AsyncImage(
+                model = File(customThemeConfig.backgroundImagePath),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize()
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = 1f - customThemeConfig.backgroundBrightness))
+            )
+        }
         if (isFloatingMode) {
-            // Floating Keyboard Window Card (Gboard style)
-            Column(
+            // Floating Keyboard Window Container with Gboard Interactive Resize Frame
+            Box(
                 modifier = Modifier
                     .offset {
                         IntOffset(
@@ -725,77 +783,171 @@ fun KeyNovaKeyboardView(
                             floatingOffsetY.roundToInt()
                         )
                     }
-                    .fillMaxWidth(0.92f * floatingScale)
-                    .widthIn(min = 280.dp, max = 520.dp)
-                    .shadow(
-                        elevation = 16.dp,
-                        shape = RoundedCornerShape(20.dp),
-                        spotColor = Color.Black.copy(alpha = 0.5f)
-                    )
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(bgColor.copy(alpha = floatingOpacity))
-                    .border(
-                        border = BorderStroke(
-                            1.dp,
-                            Color(currentTheme.accentHex).copy(alpha = 0.35f)
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    )
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Toolbar
-                keyboardToolbarComposable(true)
-
-                // Main keyboard pages
-                keyboardPagesContent()
-
-                // Bottom Floating Control & Drag Bar
-                FloatingControlBar(
-                    theme = currentTheme,
-                    opacity = floatingOpacity,
-                    scale = floatingScale,
-                    onDrag = { dx, dy ->
-                        floatingOffsetX += dx
-                        floatingOffsetY += dy
-                    },
-                    onDragEnd = {
-                        keyboardPreferences.floatingOffsetX = floatingOffsetX
-                        keyboardPreferences.floatingOffsetY = floatingOffsetY
-                    },
-                    onDock = {
-                        isFloatingMode = false
-                        keyboardPreferences.isFloatingMode = false
-                        performHaptic()
-                    },
-                    onCycleOpacity = {
-                        val nextOpacity = when {
-                            floatingOpacity >= 0.92f -> 0.78f
-                            floatingOpacity >= 0.75f -> 0.60f
-                            else -> 1.0f
-                        }
-                        floatingOpacity = nextOpacity
-                        keyboardPreferences.floatingOpacity = nextOpacity
-                        performHaptic()
-                    },
-                    onCycleScale = {
-                        val nextScale = when {
-                            floatingScale >= 0.95f -> 0.78f
-                            floatingScale >= 0.85f -> 1.0f
-                            else -> 0.88f
-                        }
-                        floatingScale = nextScale
-                        keyboardPreferences.floatingScale = nextScale
-                        performHaptic()
-                    },
-                    onResetPosition = {
-                        floatingOffsetX = 0f
-                        floatingOffsetY = -80f
-                        keyboardPreferences.floatingOffsetX = 0f
-                        keyboardPreferences.floatingOffsetY = -80f
-                        performHaptic()
+                    .fillMaxWidth(0.90f)
+                    .widthIn(min = 280.dp, max = 460.dp)
+                    .graphicsLayer {
+                        scaleX = floatingScale
+                        scaleY = floatingScale
+                        transformOrigin = TransformOrigin(0.5f, 1f)
                     }
-                )
+                    .onGloballyPositioned { coords ->
+                        cardDimensions[0] = coords.size.width.toFloat()
+                        cardDimensions[1] = coords.size.height.toFloat()
+                        val wb = coords.boundsInWindow()
+                        val r = android.graphics.Rect(
+                            wb.left.toInt(),
+                            wb.top.toInt(),
+                            wb.right.toInt(),
+                            wb.bottom.toInt()
+                        )
+                        val wasEmpty = latestBoundsRect.isEmpty
+                        latestBoundsRect.set(r)
+                        if (wasEmpty) {
+                            onFloatingBoundsChanged(r)
+                        }
+                    }
+            ) {
+                // Main Keyboard Card
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 16.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            spotColor = Color.Black.copy(alpha = 0.5f)
+                        )
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(bgColor.copy(alpha = floatingOpacity))
+                        .border(
+                            border = BorderStroke(
+                                if (isResizeModeActive) 2.dp else 1.dp,
+                                if (isResizeModeActive) Color(currentTheme.accentHex) else Color(currentTheme.accentHex).copy(alpha = 0.35f)
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Toolbar
+                    keyboardToolbarComposable(true)
+
+                    // Main keyboard pages
+                    keyboardPagesContent()
+
+                    // Bottom Floating Control & Drag Bar
+                    FloatingControlBar(
+                        theme = currentTheme,
+                        opacity = floatingOpacity,
+                        scale = floatingScale,
+                        isResizeMode = isResizeModeActive,
+                        onToggleResizeMode = {
+                            isResizeModeActive = !isResizeModeActive
+                            if (!isResizeModeActive) {
+                                keyboardPreferences.floatingScale = floatingScale
+                                onFloatingBoundsChanged(latestBoundsRect)
+                            }
+                            performHaptic()
+                        },
+                        onScaleChange = { newScale ->
+                            floatingScale = newScale.coerceIn(0.60f, 1.30f)
+                        },
+                        onScaleChangeFinished = {
+                            keyboardPreferences.floatingScale = floatingScale
+                            onFloatingBoundsChanged(latestBoundsRect)
+                        },
+                        onDrag = { dx, dy ->
+                            val cardW = if (cardDimensions[0] > 0f) cardDimensions[0] * floatingScale else screenWidthPx * 0.88f
+                            val cardH = if (cardDimensions[1] > 0f) cardDimensions[1] * floatingScale else 230f * density.density
+                            val maxHorizontalOffset = ((screenWidthPx - cardW) / 2f).coerceAtLeast(0f) + 20f
+                            val maxUpwardOffset = (screenHeightPx - cardH - 50f).coerceAtLeast(0f)
+
+                            floatingOffsetX = (floatingOffsetX + dx).coerceIn(-maxHorizontalOffset, maxHorizontalOffset)
+                            floatingOffsetY = (floatingOffsetY + dy).coerceIn(-maxUpwardOffset, 10f)
+                        },
+                        onDragEnd = {
+                            keyboardPreferences.floatingOffsetX = floatingOffsetX
+                            keyboardPreferences.floatingOffsetY = floatingOffsetY
+                            onFloatingBoundsChanged(latestBoundsRect)
+                        },
+                        onDock = {
+                            isFloatingMode = false
+                            keyboardPreferences.isFloatingMode = false
+                            isResizeModeActive = false
+                            onFloatingBoundsChanged(null)
+                            performHaptic()
+                        },
+                        onCycleOpacity = {
+                            val nextOpacity = when {
+                                floatingOpacity >= 0.92f -> 0.78f
+                                floatingOpacity >= 0.75f -> 0.60f
+                                else -> 1.0f
+                            }
+                            floatingOpacity = nextOpacity
+                            keyboardPreferences.floatingOpacity = nextOpacity
+                            performHaptic()
+                        },
+                        onResetPosition = {
+                            floatingOffsetX = 0f
+                            floatingOffsetY = -60f
+                            keyboardPreferences.floatingOffsetX = 0f
+                            keyboardPreferences.floatingOffsetY = -60f
+                            onFloatingBoundsChanged(latestBoundsRect)
+                            performHaptic()
+                        }
+                    )
+                }
+
+                // Gboard 4-Corner Interactive Drag-to-Resize Handles
+                if (isResizeModeActive) {
+                    ResizeCornerHandle(
+                        alignment = Alignment.TopStart,
+                        theme = currentTheme,
+                        onDeltaDrag = { dx, dy ->
+                            val delta = (-dx - dy) / 320f
+                            floatingScale = (floatingScale + delta).coerceIn(0.60f, 1.30f)
+                        },
+                        onDragEnd = {
+                            keyboardPreferences.floatingScale = floatingScale
+                            onFloatingBoundsChanged(latestBoundsRect)
+                        }
+                    )
+                    ResizeCornerHandle(
+                        alignment = Alignment.TopEnd,
+                        theme = currentTheme,
+                        onDeltaDrag = { dx, dy ->
+                            val delta = (dx - dy) / 320f
+                            floatingScale = (floatingScale + delta).coerceIn(0.60f, 1.30f)
+                        },
+                        onDragEnd = {
+                            keyboardPreferences.floatingScale = floatingScale
+                            onFloatingBoundsChanged(latestBoundsRect)
+                        }
+                    )
+                    ResizeCornerHandle(
+                        alignment = Alignment.BottomStart,
+                        theme = currentTheme,
+                        onDeltaDrag = { dx, dy ->
+                            val delta = (-dx + dy) / 320f
+                            floatingScale = (floatingScale + delta).coerceIn(0.60f, 1.30f)
+                        },
+                        onDragEnd = {
+                            keyboardPreferences.floatingScale = floatingScale
+                            onFloatingBoundsChanged(latestBoundsRect)
+                        }
+                    )
+                    ResizeCornerHandle(
+                        alignment = Alignment.BottomEnd,
+                        theme = currentTheme,
+                        onDeltaDrag = { dx, dy ->
+                            val delta = (dx + dy) / 320f
+                            floatingScale = (floatingScale + delta).coerceIn(0.60f, 1.30f)
+                        },
+                        onDragEnd = {
+                            keyboardPreferences.floatingScale = floatingScale
+                            onFloatingBoundsChanged(latestBoundsRect)
+                        }
+                    )
+                }
             }
         } else {
             // Standard Docked Keyboard
@@ -1108,6 +1260,7 @@ private fun KeyItem(
     isGamingMode: Boolean,
     rootCoordinates: LayoutCoordinates?,
     longPressDelayMs: Long = 240L,
+    customConfig: CustomThemeConfig? = null,
     onShowPopup: (keyDef: KeyDef, bounds: Rect, initialIndex: Int) -> Unit,
     onUpdatePopupIndex: (newIndex: Int) -> Unit,
     onDismissPopup: () -> Unit,
@@ -1120,10 +1273,26 @@ private fun KeyItem(
     var keyCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val density = LocalDensity.current
 
-    val textColor = Color(theme.textHex)
-    val accentColor = Color(theme.accentHex)
-    val keyColor = Color(theme.keyHex)
-    val surfaceColor = Color(theme.surfaceHex)
+    val textColor = when {
+        customConfig != null -> Color(customConfig.keyTextColor)
+        else -> Color(theme.textHex)
+    }
+    val accentColor = when {
+        customConfig != null -> Color(customConfig.funcKeyBackgroundColor)
+        else -> Color(theme.accentHex)
+    }
+    val keyColor = when {
+        customConfig != null -> Color(customConfig.keyBackgroundColor).copy(alpha = customConfig.keyBrightness)
+        else -> Color(theme.keyHex)
+    }
+    val surfaceColor = when {
+        customConfig != null -> Color(customConfig.funcKeyBackgroundColor).copy(alpha = customConfig.funcKeyBrightness)
+        else -> Color(theme.surfaceHex)
+    }
+    val funcTextColor = when {
+        customConfig != null -> Color(customConfig.funcKeyTextColor)
+        else -> Color.White
+    }
 
     // Gaming highlight for WASD
     val isWasdKey = isGamingMode && keyDef.primaryText in listOf("W", "A", "S", "D")
@@ -1136,8 +1305,8 @@ private fun KeyItem(
     }
 
     val contentColor = when {
-        keyDef.action == KeyAction.ENTER -> Color.White
-        keyDef.isSpecial -> textColor.copy(alpha = 0.9f)
+        keyDef.action == KeyAction.ENTER -> funcTextColor
+        keyDef.isSpecial -> if (customConfig != null) funcTextColor else textColor.copy(alpha = 0.9f)
         else -> textColor
     }
 
@@ -1270,7 +1439,7 @@ private fun KeyItem(
             ) {
                 Text(
                     text = keyDef.secondaryText,
-                    color = contentColor.copy(alpha = if (theme == KeyboardThemeOption.LIGHT) 0.6f else 0.45f),
+                    color = if (customConfig != null) Color(customConfig.keyHintColor) else contentColor.copy(alpha = if (theme == KeyboardThemeOption.LIGHT) 0.6f else 0.45f),
                     fontSize = if (isEllipsis) 10.sp else 8.5.sp,
                     fontWeight = FontWeight.Normal,
                     lineHeight = 9.sp
@@ -1291,6 +1460,7 @@ private fun SpaceKeyItem(
     isLanguageSpace: Boolean,
     rootCoordinates: LayoutCoordinates?,
     spacebarCursorControl: Boolean = true,
+    customConfig: CustomThemeConfig? = null,
     onMoveCursor: (Int) -> Unit = {},
     onShowPopup: (left: DynamicKeyboardLayout, center: DynamicKeyboardLayout, right: DynamicKeyboardLayout, bounds: Rect, initialIndex: Int) -> Unit,
     onUpdatePopupIndex: (newIndex: Int, dragDeltaX: Float) -> Unit,
@@ -1304,9 +1474,18 @@ private fun SpaceKeyItem(
     var spaceCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val density = LocalDensity.current
 
-    val textColor = Color(theme.textHex)
-    val accentColor = Color(theme.accentHex)
-    val keyColor = Color(theme.keyHex)
+    val textColor = when {
+        customConfig != null -> Color(customConfig.keyTextColor)
+        else -> Color(theme.textHex)
+    }
+    val accentColor = when {
+        customConfig != null -> Color(customConfig.funcKeyBackgroundColor)
+        else -> Color(theme.accentHex)
+    }
+    val keyColor = when {
+        customConfig != null -> Color(customConfig.keyBackgroundColor).copy(alpha = customConfig.keyBrightness)
+        else -> Color(theme.keyHex)
+    }
 
     val containerColor = when {
         isPressed -> accentColor.copy(alpha = 0.35f)
@@ -1547,6 +1726,7 @@ private fun BackspaceKeyItem(
     theme: KeyboardThemeOption,
     height: androidx.compose.ui.unit.Dp,
     keyboardPreferences: KeyboardPreferences,
+    customConfig: CustomThemeConfig? = null,
     onDelete: () -> Unit,
     onDeleteWord: () -> Unit,
     onPerformHaptic: () -> Unit,
@@ -1555,9 +1735,18 @@ private fun BackspaceKeyItem(
     var isPressed by remember { mutableStateOf(false) }
     var isHoldingWordDelete by remember { mutableStateOf(false) }
 
-    val textColor = Color(theme.textHex)
-    val accentColor = Color(theme.accentHex)
-    val surfaceColor = Color(theme.surfaceHex)
+    val textColor = when {
+        customConfig != null -> Color(customConfig.funcKeyTextColor)
+        else -> Color(theme.textHex)
+    }
+    val accentColor = when {
+        customConfig != null -> Color(customConfig.funcKeyBackgroundColor)
+        else -> Color(theme.accentHex)
+    }
+    val surfaceColor = when {
+        customConfig != null -> Color(customConfig.funcKeyBackgroundColor).copy(alpha = customConfig.funcKeyBrightness)
+        else -> Color(theme.surfaceHex)
+    }
 
     val containerColor = when {
         isPressed -> accentColor.copy(alpha = 0.35f)
@@ -1862,11 +2051,14 @@ private fun FloatingControlBar(
     theme: KeyboardThemeOption,
     opacity: Float,
     scale: Float,
+    isResizeMode: Boolean,
+    onToggleResizeMode: () -> Unit,
+    onScaleChange: (Float) -> Unit,
+    onScaleChangeFinished: () -> Unit,
     onDrag: (dx: Float, dy: Float) -> Unit,
     onDragEnd: () -> Unit,
     onDock: () -> Unit,
     onCycleOpacity: () -> Unit,
-    onCycleScale: () -> Unit,
     onResetPosition: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1880,105 +2072,227 @@ private fun FloatingControlBar(
             .height(38.dp)
             .padding(horizontal = 4.dp, vertical = 2.dp),
         shape = RoundedCornerShape(12.dp),
-        color = surfaceColor.copy(alpha = 0.85f),
-        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.25f))
+        color = surfaceColor.copy(alpha = 0.90f),
+        border = BorderStroke(1.dp, if (isResizeMode) accentColor else accentColor.copy(alpha = 0.25f))
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Dock button
-            IconButton(
-                onClick = onDock,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.VerticalAlignBottom,
-                    contentDescription = "Dock Keyboard",
-                    tint = accentColor,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            // Central Drag Handle Pill
-            Box(
+        if (isResizeMode) {
+            // Gboard Continuous Resize Mode Slider Bar
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .height(28.dp)
-                    .padding(horizontal = 6.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(accentColor.copy(alpha = 0.15f))
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragEnd = onDragEnd
-                        ) { change, dragAmount ->
-                            change.consume()
-                            onDrag(dragAmount.x, dragAmount.y)
-                        }
-                    },
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                // Reset to 100%
+                IconButton(
+                    onClick = {
+                        onScaleChange(1.0f)
+                        onScaleChangeFinished()
+                    },
+                    modifier = Modifier.size(30.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.DragIndicator,
-                        contentDescription = "Drag to move keyboard",
-                        tint = textColor.copy(alpha = 0.7f),
-                        modifier = Modifier.size(18.dp)
+                        imageVector = Icons.Outlined.RestartAlt,
+                        contentDescription = "Reset Size to 100%",
+                        tint = textColor.copy(alpha = 0.75f),
+                        modifier = Modifier.size(17.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                }
+
+                // Percentage pill
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = accentColor.copy(alpha = 0.15f),
+                    modifier = Modifier.padding(horizontal = 2.dp)
+                ) {
                     Text(
-                        text = "Hold & Drag",
+                        text = "${(scale * 100).roundToInt()}%",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = textColor.copy(alpha = 0.7f)
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                    )
+                }
+
+                // Continuous Realtime Slider
+                Slider(
+                    value = scale,
+                    onValueChange = onScaleChange,
+                    onValueChangeFinished = onScaleChangeFinished,
+                    valueRange = 0.60f..1.30f,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(28.dp)
+                        .padding(horizontal = 4.dp),
+                    colors = SliderDefaults.colors(
+                        thumbColor = accentColor,
+                        activeTrackColor = accentColor,
+                        inactiveTrackColor = textColor.copy(alpha = 0.15f)
+                    )
+                )
+
+                // Done checkmark button
+                FilledTonalIconButton(
+                    onClick = onToggleResizeMode,
+                    modifier = Modifier.size(30.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = accentColor,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Done Resizing",
+                        tint = Color.White,
+                        modifier = Modifier.size(17.dp)
                     )
                 }
             }
-
-            // Quick Opacity Toggle
-            IconButton(
-                onClick = onCycleOpacity,
-                modifier = Modifier.size(32.dp)
+        } else {
+            // Standard Gboard Floating Control Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Opacity,
-                    contentDescription = "Change Opacity",
-                    tint = textColor.copy(alpha = 0.85f),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+                // Dock button
+                IconButton(
+                    onClick = onDock,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.VerticalAlignBottom,
+                        contentDescription = "Dock Keyboard",
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
 
-            // Quick Scale / Size Toggle
-            IconButton(
-                onClick = onCycleScale,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.AspectRatio,
-                    contentDescription = "Resize Keyboard",
-                    tint = textColor.copy(alpha = 0.85f),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+                // Central Drag Handle Pill
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(28.dp)
+                        .padding(horizontal = 6.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(accentColor.copy(alpha = 0.15f))
+                        .pointerInput(Unit) {
+                            detectDragGestures(
+                                onDragEnd = onDragEnd
+                            ) { change, dragAmount ->
+                                change.consume()
+                                onDrag(dragAmount.x, dragAmount.y)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DragIndicator,
+                            contentDescription = "Drag to move keyboard",
+                            tint = textColor.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Hold & Drag",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = textColor.copy(alpha = 0.7f)
+                        )
+                    }
+                }
 
-            // Reset Position
-            IconButton(
-                onClick = onResetPosition,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.RestartAlt,
-                    contentDescription = "Reset Position",
-                    tint = textColor.copy(alpha = 0.85f),
-                    modifier = Modifier.size(18.dp)
-                )
+                // Quick Opacity Toggle
+                IconButton(
+                    onClick = onCycleOpacity,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Opacity,
+                        contentDescription = "Change Opacity",
+                        tint = textColor.copy(alpha = 0.85f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Custom Scale / Resize Toggle
+                IconButton(
+                    onClick = onToggleResizeMode,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AspectRatio,
+                        contentDescription = "Resize Keyboard (Custom Scale)",
+                        tint = if (scale != 1.0f) accentColor else textColor.copy(alpha = 0.85f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Reset Position
+                IconButton(
+                    onClick = onResetPosition,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.RestartAlt,
+                        contentDescription = "Reset Position",
+                        tint = textColor.copy(alpha = 0.85f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun BoxScope.ResizeCornerHandle(
+    alignment: Alignment,
+    theme: KeyboardThemeOption,
+    onDeltaDrag: (Float, Float) -> Unit,
+    onDragEnd: () -> Unit
+) {
+    val accentColor = Color(theme.accentHex)
+    Box(
+        modifier = Modifier
+            .align(alignment)
+            .offset(
+                x = when (alignment) {
+                    Alignment.TopStart, Alignment.BottomStart -> (-8).dp
+                    else -> 8.dp
+                },
+                y = when (alignment) {
+                    Alignment.TopStart, Alignment.TopEnd -> (-8).dp
+                    else -> 8.dp
+                }
+            )
+            .size(32.dp)
+            .clip(CircleShape)
+            .background(accentColor)
+            .border(2.dp, Color.White, CircleShape)
+            .shadow(4.dp, CircleShape)
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragEnd = onDragEnd
+                ) { change, dragAmount ->
+                    change.consume()
+                    onDeltaDrag(dragAmount.x, dragAmount.y)
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.AspectRatio,
+            contentDescription = "Drag corner to resize",
+            tint = Color.White,
+            modifier = Modifier.size(15.dp)
+        )
     }
 }

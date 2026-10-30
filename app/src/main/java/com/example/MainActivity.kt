@@ -26,6 +26,7 @@ enum class AppNavigationScreen {
     SETTINGS_MAIN,
     SETTINGS_LANGUAGES,
     SETTINGS_THEMES,
+    SETTINGS_CUSTOM_THEME,
     SETTINGS_TOOLBAR,
     SETTINGS_LAYOUT,
     SETTINGS_CLIPBOARD,
@@ -125,6 +126,7 @@ fun KeyNovaApp(
                             SettingsDestination.MAIN -> AppNavigationScreen.SETTINGS_MAIN
                             SettingsDestination.LANGUAGES -> AppNavigationScreen.SETTINGS_LANGUAGES
                             SettingsDestination.THEMES -> AppNavigationScreen.SETTINGS_THEMES
+                            SettingsDestination.CUSTOM_THEME -> AppNavigationScreen.SETTINGS_CUSTOM_THEME
                             SettingsDestination.TOOLBAR -> AppNavigationScreen.SETTINGS_TOOLBAR
                             SettingsDestination.LAYOUT -> AppNavigationScreen.SETTINGS_LAYOUT
                             SettingsDestination.CLIPBOARD -> AppNavigationScreen.SETTINGS_CLIPBOARD
@@ -156,6 +158,24 @@ fun KeyNovaApp(
                     keyboardPreferences = preferences,
                     onNavigateBack = {
                         currentScreen = AppNavigationScreen.SETTINGS_MAIN
+                    },
+                    onNavigateToCustomThemeBuilder = {
+                        currentScreen = AppNavigationScreen.SETTINGS_CUSTOM_THEME
+                    }
+                )
+            }
+
+            AppNavigationScreen.SETTINGS_CUSTOM_THEME -> {
+                BackHandler {
+                    currentScreen = AppNavigationScreen.SETTINGS_THEMES
+                }
+                CustomThemeBuilderScreen(
+                    keyboardPreferences = preferences,
+                    onNavigateBack = {
+                        currentScreen = AppNavigationScreen.SETTINGS_THEMES
+                    },
+                    onThemeSaved = {
+                        currentScreen = AppNavigationScreen.SETTINGS_THEMES
                     }
                 )
             }

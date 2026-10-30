@@ -36,6 +36,7 @@ enum class SettingsDestination {
     MAIN,
     LANGUAGES,
     THEMES,
+    CUSTOM_THEME,
     TOOLBAR,
     LAYOUT,
     CLIPBOARD,
@@ -228,6 +229,18 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_nav_themes_subtitle, currentThemeName),
                     badge = currentThemeName,
                     onClick = { onNavigateTo(SettingsDestination.THEMES) }
+                )
+            }
+
+            item {
+                SettingsCardItem(
+                    icon = Icons.Outlined.ColorLens,
+                    iconTint = Color(0xFF16A34A),
+                    iconBg = Color(0xFFDCFCE7),
+                    title = "Custom Theme Maker",
+                    subtitle = "Design theme with gallery photo, custom colors & keys",
+                    badge = if (keyboardPreferences.isCustomThemeActive) "Active" else "Design",
+                    onClick = { onNavigateTo(SettingsDestination.CUSTOM_THEME) }
                 )
             }
 
