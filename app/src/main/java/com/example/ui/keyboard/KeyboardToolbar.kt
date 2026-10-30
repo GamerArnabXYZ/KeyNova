@@ -44,6 +44,7 @@ fun KeyboardToolbar(
     onOpenSettings: () -> Unit,
     onOpenToolbarSettings: () -> Unit,
     onToggleOneHanded: () -> Unit,
+    onToggleFloating: () -> Unit = {},
     onClearAll: () -> Unit,
     onCycleCase: () -> Unit,
     onVoiceTyping: () -> Unit = {},
@@ -244,6 +245,19 @@ fun KeyboardToolbar(
                             accentColor = accentColor,
                             testTag = "toolbar_tool_voice_typing",
                             onClick = onVoiceTyping
+                        )
+                    }
+
+                    ToolbarTool.FLOATING -> {
+                        val isSelected = keyboardPreferences.isFloatingMode
+                        ModernToolbarPill(
+                            icon = getToolbarIconForTool(tool),
+                            contentDescription = "Floating Keyboard",
+                            isSelected = isSelected,
+                            textColor = textColor,
+                            accentColor = accentColor,
+                            testTag = "toolbar_tool_floating",
+                            onClick = onToggleFloating
                         )
                     }
 

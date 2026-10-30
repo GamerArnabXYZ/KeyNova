@@ -50,6 +50,23 @@ class KeyNovaInputMethodService : InputMethodService(),
         syncPrimaryClip()
     }
 
+    private val prefChangeListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "key_is_floating_mode" || key == "key_theme") {
+            updateWindowAppearance()
+        }
+    }
+
+    private fun updateWindowAppearance() {
+        mainHandler.post {
+            window?.window?.let { win ->
+                val isFloating = prefs.isFloatingMode
+                val bg = if (isFloating) android.graphics.Color.TRANSPARENT else prefs.theme.backgroundHex.toInt()
+                win.navigationBarColor = bg
+                win.decorView.setBackgroundColor(bg)
+            }
+        }
+    }
+
     private fun syncPrimaryClip() {
         try {
             clipboardRepo.syncFromSystemClipboard(this)
@@ -72,6 +89,8 @@ class KeyNovaInputMethodService : InputMethodService(),
         try {
             clipboardManager?.addPrimaryClipChangedListener(clipChangedListener)
         } catch (_: Exception) {}
+        val sharedPrefs = getSharedPreferences("keynova_preferences", Context.MODE_PRIVATE)
+        sharedPrefs.registerOnSharedPreferenceChangeListener(prefChangeListener)
         syncPrimaryClip()
     }
 
@@ -87,12 +106,18 @@ class KeyNovaInputMethodService : InputMethodService(),
         return true
     }
 
+    override fun onComputeInsets(outInsets: Insets) {
+        super.onComputeInsets(outInsets)
+        if (::prefs.isInitialized && prefs.isFloatingMode) {
+            val decor = window?.window?.decorView ?: return
+            outInsets.contentTopInsets = decor.height
+            outInsets.visibleTopInsets = decor.height
+        }
+    }
+
     override fun onCreateInputView(): View {
-        // Ensure decorView on the dialog window has full Jetpack lifecycle awareness
+        updateWindowAppearance()
         window?.window?.let { win ->
-            val bg = prefs.theme.backgroundHex.toInt()
-            win.navigationBarColor = bg
-            win.decorView.setBackgroundColor(bg)
             androidx.core.view.WindowCompat.setDecorFitsSystemWindows(win, false)
             win.decorView.setViewTreeLifecycleOwner(this)
             win.decorView.setViewTreeSavedStateRegistryOwner(this)
@@ -104,7 +129,7 @@ class KeyNovaInputMethodService : InputMethodService(),
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
-            setBackgroundColor(prefs.theme.backgroundHex.toInt())
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
 
             // CRITICAL: Keep composition alive across hide/show cycles in other apps
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(this@KeyNovaInputMethodService))
@@ -132,16 +157,22 @@ class KeyNovaInputMethodService : InputMethodService(),
         return composeView
     }
 
+    override fun onWindowShown() {
+        super.onWindowShown()
+        mainHandler.postDelayed({ syncPrimaryClip() }, 100)
+        mainHandler.postDelayed({ syncPrimaryClip() }, 400)
+    }
+
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
 
         prefs.notifyPreferencesChanged()
         syncPrimaryClip()
+        mainHandler.postDelayed({ syncPrimaryClip() }, 200)
+        mainHandler.postDelayed({ syncPrimaryClip() }, 600)
 
+        updateWindowAppearance()
         window?.window?.let { win ->
-            val bg = prefs.theme.backgroundHex.toInt()
-            win.navigationBarColor = bg
-            win.decorView.setBackgroundColor(bg)
             androidx.core.view.WindowCompat.setDecorFitsSystemWindows(win, false)
             win.decorView.setViewTreeLifecycleOwner(this)
             win.decorView.setViewTreeSavedStateRegistryOwner(this)
@@ -167,6 +198,10 @@ class KeyNovaInputMethodService : InputMethodService(),
         super.onDestroy()
         try {
             clipboardManager?.removePrimaryClipChangedListener(clipChangedListener)
+        } catch (_: Exception) {}
+        try {
+            val sharedPrefs = getSharedPreferences("keynova_preferences", Context.MODE_PRIVATE)
+            sharedPrefs.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
         } catch (_: Exception) {}
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
@@ -310,10 +345,7 @@ class KeyNovaInputMethodService : InputMethodService(),
 
     override fun onPaste() {
         val ic = currentInputConnection ?: return
-        val cm = clipboardManager ?: getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        val clipText = if (cm != null && cm.hasPrimaryClip()) {
-            cm.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString()
-        } else null
+        val clipText = clipboardRepo.getSystemClipboardText(this)
 
         if (!clipText.isNullOrEmpty()) {
             ic.finishComposingText()
@@ -321,6 +353,7 @@ class KeyNovaInputMethodService : InputMethodService(),
             clipboardRepo.addItem(clipText)
         } else {
             ic.performContextMenuAction(android.R.id.paste)
+            mainHandler.postDelayed({ syncPrimaryClip() }, 200)
         }
     }
 

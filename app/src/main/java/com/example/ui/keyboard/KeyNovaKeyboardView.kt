@@ -17,9 +17,17 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.outlined.AspectRatio
+import androidx.compose.material.icons.outlined.DragIndicator
+import androidx.compose.material.icons.outlined.Opacity
+import androidx.compose.material.icons.outlined.PictureInPicture
+import androidx.compose.material.icons.outlined.RestartAlt
+import androidx.compose.material.icons.outlined.VerticalAlignBottom
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.*
 import com.example.ime.AvroPhoneticParser
 import com.example.ime.DynamicKeyboardLayout
+import com.example.ime.EnglishWordPredictor
 import com.example.ime.KeyAction
 import com.example.ime.KeyDef
 import com.example.ime.KeyboardLayoutModel
@@ -138,17 +147,48 @@ fun KeyNovaKeyboardView(
     var oneHandedMode by remember(keyboardPreferences.oneHandedMode, prefRev) {
         mutableStateOf(keyboardPreferences.oneHandedMode)
     }
+    var isFloatingMode by remember(keyboardPreferences.isFloatingMode, prefRev) {
+        mutableStateOf(keyboardPreferences.isFloatingMode)
+    }
+    var floatingOffsetX by remember(keyboardPreferences.floatingOffsetX, prefRev) {
+        mutableFloatStateOf(keyboardPreferences.floatingOffsetX)
+    }
+    var floatingOffsetY by remember(keyboardPreferences.floatingOffsetY, prefRev) {
+        mutableFloatStateOf(keyboardPreferences.floatingOffsetY)
+    }
+    var floatingScale by remember(keyboardPreferences.floatingScale, prefRev) {
+        mutableFloatStateOf(keyboardPreferences.floatingScale)
+    }
+    var floatingOpacity by remember(keyboardPreferences.floatingOpacity, prefRev) {
+        mutableFloatStateOf(keyboardPreferences.floatingOpacity)
+    }
     var switchMethod by remember(keyboardPreferences.languageSwitchMethod, prefRev) {
         mutableStateOf(keyboardPreferences.languageSwitchMethod)
     }
     val showNumberRow = remember(keyboardPreferences.showNumberRow, prefRev) { keyboardPreferences.showNumberRow }
     val keyHeight = remember(keyboardPreferences.keyHeightDp, prefRev) { keyboardPreferences.keyHeightDp.dp }
     val keySpacing = remember(keyboardPreferences.keySpacingDp, prefRev) { keyboardPreferences.keySpacingDp.dp }
+    val currentKeyHeight = remember(keyHeight, isFloatingMode, floatingScale) {
+        if (isFloatingMode) keyHeight * floatingScale else keyHeight
+    }
+    val currentKeySpacing = remember(keySpacing, isFloatingMode, floatingScale) {
+        if (isFloatingMode) keySpacing * floatingScale else keySpacing
+    }
     val hapticEnabled = remember(keyboardPreferences.hapticFeedback, prefRev) { keyboardPreferences.hapticFeedback }
+    val longPressDelayMs = remember(keyboardPreferences.keyLongPressDelayMs, prefRev) { keyboardPreferences.keyLongPressDelayMs.toLong() }
+    val standardKeyboardContentHeight = remember(showNumberRow, currentKeyHeight, currentKeySpacing) {
+        val rowCount = if (showNumberRow) 5 else 4
+        (currentKeyHeight * rowCount) + (currentKeySpacing * (rowCount - 1)) + 4.dp
+    }
 
     var avroComposingText by remember { mutableStateOf("") }
     val avroCandidates = remember(avroComposingText) {
         if (avroComposingText.isNotEmpty()) AvroPhoneticParser.getCandidates(avroComposingText) else emptyList()
+    }
+
+    var englishComposingWord by remember { mutableStateOf("") }
+    val englishCandidates: List<String> = remember(englishComposingWord) {
+        EnglishWordPredictor.predict(englishComposingWord)
     }
 
     val showGlobeKey = (switchMethod == LanguageSwitchMethod.GLOBE_KEY)
@@ -230,149 +270,129 @@ fun KeyNovaKeyboardView(
         result
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .background(bgColor)
-            .navigationBarsPadding()
-            .padding(bottom = if (isImeService) 8.dp else 4.dp)
-            .onGloballyPositioned { rootCoords ->
-                keyboardRootCoordinates = rootCoords
+    val keyboardToolbarComposable: @Composable (Boolean) -> Unit = { inFloating ->
+        KeyboardToolbar(
+            theme = currentTheme,
+            activePage = activePage,
+            keyboardPreferences = keyboardPreferences,
+            onPageSelected = { newPage ->
+                activePage = newPage
+                performHaptic()
+            },
+            onCycleTheme = {
+                val allThemes = KeyboardThemeOption.entries
+                val curIdx = allThemes.indexOf(currentTheme)
+                val nextTheme = allThemes[(curIdx + 1) % allThemes.size]
+                currentTheme = nextTheme
+                keyboardPreferences.theme = nextTheme
+                performHaptic()
+            },
+            onOpenSettings = onOpenSettings,
+            onOpenToolbarSettings = onOpenToolbarSettings,
+            onToggleOneHanded = {
+                oneHandedMode = if (oneHandedMode == OneHandedMode.OFF) OneHandedMode.RIGHT else OneHandedMode.OFF
+                keyboardPreferences.oneHandedMode = oneHandedMode
+                performHaptic()
+            },
+            onToggleFloating = {
+                isFloatingMode = !inFloating
+                keyboardPreferences.isFloatingMode = !inFloating
+                performHaptic()
+            },
+            onClearAll = {
+                actionTarget.onClearAll()
+                performHaptic()
+            },
+            onCycleCase = {
+                actionTarget.onCycleCase()
+                shiftState = when (shiftState) {
+                    ShiftState.OFF -> ShiftState.SHIFTED
+                    ShiftState.SHIFTED -> ShiftState.CAPS_LOCKED
+                    ShiftState.CAPS_LOCKED -> ShiftState.OFF
+                }
+                performHaptic()
+            },
+            onVoiceTyping = {
+                performKeyFeedback(android.media.AudioManager.FX_KEYPRESS_STANDARD)
+                actionTarget.onVoiceTyping()
             }
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Bottom
+        )
+    }
+
+    val keyboardPagesContent: @Composable () -> Unit = {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(standardKeyboardContentHeight)
         ) {
-            // One-handed Left spacer/controls
-            if (oneHandedMode == OneHandedMode.RIGHT) {
-                OneHandedSidebar(
-                    theme = currentTheme,
-                    onMoveLeft = {
-                        oneHandedMode = OneHandedMode.LEFT
-                        keyboardPreferences.oneHandedMode = OneHandedMode.LEFT
-                    },
-                    onRestore = {
-                        oneHandedMode = OneHandedMode.OFF
-                        keyboardPreferences.oneHandedMode = OneHandedMode.OFF
-                    },
-                    modifier = Modifier.width(54.dp)
-                )
-            }
-
-            // Keyboard Core Content
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 2.dp, vertical = 2.dp)
-            ) {
-                // Top Toolbar
-                KeyboardToolbar(
-                    theme = currentTheme,
-                    activePage = activePage,
-                    keyboardPreferences = keyboardPreferences,
-                    onPageSelected = { newPage ->
-                        activePage = newPage
-                        performHaptic()
-                    },
-                    onCycleTheme = {
-                        val allThemes = KeyboardThemeOption.entries
-                        val curIdx = allThemes.indexOf(currentTheme)
-                        val nextTheme = allThemes[(curIdx + 1) % allThemes.size]
-                        currentTheme = nextTheme
-                        keyboardPreferences.theme = nextTheme
-                        performHaptic()
-                    },
-                    onOpenSettings = onOpenSettings,
-                    onOpenToolbarSettings = onOpenToolbarSettings,
-                    onToggleOneHanded = {
-                        oneHandedMode = if (oneHandedMode == OneHandedMode.OFF) OneHandedMode.RIGHT else OneHandedMode.OFF
-                        keyboardPreferences.oneHandedMode = oneHandedMode
-                        performHaptic()
-                    },
-                    onClearAll = {
-                        actionTarget.onClearAll()
-                        performHaptic()
-                    },
-                    onCycleCase = {
-                        actionTarget.onCycleCase()
-                        shiftState = when (shiftState) {
-                            ShiftState.OFF -> ShiftState.SHIFTED
-                            ShiftState.SHIFTED -> ShiftState.CAPS_LOCKED
-                            ShiftState.CAPS_LOCKED -> ShiftState.OFF
+            when (activePage) {
+                        ActiveKeyboardPage.TEXT_EDITING -> {
+                            TextEditingPadView(
+                                theme = currentTheme,
+                                actionTarget = actionTarget,
+                                hapticEnabled = hapticEnabled,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
-                        performHaptic()
-                    },
-                    onVoiceTyping = {
-                        performKeyFeedback(android.media.AudioManager.FX_KEYPRESS_STANDARD)
-                        actionTarget.onVoiceTyping()
-                    }
-                )
-
-                // Sub-panels (Emoji, Clipboard, Snippets, Text Editing, Number Pad) or Key rows
-                when (activePage) {
-                    ActiveKeyboardPage.TEXT_EDITING -> {
-                        TextEditingPadView(
-                            theme = currentTheme,
-                            actionTarget = actionTarget,
-                            hapticEnabled = hapticEnabled
-                        )
-                    }
-                    ActiveKeyboardPage.NUMPAD -> {
-                        NumberPadView(
-                            theme = currentTheme,
-                            currentLanguage = currentLanguage,
-                            actionTarget = actionTarget,
-                            hapticEnabled = hapticEnabled,
-                            onSwitchToLetters = { activePage = ActiveKeyboardPage.LETTERS }
-                        )
-                    }
-                    ActiveKeyboardPage.EMOJI -> {
-                        EmojiPickerView(
-                            theme = currentTheme,
-                            onEmojiSelected = { emoji ->
-                                actionTarget.onCommitText(emoji)
-                                performHaptic()
-                            },
-                            onBackspace = {
-                                actionTarget.onDeleteBackward()
-                                performHaptic()
-                            },
-                            onClose = { activePage = ActiveKeyboardPage.LETTERS }
-                        )
-                    }
-                    ActiveKeyboardPage.CLIPBOARD -> {
-                        ClipboardPanelView(
-                            theme = currentTheme,
-                            clipboardRepository = clipboardRepository,
-                            onPasteText = { text ->
-                                actionTarget.onCommitText(text)
-                                clipboardRepository.copyToSystemClipboard(text, context)
-                                performHaptic()
-                            },
-                            onClose = { activePage = ActiveKeyboardPage.LETTERS }
-                        )
-                    }
-                    ActiveKeyboardPage.SNIPPETS -> {
-                        CodingSnippetsView(
-                            theme = currentTheme,
-                            snippetsRepository = snippetsRepository,
-                            onInsertSnippet = { code ->
-                                actionTarget.onCommitText(code)
-                                performHaptic()
-                            },
-                            onClose = { activePage = ActiveKeyboardPage.LETTERS }
-                        )
-                    }
-                    else -> {
-                        // Standard Key Matrix
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            verticalArrangement = Arrangement.spacedBy(keySpacing)
-                        ) {
+                        ActiveKeyboardPage.NUMPAD -> {
+                            NumberPadView(
+                                theme = currentTheme,
+                                currentLanguage = currentLanguage,
+                                actionTarget = actionTarget,
+                                hapticEnabled = hapticEnabled,
+                                onSwitchToLetters = { activePage = ActiveKeyboardPage.LETTERS },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        ActiveKeyboardPage.EMOJI -> {
+                            EmojiPickerView(
+                                theme = currentTheme,
+                                onEmojiSelected = { emoji ->
+                                    actionTarget.onCommitText(emoji)
+                                    performHaptic()
+                                },
+                                onBackspace = {
+                                    actionTarget.onDeleteBackward()
+                                    performHaptic()
+                                },
+                                onClose = { activePage = ActiveKeyboardPage.LETTERS },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        ActiveKeyboardPage.CLIPBOARD -> {
+                            ClipboardPanelView(
+                                theme = currentTheme,
+                                clipboardRepository = clipboardRepository,
+                                onPasteText = { text ->
+                                    actionTarget.onCommitText(text)
+                                    clipboardRepository.copyToSystemClipboard(text, context)
+                                    performHaptic()
+                                    activePage = ActiveKeyboardPage.LETTERS
+                                },
+                                onClose = { activePage = ActiveKeyboardPage.LETTERS },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        ActiveKeyboardPage.SNIPPETS -> {
+                            CodingSnippetsView(
+                                theme = currentTheme,
+                                snippetsRepository = snippetsRepository,
+                                onInsertSnippet = { code ->
+                                    actionTarget.onCommitText(code)
+                                    performHaptic()
+                                },
+                                onClose = { activePage = ActiveKeyboardPage.LETTERS },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        else -> {
+                            // Standard Key Matrix
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(vertical = 2.dp),
+                                verticalArrangement = Arrangement.spacedBy(currentKeySpacing)
+                            ) {
                             if (activePage == ActiveKeyboardPage.LETTERS && currentLayout.id == "bn_avro") {
                                 AvroPhoneticSuggestionStrip(
                                     composingText = avroComposingText,
@@ -389,12 +409,31 @@ fun KeyNovaKeyboardView(
                                     }
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
+                            } else if (activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "en" && englishCandidates.isNotEmpty()) {
+                                EnglishWordSuggestionStrip(
+                                    composingWord = englishComposingWord,
+                                    candidates = englishCandidates,
+                                    theme = currentTheme,
+                                    onSelectCandidate = { chosen ->
+                                        for (i in 0 until englishComposingWord.length) {
+                                            actionTarget.onDeleteBackward()
+                                        }
+                                        actionTarget.onCommitText(chosen + " ")
+                                        englishComposingWord = ""
+                                        performHaptic()
+                                    },
+                                    onClearComposing = {
+                                        englishComposingWord = ""
+                                        performHaptic()
+                                    }
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
                             }
 
                             rows.forEach { row ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(keySpacing),
+                                    horizontalArrangement = Arrangement.spacedBy(currentKeySpacing),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     row.keys.forEach { keyDef ->
@@ -402,7 +441,7 @@ fun KeyNovaKeyboardView(
                                             SpaceKeyItem(
                                                 keyDef = keyDef,
                                                 theme = currentTheme,
-                                                height = keyHeight,
+                                                height = currentKeyHeight,
                                                 switchMethod = switchMethod,
                                                 currentLayout = currentLayout,
                                                 enabledLayouts = enabledLayouts,
@@ -434,6 +473,7 @@ fun KeyNovaKeyboardView(
                                                         actionTarget.onCommitText(primary)
                                                         avroComposingText = ""
                                                     }
+                                                    englishComposingWord = ""
                                                     currentLayout = chosen
                                                     currentLanguage = chosen.keyboardLanguage
                                                     keyboardPreferences.activeLayoutId = chosen.id
@@ -447,6 +487,7 @@ fun KeyNovaKeyboardView(
                                                         actionTarget.onCommitText(primary + " ")
                                                         avroComposingText = ""
                                                     } else {
+                                                        englishComposingWord = ""
                                                         val now = System.currentTimeMillis()
                                                         val isDoubleSpace = keyboardPreferences.doubleSpacePeriod && (now - lastSpaceTapTime < 450L) && lastSpaceTapTime != 0L
                                                         if (isDoubleSpace) {
@@ -468,13 +509,16 @@ fun KeyNovaKeyboardView(
                                             BackspaceKeyItem(
                                                 keyDef = keyDef,
                                                 theme = currentTheme,
-                                                height = keyHeight,
+                                                height = currentKeyHeight,
                                                 keyboardPreferences = keyboardPreferences,
                                                 onDelete = {
                                                     if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
                                                         avroComposingText = avroComposingText.dropLast(1)
                                                         performHaptic()
                                                     } else {
+                                                        if (englishComposingWord.isNotEmpty()) {
+                                                            englishComposingWord = englishComposingWord.dropLast(1)
+                                                        }
                                                         actionTarget.onDeleteBackward()
                                                     }
                                                 },
@@ -483,6 +527,7 @@ fun KeyNovaKeyboardView(
                                                         avroComposingText = ""
                                                         performHaptic()
                                                     } else {
+                                                        englishComposingWord = ""
                                                         actionTarget.onDeleteWordBackward()
                                                     }
                                                 },
@@ -495,9 +540,10 @@ fun KeyNovaKeyboardView(
                                             KeyItem(
                                                 keyDef = keyDef,
                                                 theme = currentTheme,
-                                                height = keyHeight,
+                                                height = currentKeyHeight,
                                                 isGamingMode = activePage == ActiveKeyboardPage.GAMING,
                                                 rootCoordinates = keyboardRootCoordinates,
+                                                longPressDelayMs = longPressDelayMs,
                                                 onShowPopup = { targetKey, bounds, initialIndex ->
                                                     val (disp, commit) = resolveSecondaryText(targetKey.primaryText, targetKey.secondaryText)
                                                     activeKeyPopup = KeyPopupState(
@@ -520,6 +566,7 @@ fun KeyNovaKeyboardView(
                                                         actionTarget.onCommitText(primary)
                                                         avroComposingText = ""
                                                     }
+                                                    englishComposingWord = ""
                                                     actionTarget.onCommitText(text)
                                                     if (shiftState == ShiftState.SHIFTED) {
                                                         shiftState = ShiftState.OFF
@@ -542,6 +589,11 @@ fun KeyNovaKeyboardView(
                                                                     actionTarget.onCommitText(primary)
                                                                     avroComposingText = ""
                                                                 }
+                                                                if (currentLayout.languageCode == "en" && keyDef.primaryText.length == 1 && keyDef.primaryText[0].isLetter()) {
+                                                                    englishComposingWord += keyDef.primaryText
+                                                                } else {
+                                                                    englishComposingWord = ""
+                                                                }
                                                                 actionTarget.onCommitText(keyDef.primaryText)
                                                             }
                                                             if (shiftState == ShiftState.SHIFTED) {
@@ -553,6 +605,7 @@ fun KeyNovaKeyboardView(
                                                             }
                                                         }
                                                         KeyAction.SPACE -> {
+                                                            englishComposingWord = ""
                                                             if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
                                                                 val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
                                                                 actionTarget.onCommitText(primary + " ")
@@ -565,10 +618,14 @@ fun KeyNovaKeyboardView(
                                                             if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
                                                                 avroComposingText = avroComposingText.dropLast(1)
                                                             } else {
+                                                                if (englishComposingWord.isNotEmpty()) {
+                                                                    englishComposingWord = englishComposingWord.dropLast(1)
+                                                                }
                                                                 actionTarget.onDeleteBackward()
                                                             }
                                                         }
                                                         KeyAction.ENTER -> {
+                                                            englishComposingWord = ""
                                                             performKeyFeedback(android.media.AudioManager.FX_KEYPRESS_RETURN)
                                                             if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
                                                                 val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
@@ -603,6 +660,7 @@ fun KeyNovaKeyboardView(
                                                             }
                                                         }
                                                         KeyAction.LANGUAGE_SWITCH -> {
+                                                            englishComposingWord = ""
                                                             if (avroComposingText.isNotEmpty()) {
                                                                 val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
                                                                 actionTarget.onCommitText(primary)
@@ -639,25 +697,153 @@ fun KeyNovaKeyboardView(
                                     }
                                 }
                             }
-                        }
                     }
                 }
             }
+        }
+    }
 
-            // One-handed Right spacer/controls
-            if (oneHandedMode == OneHandedMode.LEFT) {
-                OneHandedSidebar(
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .background(if (isFloatingMode) Color.Transparent else bgColor)
+            .then(if (isFloatingMode) Modifier else Modifier.navigationBarsPadding())
+            .padding(bottom = if (!isFloatingMode && isImeService) 8.dp else 4.dp)
+            .onGloballyPositioned { rootCoords ->
+                keyboardRootCoordinates = rootCoords
+            },
+        contentAlignment = if (isFloatingMode) Alignment.BottomCenter else Alignment.TopStart
+    ) {
+        if (isFloatingMode) {
+            // Floating Keyboard Window Card (Gboard style)
+            Column(
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            floatingOffsetX.roundToInt(),
+                            floatingOffsetY.roundToInt()
+                        )
+                    }
+                    .fillMaxWidth(0.92f * floatingScale)
+                    .widthIn(min = 280.dp, max = 520.dp)
+                    .shadow(
+                        elevation = 16.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        spotColor = Color.Black.copy(alpha = 0.5f)
+                    )
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(bgColor.copy(alpha = floatingOpacity))
+                    .border(
+                        border = BorderStroke(
+                            1.dp,
+                            Color(currentTheme.accentHex).copy(alpha = 0.35f)
+                        ),
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Toolbar
+                keyboardToolbarComposable(true)
+
+                // Main keyboard pages
+                keyboardPagesContent()
+
+                // Bottom Floating Control & Drag Bar
+                FloatingControlBar(
                     theme = currentTheme,
-                    onMoveLeft = {
-                        oneHandedMode = OneHandedMode.RIGHT
-                        keyboardPreferences.oneHandedMode = OneHandedMode.RIGHT
+                    opacity = floatingOpacity,
+                    scale = floatingScale,
+                    onDrag = { dx, dy ->
+                        floatingOffsetX += dx
+                        floatingOffsetY += dy
                     },
-                    onRestore = {
-                        oneHandedMode = OneHandedMode.OFF
-                        keyboardPreferences.oneHandedMode = OneHandedMode.OFF
+                    onDragEnd = {
+                        keyboardPreferences.floatingOffsetX = floatingOffsetX
+                        keyboardPreferences.floatingOffsetY = floatingOffsetY
                     },
-                    modifier = Modifier.width(54.dp)
+                    onDock = {
+                        isFloatingMode = false
+                        keyboardPreferences.isFloatingMode = false
+                        performHaptic()
+                    },
+                    onCycleOpacity = {
+                        val nextOpacity = when {
+                            floatingOpacity >= 0.92f -> 0.78f
+                            floatingOpacity >= 0.75f -> 0.60f
+                            else -> 1.0f
+                        }
+                        floatingOpacity = nextOpacity
+                        keyboardPreferences.floatingOpacity = nextOpacity
+                        performHaptic()
+                    },
+                    onCycleScale = {
+                        val nextScale = when {
+                            floatingScale >= 0.95f -> 0.78f
+                            floatingScale >= 0.85f -> 1.0f
+                            else -> 0.88f
+                        }
+                        floatingScale = nextScale
+                        keyboardPreferences.floatingScale = nextScale
+                        performHaptic()
+                    },
+                    onResetPosition = {
+                        floatingOffsetX = 0f
+                        floatingOffsetY = -80f
+                        keyboardPreferences.floatingOffsetX = 0f
+                        keyboardPreferences.floatingOffsetY = -80f
+                        performHaptic()
+                    }
                 )
+            }
+        } else {
+            // Standard Docked Keyboard
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                // One-handed Left spacer/controls
+                if (oneHandedMode == OneHandedMode.RIGHT) {
+                    OneHandedSidebar(
+                        theme = currentTheme,
+                        onMoveLeft = {
+                            oneHandedMode = OneHandedMode.LEFT
+                            keyboardPreferences.oneHandedMode = OneHandedMode.LEFT
+                        },
+                        onRestore = {
+                            oneHandedMode = OneHandedMode.OFF
+                            keyboardPreferences.oneHandedMode = OneHandedMode.OFF
+                        },
+                        modifier = Modifier.width(54.dp)
+                    )
+                }
+
+                // Keyboard Core Content
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 2.dp, vertical = 2.dp)
+                ) {
+                    keyboardToolbarComposable(false)
+                    keyboardPagesContent()
+                }
+
+                // One-handed Right spacer/controls
+                if (oneHandedMode == OneHandedMode.LEFT) {
+                    OneHandedSidebar(
+                        theme = currentTheme,
+                        onMoveLeft = {
+                            oneHandedMode = OneHandedMode.RIGHT
+                            keyboardPreferences.oneHandedMode = OneHandedMode.RIGHT
+                        },
+                        onRestore = {
+                            oneHandedMode = OneHandedMode.OFF
+                            keyboardPreferences.oneHandedMode = OneHandedMode.OFF
+                        },
+                        modifier = Modifier.width(54.dp)
+                    )
+                }
             }
         }
 
@@ -921,6 +1107,7 @@ private fun KeyItem(
     height: androidx.compose.ui.unit.Dp,
     isGamingMode: Boolean,
     rootCoordinates: LayoutCoordinates?,
+    longPressDelayMs: Long = 240L,
     onShowPopup: (keyDef: KeyDef, bounds: Rect, initialIndex: Int) -> Unit,
     onUpdatePopupIndex: (newIndex: Int) -> Unit,
     onDismissPopup: () -> Unit,
@@ -981,7 +1168,7 @@ private fun KeyItem(
 
                             // Wait up to 240ms for pointer release. Tap released before timeout -> standard click
                             var isQuickTap = false
-                            val timeoutResult = withTimeoutOrNull(240L) {
+                            val timeoutResult = withTimeoutOrNull(longPressDelayMs) {
                                 var event = awaitPointerEvent()
                                 while (event.changes.any { it.id == down.id && it.pressed }) {
                                     event = awaitPointerEvent()
@@ -1591,6 +1778,206 @@ private fun AvroPhoneticSuggestionStrip(
                 ) {
                     Text("✕", color = textColor.copy(alpha = 0.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun EnglishWordSuggestionStrip(
+    composingWord: String,
+    candidates: List<String>,
+    theme: KeyboardThemeOption,
+    onSelectCandidate: (String) -> Unit,
+    onClearComposing: () -> Unit
+) {
+    val accentColor = Color(theme.accentHex)
+    val textColor = Color(theme.textHex)
+    val surfaceColor = Color(theme.surfaceHex)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(34.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(surfaceColor)
+            .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = RoundedCornerShape(4.dp),
+            color = accentColor.copy(alpha = 0.15f),
+            modifier = Modifier.padding(end = 6.dp)
+        ) {
+            Text(
+                text = "⚡ ",
+                color = accentColor,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            candidates.forEachIndexed { index, candidate ->
+                val isFirst = index == 0
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable { onSelectCandidate(candidate) },
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (isFirst) accentColor else surfaceColor,
+                    border = if (isFirst) null else androidx.compose.foundation.BorderStroke(0.5.dp, textColor.copy(alpha = 0.2f))
+                ) {
+                    Text(
+                        text = candidate,
+                        color = if (isFirst) Color.White else textColor,
+                        fontSize = 13.5.sp,
+                        fontWeight = if (isFirst) FontWeight.Bold else FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                    )
+                }
+            }
+        }
+
+        IconButton(
+            onClick = onClearComposing,
+            modifier = Modifier.size(24.dp)
+        ) {
+            Text("✕", color = textColor.copy(alpha = 0.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun FloatingControlBar(
+    theme: KeyboardThemeOption,
+    opacity: Float,
+    scale: Float,
+    onDrag: (dx: Float, dy: Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDock: () -> Unit,
+    onCycleOpacity: () -> Unit,
+    onCycleScale: () -> Unit,
+    onResetPosition: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val accentColor = Color(theme.accentHex)
+    val surfaceColor = Color(theme.surfaceHex)
+    val textColor = Color(theme.textHex)
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(38.dp)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = surfaceColor.copy(alpha = 0.85f),
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.25f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Dock button
+            IconButton(
+                onClick = onDock,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.VerticalAlignBottom,
+                    contentDescription = "Dock Keyboard",
+                    tint = accentColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            // Central Drag Handle Pill
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(28.dp)
+                    .padding(horizontal = 6.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(accentColor.copy(alpha = 0.15f))
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragEnd = onDragEnd
+                        ) { change, dragAmount ->
+                            change.consume()
+                            onDrag(dragAmount.x, dragAmount.y)
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.DragIndicator,
+                        contentDescription = "Drag to move keyboard",
+                        tint = textColor.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Hold & Drag",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = textColor.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            // Quick Opacity Toggle
+            IconButton(
+                onClick = onCycleOpacity,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Opacity,
+                    contentDescription = "Change Opacity",
+                    tint = textColor.copy(alpha = 0.85f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            // Quick Scale / Size Toggle
+            IconButton(
+                onClick = onCycleScale,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AspectRatio,
+                    contentDescription = "Resize Keyboard",
+                    tint = textColor.copy(alpha = 0.85f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            // Reset Position
+            IconButton(
+                onClick = onResetPosition,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.RestartAlt,
+                    contentDescription = "Reset Position",
+                    tint = textColor.copy(alpha = 0.85f),
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }

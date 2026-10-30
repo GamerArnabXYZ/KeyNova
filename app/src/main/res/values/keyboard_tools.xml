@@ -84,6 +84,9 @@
     <string name="tool_voice_typing_title">Voice Typing</string>
     <string name="tool_voice_typing_desc">Dictate text using Google Speech Recognition</string>
 
+    <string name="tool_floating_title">Floating Keyboard</string>
+    <string name="tool_floating_desc">Move, resize, and position keyboard anywhere on the screen</string>
+
     <string name="tool_settings_title">Keyboard Settings</string>
     <string name="tool_settings_desc">Direct shortcut to customize KeyNova preferences</string>
 </resources>

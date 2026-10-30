@@ -233,6 +233,14 @@ enum class ToolbarTool(
         description = "Dictate text using Google Speech Recognition",
         defaultEnabled = false
     ),
+    FLOATING(
+        id = "floating",
+        titleRes = com.example.R.string.tool_floating_title,
+        descriptionRes = com.example.R.string.tool_floating_desc,
+        title = "Floating Keyboard",
+        description = "Move, resize, and position keyboard anywhere on the screen",
+        defaultEnabled = false
+    ),
     SETTINGS(
         id = "settings",
         titleRes = com.example.R.string.tool_settings_title,
@@ -335,6 +343,10 @@ class KeyboardPreferences(context: Context) {
         get() = prefs.getInt(KEY_SPACING_DP, 4)
         set(value) = prefs.edit().putInt(KEY_SPACING_DP, value.coerceIn(2, 8)).apply()
 
+    var keyLongPressDelayMs: Int
+        get() = prefs.getInt(KEY_LONG_PRESS_DELAY, 240)
+        set(value) = prefs.edit().putInt(KEY_LONG_PRESS_DELAY, value.coerceIn(150, 600)).apply()
+
     var hapticFeedback: Boolean
         get() = prefs.getBoolean(KEY_HAPTIC, true)
         set(value) = prefs.edit().putBoolean(KEY_HAPTIC, value).apply()
@@ -349,6 +361,26 @@ class KeyboardPreferences(context: Context) {
             return runCatching { OneHandedMode.valueOf(raw) }.getOrDefault(OneHandedMode.OFF)
         }
         set(value) = prefs.edit().putString(KEY_ONE_HANDED, value.name).apply()
+
+    var isFloatingMode: Boolean
+        get() = prefs.getBoolean(KEY_IS_FLOATING_MODE, false)
+        set(value) = prefs.edit().putBoolean(KEY_IS_FLOATING_MODE, value).apply()
+
+    var floatingOffsetX: Float
+        get() = prefs.getFloat(KEY_FLOATING_OFFSET_X, 0f)
+        set(value) = prefs.edit().putFloat(KEY_FLOATING_OFFSET_X, value).apply()
+
+    var floatingOffsetY: Float
+        get() = prefs.getFloat(KEY_FLOATING_OFFSET_Y, -80f)
+        set(value) = prefs.edit().putFloat(KEY_FLOATING_OFFSET_Y, value).apply()
+
+    var floatingScale: Float
+        get() = prefs.getFloat(KEY_FLOATING_SCALE, 0.88f)
+        set(value) = prefs.edit().putFloat(KEY_FLOATING_SCALE, value.coerceIn(0.65f, 1.0f)).apply()
+
+    var floatingOpacity: Float
+        get() = prefs.getFloat(KEY_FLOATING_OPACITY, 0.95f)
+        set(value) = prefs.edit().putFloat(KEY_FLOATING_OPACITY, value.coerceIn(0.5f, 1.0f)).apply()
 
     var hasCompletedOnboarding: Boolean
         get() = prefs.getBoolean(KEY_ONBOARDING, false)
@@ -514,6 +546,7 @@ class KeyboardPreferences(context: Context) {
         showNumberRow = true
         keyHeightDp = 48
         keySpacingDp = 4
+        keyLongPressDelayMs = 240
         hapticFeedback = true
         soundFeedback = false
         oneHandedMode = OneHandedMode.OFF
@@ -525,6 +558,11 @@ class KeyboardPreferences(context: Context) {
         deleteInitialDelayMs = 350
         deleteRepeatIntervalMs = 100
         deleteHapticOnRepeat = true
+        isFloatingMode = false
+        floatingOffsetX = 0f
+        floatingOffsetY = -80f
+        floatingScale = 0.88f
+        floatingOpacity = 0.95f
     }
 
     fun resetToDefaults() {
@@ -538,9 +576,15 @@ class KeyboardPreferences(context: Context) {
         private const val KEY_SHOW_NUMBER_ROW = "key_show_number_row"
         private const val KEY_HEIGHT_DP = "key_height_dp"
         private const val KEY_SPACING_DP = "key_spacing_dp"
+        private const val KEY_LONG_PRESS_DELAY = "key_long_press_delay"
         private const val KEY_HAPTIC = "key_haptic"
         private const val KEY_SOUND = "key_sound"
         private const val KEY_ONE_HANDED = "key_one_handed"
+        private const val KEY_IS_FLOATING_MODE = "key_is_floating_mode"
+        private const val KEY_FLOATING_OFFSET_X = "key_floating_offset_x"
+        private const val KEY_FLOATING_OFFSET_Y = "key_floating_offset_y"
+        private const val KEY_FLOATING_SCALE = "key_floating_scale"
+        private const val KEY_FLOATING_OPACITY = "key_floating_opacity"
         private const val KEY_ONBOARDING = "key_onboarding"
         private const val KEY_SINGLE_TAP_SWITCH = "key_single_tap_switch"
         private const val KEY_LANG_SWITCH_METHOD = "key_lang_switch_method"

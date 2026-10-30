@@ -44,6 +44,7 @@ fun LayoutSettingsScreen(
     var showNumberRow by remember { mutableStateOf(keyboardPreferences.showNumberRow) }
     var keyHeight by remember { mutableFloatStateOf(keyboardPreferences.keyHeightDp.toFloat()) }
     var keySpacing by remember { mutableFloatStateOf(keyboardPreferences.keySpacingDp.toFloat()) }
+    var longPressDelay by remember { mutableFloatStateOf(keyboardPreferences.keyLongPressDelayMs.toFloat()) }
     var haptic by remember { mutableStateOf(keyboardPreferences.hapticFeedback) }
     var sound by remember { mutableStateOf(keyboardPreferences.soundFeedback) }
     var autoCap by remember { mutableStateOf(keyboardPreferences.autoCapitalization) }
@@ -51,6 +52,9 @@ fun LayoutSettingsScreen(
     var spaceCursor by remember { mutableStateOf(keyboardPreferences.spacebarCursorControl) }
     var backspaceSwipe by remember { mutableStateOf(keyboardPreferences.backspaceSwipeDelete) }
     var oneHanded by remember { mutableStateOf(keyboardPreferences.oneHandedMode) }
+    var isFloating by remember { mutableStateOf(keyboardPreferences.isFloatingMode) }
+    var floatingScale by remember { mutableFloatStateOf(keyboardPreferences.floatingScale) }
+    var floatingOpacity by remember { mutableFloatStateOf(keyboardPreferences.floatingOpacity) }
     var deleteMode by remember { mutableStateOf(keyboardPreferences.deleteHoldMode) }
     var deleteInitialDelay by remember { mutableFloatStateOf(keyboardPreferences.deleteInitialDelayMs.toFloat()) }
     var deleteRepeatInterval by remember { mutableFloatStateOf(keyboardPreferences.deleteRepeatIntervalMs.toFloat()) }
@@ -239,6 +243,58 @@ fun LayoutSettingsScreen(
             }
 
             item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = CardDefaults.outlinedCardBorder()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Key Long-Press Delay",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "Duration to hold a key to trigger symbols & accents",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748B),
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            Text(
+                                text = "${longPressDelay.toInt()} ms",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2563EB)
+                            )
+                        }
+
+                        Slider(
+                            value = longPressDelay,
+                            onValueChange = {
+                                longPressDelay = it
+                                keyboardPreferences.keyLongPressDelayMs = it.toInt()
+                            },
+                            valueRange = 150f..500f,
+                            steps = 6,
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color(0xFF2563EB),
+                                activeTrackColor = Color(0xFF2563EB)
+                            )
+                        )
+                    }
+                }
+            }
+
+            item {
                 SettingsSectionHeader(title = stringResource(R.string.layout_settings_feedback_section))
             }
 
@@ -373,6 +429,142 @@ fun LayoutSettingsScreen(
                                     },
                                     label = { Text("Right", fontSize = 11.sp) }
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                SettingsSectionHeader(title = "FLOATING KEYBOARD (GBOARD STYLE)")
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = CardDefaults.outlinedCardBorder()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Floating Keyboard Mode",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "Move, resize, and position keyboard anywhere on screen",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748B),
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            Switch(
+                                checked = isFloating,
+                                onCheckedChange = {
+                                    isFloating = it
+                                    keyboardPreferences.isFloatingMode = it
+                                },
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF2563EB))
+                            )
+                        }
+
+                        if (isFloating) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF1F5F9))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Floating Window Scale",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "${(floatingScale * 100).toInt()}%",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2563EB)
+                                )
+                            }
+
+                            Slider(
+                                value = floatingScale,
+                                onValueChange = {
+                                    floatingScale = it
+                                    keyboardPreferences.floatingScale = it
+                                },
+                                valueRange = 0.70f..1.0f,
+                                steps = 5,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color(0xFF2563EB),
+                                    activeTrackColor = Color(0xFF2563EB)
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Floating Opacity (Transparency)",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "${(floatingOpacity * 100).toInt()}%",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2563EB)
+                                )
+                            }
+
+                            Slider(
+                                value = floatingOpacity,
+                                onValueChange = {
+                                    floatingOpacity = it
+                                    keyboardPreferences.floatingOpacity = it
+                                },
+                                valueRange = 0.50f..1.0f,
+                                steps = 4,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color(0xFF2563EB),
+                                    activeTrackColor = Color(0xFF2563EB)
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            OutlinedButton(
+                                onClick = {
+                                    floatingScale = 0.88f
+                                    floatingOpacity = 0.95f
+                                    keyboardPreferences.floatingOffsetX = 0f
+                                    keyboardPreferences.floatingOffsetY = -80f
+                                    keyboardPreferences.floatingScale = 0.88f
+                                    keyboardPreferences.floatingOpacity = 0.95f
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                Icon(Icons.Outlined.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Center & Reset Floating Position", fontSize = 12.5.sp)
                             }
                         }
                     }
@@ -908,6 +1100,7 @@ fun LayoutSettingsScreen(
                         showNumberRow = true
                         keyHeight = 48f
                         keySpacing = 4f
+                        longPressDelay = 240f
                         haptic = true
                         sound = false
                         autoCap = true
@@ -915,6 +1108,9 @@ fun LayoutSettingsScreen(
                         spaceCursor = true
                         backspaceSwipe = true
                         oneHanded = OneHandedMode.OFF
+                        isFloating = false
+                        floatingScale = 0.88f
+                        floatingOpacity = 0.95f
                         deleteMode = DeleteHoldMode.WORD_BY_WORD
                         deleteInitialDelay = 350f
                         deleteRepeatInterval = 100f

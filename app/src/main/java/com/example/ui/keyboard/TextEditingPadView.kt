@@ -58,7 +58,7 @@ fun TextEditingPadView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(174.dp),
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Left Tall Arrow (<)

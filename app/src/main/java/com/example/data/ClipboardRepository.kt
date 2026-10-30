@@ -68,22 +68,33 @@ class ClipboardRepository(private val context: Context) {
     }
 
     @Synchronized
-    fun syncFromSystemClipboard(ctx: Context? = null): Boolean {
+    fun getSystemClipboardText(ctx: Context? = null): String? {
         val appContext = ctx ?: context
         return try {
-            val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return false
-            if (!cm.hasPrimaryClip()) return false
-            val clip = cm.primaryClip ?: return false
+            val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return null
+            val hasClip = try { cm.hasPrimaryClip() } catch (_: Exception) { false }
+            if (!hasClip) return null
+            val clip = try { cm.primaryClip } catch (_: Exception) { null } ?: return null
             if (clip.itemCount > 0) {
-                val text = clip.getItemAt(0)?.coerceToText(appContext)?.toString()
-                if (!text.isNullOrBlank()) {
-                    return addItem(text)
+                val item = clip.getItemAt(0)
+                val rawText = item?.text?.toString() ?: try {
+                    item?.coerceToText(appContext)?.toString()
+                } catch (_: Exception) {
+                    null
                 }
+                rawText?.trim()?.takeIf { it.isNotEmpty() }
+            } else {
+                null
             }
-            false
-        } catch (e: Exception) {
-            false
+        } catch (_: Exception) {
+            null
         }
+    }
+
+    @Synchronized
+    fun syncFromSystemClipboard(ctx: Context? = null): Boolean {
+        val text = getSystemClipboardText(ctx) ?: return false
+        return addItem(text)
     }
 
     @Synchronized
@@ -100,23 +111,33 @@ class ClipboardRepository(private val context: Context) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return false
         val current = loadItemsFromPrefs().toMutableList()
-        // If top item is identical, don't duplicate
-        if (current.isNotEmpty() && current[0].text == trimmed) {
+
+        // If the newest unpinned item is already identical, do not re-add
+        val latestUnpinned = current.firstOrNull { !it.isPinned }
+        if (latestUnpinned?.text == trimmed) {
             return false
         }
-        // Deduplicate unpinned copies
+
+        // If this text is already pinned, don't create a duplicate unpinned clip
+        if (current.any { it.isPinned && it.text == trimmed }) {
+            return false
+        }
+
+        // Remove any older duplicate unpinned copies
         current.removeAll { it.text == trimmed && !it.isPinned }
+
         val newItem = ClipboardItem(
             id = System.currentTimeMillis().toString(),
             text = trimmed,
             timestamp = System.currentTimeMillis(),
             isPinned = false
         )
-        current.add(0, newItem)
-        // Keep max items, preserving pinned
+
         val pinned = current.filter { it.isPinned }
-        val unpinned = current.filter { !it.isPinned }.take(MAX_ITEMS - pinned.size)
-        val result = pinned + unpinned
+        val remainingUnpinned = current.filter { !it.isPinned }
+        val updatedUnpinned = (listOf(newItem) + remainingUnpinned).take((MAX_ITEMS - pinned.size).coerceAtLeast(1))
+
+        val result = pinned + updatedUnpinned
         saveItemsInternal(result)
         _itemsFlow.value = result
         return true

@@ -76,7 +76,7 @@ fun NumberPadView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(44.dp),
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0").forEach { num ->
@@ -107,7 +107,7 @@ fun NumberPadView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp),
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             NumKey(text = "+", modifier = Modifier.weight(1.1f), keyColor = keyColor, textColor = textColor, borderColor = borderColor) {
@@ -136,7 +136,7 @@ fun NumberPadView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp),
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             NumKey(text = "-", modifier = Modifier.weight(1.1f), keyColor = keyColor, textColor = textColor, borderColor = borderColor) {
@@ -165,7 +165,7 @@ fun NumberPadView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp),
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             NumKey(text = "*", modifier = Modifier.weight(1.1f), keyColor = keyColor, textColor = textColor, borderColor = borderColor) {
@@ -210,7 +210,7 @@ fun NumberPadView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp),
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             // Switch back to letters

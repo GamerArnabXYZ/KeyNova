@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -55,6 +56,16 @@ fun ClipboardScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = {
+                        clipboardRepository.syncFromSystemClipboard(context)
+                        android.widget.Toast.makeText(context, "Clipboard synced", android.widget.Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Sync from System",
+                            tint = Color(0xFF2563EB)
+                        )
+                    }
                     if (clips.isNotEmpty()) {
                         TextButton(onClick = {
                             clipboardRepository.clearAll()
