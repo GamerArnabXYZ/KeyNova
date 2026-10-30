@@ -53,7 +53,8 @@ fun LayoutSettingsScreen(
     var backspaceSwipe by remember { mutableStateOf(keyboardPreferences.backspaceSwipeDelete) }
     var oneHanded by remember { mutableStateOf(keyboardPreferences.oneHandedMode) }
     var isFloating by remember { mutableStateOf(keyboardPreferences.isFloatingMode) }
-    var floatingScale by remember { mutableFloatStateOf(keyboardPreferences.floatingScale) }
+    var floatingScaleX by remember { mutableFloatStateOf(keyboardPreferences.floatingScaleX) }
+    var floatingScaleY by remember { mutableFloatStateOf(keyboardPreferences.floatingScaleY) }
     var floatingOpacity by remember { mutableFloatStateOf(keyboardPreferences.floatingOpacity) }
     var deleteMode by remember { mutableStateOf(keyboardPreferences.deleteHoldMode) }
     var deleteInitialDelay by remember { mutableFloatStateOf(keyboardPreferences.deleteInitialDelayMs.toFloat()) }
@@ -479,19 +480,20 @@ fun LayoutSettingsScreen(
                         if (isFloating) {
                             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF1F5F9))
 
+                            // Horizontal Width Scale Slider
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Floating Window Scale",
+                                    text = "↔ Horizontal Scale (Width)",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = Color(0xFF0F172A)
                                 )
                                 Text(
-                                    text = "${(floatingScale * 100).toInt()}%",
+                                    text = "${(floatingScaleX * 100).toInt()}%",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF2563EB)
@@ -499,13 +501,47 @@ fun LayoutSettingsScreen(
                             }
 
                             Slider(
-                                value = floatingScale,
+                                value = floatingScaleX,
                                 onValueChange = {
-                                    floatingScale = it
-                                    keyboardPreferences.floatingScale = it
+                                    floatingScaleX = it
+                                    keyboardPreferences.floatingScaleX = it
                                 },
-                                valueRange = 0.70f..1.0f,
-                                steps = 5,
+                                valueRange = 0.55f..1.35f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color(0xFF2563EB),
+                                    activeTrackColor = Color(0xFF2563EB)
+                                )
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            // Vertical Height Scale Slider
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "↕ Vertical Scale (Height)",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "${(floatingScaleY * 100).toInt()}%",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2563EB)
+                                )
+                            }
+
+                            Slider(
+                                value = floatingScaleY,
+                                onValueChange = {
+                                    floatingScaleY = it
+                                    keyboardPreferences.floatingScaleY = it
+                                },
+                                valueRange = 0.55f..1.35f,
                                 colors = SliderDefaults.colors(
                                     thumbColor = Color(0xFF2563EB),
                                     activeTrackColor = Color(0xFF2563EB)
@@ -551,10 +587,13 @@ fun LayoutSettingsScreen(
 
                             OutlinedButton(
                                 onClick = {
-                                    floatingScale = 0.88f
+                                    floatingScaleX = 0.88f
+                                    floatingScaleY = 0.88f
                                     floatingOpacity = 0.95f
                                     keyboardPreferences.floatingOffsetX = 0f
                                     keyboardPreferences.floatingOffsetY = -80f
+                                    keyboardPreferences.floatingScaleX = 0.88f
+                                    keyboardPreferences.floatingScaleY = 0.88f
                                     keyboardPreferences.floatingScale = 0.88f
                                     keyboardPreferences.floatingOpacity = 0.95f
                                 },
@@ -1109,7 +1148,8 @@ fun LayoutSettingsScreen(
                         backspaceSwipe = true
                         oneHanded = OneHandedMode.OFF
                         isFloating = false
-                        floatingScale = 0.88f
+                        floatingScaleX = 0.88f
+                        floatingScaleY = 0.88f
                         floatingOpacity = 0.95f
                         deleteMode = DeleteHoldMode.WORD_BY_WORD
                         deleteInitialDelay = 350f

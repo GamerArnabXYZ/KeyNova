@@ -135,10 +135,11 @@ class KeyNovaInputMethodService : InputMethodService(),
 
                     val bounds = floatingCardBounds
                     if (bounds != null && bounds.width() > 0 && bounds.height() > 0) {
-                        val safeLeft = bounds.left.coerceIn(0, decorWidth)
-                        val safeTop = bounds.top.coerceIn(0, decorHeight)
-                        val safeRight = bounds.right.coerceIn(0, decorWidth)
-                        val safeBottom = bounds.bottom.coerceIn(0, decorHeight)
+                        val handlePadding = 32 // px for resize handles, shadows, and edge gestures
+                        val safeLeft = (bounds.left - handlePadding).coerceIn(0, decorWidth)
+                        val safeTop = (bounds.top - handlePadding).coerceIn(0, decorHeight)
+                        val safeRight = (bounds.right + handlePadding).coerceIn(0, decorWidth)
+                        val safeBottom = (bounds.bottom + handlePadding).coerceIn(0, decorHeight)
                         if (safeRight > safeLeft && safeBottom > safeTop) {
                             outInsets.touchableRegion.set(safeLeft, safeTop, safeRight, safeBottom)
                         } else {

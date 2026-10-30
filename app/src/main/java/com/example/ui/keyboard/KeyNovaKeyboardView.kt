@@ -170,10 +170,14 @@ fun KeyNovaKeyboardView(
     var floatingOffsetY by remember(keyboardPreferences.floatingOffsetY, prefRev) {
         mutableFloatStateOf(keyboardPreferences.floatingOffsetY)
     }
-    var floatingScale by remember(keyboardPreferences.floatingScale, prefRev) {
-        mutableFloatStateOf(keyboardPreferences.floatingScale)
+    var floatingScaleX by remember(keyboardPreferences.floatingScaleX, prefRev) {
+        mutableFloatStateOf(keyboardPreferences.floatingScaleX)
+    }
+    var floatingScaleY by remember(keyboardPreferences.floatingScaleY, prefRev) {
+        mutableFloatStateOf(keyboardPreferences.floatingScaleY)
     }
     var isResizeModeActive by remember { mutableStateOf(false) }
+    var activeResizeAxis by remember { mutableStateOf(ResizeAxis.HORIZONTAL) }
     var floatingOpacity by remember(keyboardPreferences.floatingOpacity, prefRev) {
         mutableFloatStateOf(keyboardPreferences.floatingOpacity)
     }
@@ -738,6 +742,46 @@ fun KeyNovaKeyboardView(
     val latestBoundsRect = remember { android.graphics.Rect() }
     val cardDimensions = remember { FloatArray(2) }
 
+    fun clampFloatingOffsets(ox: Float, oy: Float, sx: Float, sy: Float): Pair<Float, Float> {
+        val cardW = if (cardDimensions[0] > 0f) cardDimensions[0] * sx else screenWidthPx * 0.88f
+        val cardH = if (cardDimensions[1] > 0f) cardDimensions[1] * sy else 240f * density.density
+        val maxHorizontalOffset = ((screenWidthPx - cardW) / 2f).coerceAtLeast(0f) + 20f
+        val maxUpwardOffset = (screenHeightPx - cardH - 48f).coerceAtLeast(0f)
+        return Pair(
+            ox.coerceIn(-maxHorizontalOffset, maxHorizontalOffset),
+            oy.coerceIn(-maxUpwardOffset, 8f)
+        )
+    }
+
+    fun computeScaledBounds(baseRect: android.graphics.Rect): android.graphics.Rect {
+        val unscaledW = cardDimensions[0]
+        val unscaledH = cardDimensions[1]
+        if (unscaledW <= 0f || unscaledH <= 0f || baseRect.isEmpty) return baseRect
+        val scaledW = unscaledW * floatingScaleX
+        val scaledH = unscaledH * floatingScaleY
+        val centerX = baseRect.exactCenterX()
+        val bottomY = baseRect.bottom.toFloat()
+        return android.graphics.Rect(
+            (centerX - scaledW / 2f).toInt(),
+            (bottomY - scaledH).toInt(),
+            (centerX + scaledW / 2f).toInt(),
+            bottomY.toInt()
+        )
+    }
+
+    // Auto-clamp floating position within visible screen bounds on configuration/rotation changes
+    LaunchedEffect(configuration.orientation, screenWidthPx, screenHeightPx, floatingScaleX, floatingScaleY) {
+        if (isFloatingMode) {
+            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+            if (cx != floatingOffsetX || cy != floatingOffsetY) {
+                floatingOffsetX = cx
+                floatingOffsetY = cy
+                keyboardPreferences.floatingOffsetX = cx
+                keyboardPreferences.floatingOffsetY = cy
+            }
+        }
+    }
+
     val containerModifier = if (isFloatingMode) {
         Modifier
             .fillMaxWidth()
@@ -786,8 +830,8 @@ fun KeyNovaKeyboardView(
                     .fillMaxWidth(0.90f)
                     .widthIn(min = 280.dp, max = 460.dp)
                     .graphicsLayer {
-                        scaleX = floatingScale
-                        scaleY = floatingScale
+                        scaleX = floatingScaleX
+                        scaleY = floatingScaleY
                         transformOrigin = TransformOrigin(0.5f, 1f)
                     }
                     .onGloballyPositioned { coords ->
@@ -800,11 +844,8 @@ fun KeyNovaKeyboardView(
                             wb.right.toInt(),
                             wb.bottom.toInt()
                         )
-                        val wasEmpty = latestBoundsRect.isEmpty
                         latestBoundsRect.set(r)
-                        if (wasEmpty) {
-                            onFloatingBoundsChanged(r)
-                        }
+                        onFloatingBoundsChanged(computeScaledBounds(r))
                     }
             ) {
                 // Main Keyboard Card
@@ -825,6 +866,11 @@ fun KeyNovaKeyboardView(
                             ),
                             shape = RoundedCornerShape(20.dp)
                         )
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {}
+                        )
                         .padding(horizontal = 4.dp, vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -838,36 +884,56 @@ fun KeyNovaKeyboardView(
                     FloatingControlBar(
                         theme = currentTheme,
                         opacity = floatingOpacity,
-                        scale = floatingScale,
+                        scaleX = floatingScaleX,
+                        scaleY = floatingScaleY,
                         isResizeMode = isResizeModeActive,
+                        activeAxis = activeResizeAxis,
+                        onSelectAxis = { activeResizeAxis = it },
                         onToggleResizeMode = {
                             isResizeModeActive = !isResizeModeActive
                             if (!isResizeModeActive) {
-                                keyboardPreferences.floatingScale = floatingScale
-                                onFloatingBoundsChanged(latestBoundsRect)
+                                keyboardPreferences.floatingScaleX = floatingScaleX
+                                keyboardPreferences.floatingScaleY = floatingScaleY
+                                onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                             }
                             performHaptic()
                         },
-                        onScaleChange = { newScale ->
-                            floatingScale = newScale.coerceIn(0.60f, 1.30f)
+                        onScaleXChange = { newScaleX ->
+                            floatingScaleX = newScaleX.coerceIn(0.55f, 1.35f)
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
+                        },
+                        onScaleYChange = { newScaleY ->
+                            floatingScaleY = newScaleY.coerceIn(0.55f, 1.35f)
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
+                        },
+                        onScaleBothChange = { newScale ->
+                            val clamped = newScale.coerceIn(0.55f, 1.35f)
+                            floatingScaleX = clamped
+                            floatingScaleY = clamped
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
                         },
                         onScaleChangeFinished = {
-                            keyboardPreferences.floatingScale = floatingScale
-                            onFloatingBoundsChanged(latestBoundsRect)
+                            keyboardPreferences.floatingOffsetX = floatingOffsetX
+                            keyboardPreferences.floatingOffsetY = floatingOffsetY
+                            keyboardPreferences.floatingScaleX = floatingScaleX
+                            keyboardPreferences.floatingScaleY = floatingScaleY
+                            onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         },
                         onDrag = { dx, dy ->
-                            val cardW = if (cardDimensions[0] > 0f) cardDimensions[0] * floatingScale else screenWidthPx * 0.88f
-                            val cardH = if (cardDimensions[1] > 0f) cardDimensions[1] * floatingScale else 230f * density.density
-                            val maxHorizontalOffset = ((screenWidthPx - cardW) / 2f).coerceAtLeast(0f) + 20f
-                            val maxUpwardOffset = (screenHeightPx - cardH - 50f).coerceAtLeast(0f)
-
-                            floatingOffsetX = (floatingOffsetX + dx).coerceIn(-maxHorizontalOffset, maxHorizontalOffset)
-                            floatingOffsetY = (floatingOffsetY + dy).coerceIn(-maxUpwardOffset, 10f)
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX + dx, floatingOffsetY + dy, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
                         },
                         onDragEnd = {
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
                             keyboardPreferences.floatingOffsetY = floatingOffsetY
-                            onFloatingBoundsChanged(latestBoundsRect)
+                            onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         },
                         onDock = {
                             isFloatingMode = false
@@ -891,60 +957,171 @@ fun KeyNovaKeyboardView(
                             floatingOffsetY = -60f
                             keyboardPreferences.floatingOffsetX = 0f
                             keyboardPreferences.floatingOffsetY = -60f
-                            onFloatingBoundsChanged(latestBoundsRect)
+                            onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                             performHaptic()
                         }
                     )
                 }
 
-                // Gboard 4-Corner Interactive Drag-to-Resize Handles
+                // Gboard Interactive Drag-to-Resize Frame
                 if (isResizeModeActive) {
+                    // --- 4 Corner Handles (2D Non-Uniform Resizing) ---
                     ResizeCornerHandle(
                         alignment = Alignment.TopStart,
                         theme = currentTheme,
                         onDeltaDrag = { dx, dy ->
-                            val delta = (-dx - dy) / 320f
-                            floatingScale = (floatingScale + delta).coerceIn(0.60f, 1.30f)
+                            val deltaX = -dx / 280f
+                            val deltaY = -dy / 280f
+                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
+                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
                         },
                         onDragEnd = {
-                            keyboardPreferences.floatingScale = floatingScale
-                            onFloatingBoundsChanged(latestBoundsRect)
+                            keyboardPreferences.floatingOffsetX = floatingOffsetX
+                            keyboardPreferences.floatingOffsetY = floatingOffsetY
+                            keyboardPreferences.floatingScaleX = floatingScaleX
+                            keyboardPreferences.floatingScaleY = floatingScaleY
+                            onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         }
                     )
                     ResizeCornerHandle(
                         alignment = Alignment.TopEnd,
                         theme = currentTheme,
                         onDeltaDrag = { dx, dy ->
-                            val delta = (dx - dy) / 320f
-                            floatingScale = (floatingScale + delta).coerceIn(0.60f, 1.30f)
+                            val deltaX = dx / 280f
+                            val deltaY = -dy / 280f
+                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
+                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
                         },
                         onDragEnd = {
-                            keyboardPreferences.floatingScale = floatingScale
-                            onFloatingBoundsChanged(latestBoundsRect)
+                            keyboardPreferences.floatingOffsetX = floatingOffsetX
+                            keyboardPreferences.floatingOffsetY = floatingOffsetY
+                            keyboardPreferences.floatingScaleX = floatingScaleX
+                            keyboardPreferences.floatingScaleY = floatingScaleY
+                            onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         }
                     )
                     ResizeCornerHandle(
                         alignment = Alignment.BottomStart,
                         theme = currentTheme,
                         onDeltaDrag = { dx, dy ->
-                            val delta = (-dx + dy) / 320f
-                            floatingScale = (floatingScale + delta).coerceIn(0.60f, 1.30f)
+                            val deltaX = -dx / 280f
+                            val deltaY = dy / 280f
+                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
+                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
                         },
                         onDragEnd = {
-                            keyboardPreferences.floatingScale = floatingScale
-                            onFloatingBoundsChanged(latestBoundsRect)
+                            keyboardPreferences.floatingOffsetX = floatingOffsetX
+                            keyboardPreferences.floatingOffsetY = floatingOffsetY
+                            keyboardPreferences.floatingScaleX = floatingScaleX
+                            keyboardPreferences.floatingScaleY = floatingScaleY
+                            onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         }
                     )
                     ResizeCornerHandle(
                         alignment = Alignment.BottomEnd,
                         theme = currentTheme,
                         onDeltaDrag = { dx, dy ->
-                            val delta = (dx + dy) / 320f
-                            floatingScale = (floatingScale + delta).coerceIn(0.60f, 1.30f)
+                            val deltaX = dx / 280f
+                            val deltaY = dy / 280f
+                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
+                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
                         },
                         onDragEnd = {
-                            keyboardPreferences.floatingScale = floatingScale
-                            onFloatingBoundsChanged(latestBoundsRect)
+                            keyboardPreferences.floatingOffsetX = floatingOffsetX
+                            keyboardPreferences.floatingOffsetY = floatingOffsetY
+                            keyboardPreferences.floatingScaleX = floatingScaleX
+                            keyboardPreferences.floatingScaleY = floatingScaleY
+                            onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
+                        }
+                    )
+
+                    // --- 4 Edge Handles (Pure Horizontal or Vertical Resizing) ---
+                    // Left Edge: Drag horizontally to resize Width
+                    ResizeEdgeHandle(
+                        alignment = Alignment.CenterStart,
+                        isVertical = false,
+                        theme = currentTheme,
+                        onDeltaDrag = { dx, _ ->
+                            val deltaX = -dx / 260f
+                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
+                        },
+                        onDragEnd = {
+                            keyboardPreferences.floatingOffsetX = floatingOffsetX
+                            keyboardPreferences.floatingOffsetY = floatingOffsetY
+                            keyboardPreferences.floatingScaleX = floatingScaleX
+                            onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
+                        }
+                    )
+                    // Right Edge: Drag horizontally to resize Width
+                    ResizeEdgeHandle(
+                        alignment = Alignment.CenterEnd,
+                        isVertical = false,
+                        theme = currentTheme,
+                        onDeltaDrag = { dx, _ ->
+                            val deltaX = dx / 260f
+                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
+                        },
+                        onDragEnd = {
+                            keyboardPreferences.floatingOffsetX = floatingOffsetX
+                            keyboardPreferences.floatingOffsetY = floatingOffsetY
+                            keyboardPreferences.floatingScaleX = floatingScaleX
+                            onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
+                        }
+                    )
+                    // Top Edge: Drag vertically to resize Height
+                    ResizeEdgeHandle(
+                        alignment = Alignment.TopCenter,
+                        isVertical = true,
+                        theme = currentTheme,
+                        onDeltaDrag = { _, dy ->
+                            val deltaY = -dy / 260f
+                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
+                        },
+                        onDragEnd = {
+                            keyboardPreferences.floatingOffsetX = floatingOffsetX
+                            keyboardPreferences.floatingOffsetY = floatingOffsetY
+                            keyboardPreferences.floatingScaleY = floatingScaleY
+                            onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
+                        }
+                    )
+                    // Bottom Edge: Drag vertically to resize Height
+                    ResizeEdgeHandle(
+                        alignment = Alignment.BottomCenter,
+                        isVertical = true,
+                        theme = currentTheme,
+                        onDeltaDrag = { _, dy ->
+                            val deltaY = dy / 260f
+                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
+                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
+                            floatingOffsetX = cx
+                            floatingOffsetY = cy
+                        },
+                        onDragEnd = {
+                            keyboardPreferences.floatingOffsetX = floatingOffsetX
+                            keyboardPreferences.floatingOffsetY = floatingOffsetY
+                            keyboardPreferences.floatingScaleY = floatingScaleY
+                            onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         }
                     )
                 }
@@ -2046,14 +2223,25 @@ private fun EnglishWordSuggestionStrip(
     }
 }
 
+enum class ResizeAxis {
+    HORIZONTAL,
+    VERTICAL,
+    BOTH
+}
+
 @Composable
 private fun FloatingControlBar(
     theme: KeyboardThemeOption,
     opacity: Float,
-    scale: Float,
+    scaleX: Float,
+    scaleY: Float,
     isResizeMode: Boolean,
+    activeAxis: ResizeAxis,
+    onSelectAxis: (ResizeAxis) -> Unit,
     onToggleResizeMode: () -> Unit,
-    onScaleChange: (Float) -> Unit,
+    onScaleXChange: (Float) -> Unit,
+    onScaleYChange: (Float) -> Unit,
+    onScaleBothChange: (Float) -> Unit,
     onScaleChangeFinished: () -> Unit,
     onDrag: (dx: Float, dy: Float) -> Unit,
     onDragEnd: () -> Unit,
@@ -2076,55 +2264,116 @@ private fun FloatingControlBar(
         border = BorderStroke(1.dp, if (isResizeMode) accentColor else accentColor.copy(alpha = 0.25f))
     ) {
         if (isResizeMode) {
-            // Gboard Continuous Resize Mode Slider Bar
+            // Continuous Independent Horizontal & Vertical Resize Toolbar
             Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // Reset to 100%
                 IconButton(
                     onClick = {
-                        onScaleChange(1.0f)
+                        onScaleXChange(1.0f)
+                        onScaleYChange(1.0f)
                         onScaleChangeFinished()
                     },
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.RestartAlt,
                         contentDescription = "Reset Size to 100%",
                         tint = textColor.copy(alpha = 0.75f),
-                        modifier = Modifier.size(17.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
 
-                // Percentage pill
+                // Width Pill (Horizontal)
                 Surface(
+                    onClick = { onSelectAxis(ResizeAxis.HORIZONTAL) },
                     shape = RoundedCornerShape(6.dp),
-                    color = accentColor.copy(alpha = 0.15f),
-                    modifier = Modifier.padding(horizontal = 2.dp)
+                    color = if (activeAxis == ResizeAxis.HORIZONTAL) accentColor else surfaceColor,
+                    border = BorderStroke(1.dp, if (activeAxis == ResizeAxis.HORIZONTAL) accentColor else textColor.copy(alpha = 0.25f)),
+                    modifier = Modifier.height(26.dp)
                 ) {
-                    Text(
-                        text = "${(scale * 100).roundToInt()}%",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = accentColor,
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 6.dp)
+                    ) {
+                        Text(
+                            text = "↔ ${(scaleX * 100).roundToInt()}%",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (activeAxis == ResizeAxis.HORIZONTAL) Color.White else textColor
+                        )
+                    }
                 }
 
-                // Continuous Realtime Slider
+                // Height Pill (Vertical)
+                Surface(
+                    onClick = { onSelectAxis(ResizeAxis.VERTICAL) },
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (activeAxis == ResizeAxis.VERTICAL) accentColor else surfaceColor,
+                    border = BorderStroke(1.dp, if (activeAxis == ResizeAxis.VERTICAL) accentColor else textColor.copy(alpha = 0.25f)),
+                    modifier = Modifier.height(26.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 6.dp)
+                    ) {
+                        Text(
+                            text = "↕ ${(scaleY * 100).roundToInt()}%",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (activeAxis == ResizeAxis.VERTICAL) Color.White else textColor
+                        )
+                    }
+                }
+
+                // Both Pill (Uniform)
+                Surface(
+                    onClick = { onSelectAxis(ResizeAxis.BOTH) },
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (activeAxis == ResizeAxis.BOTH) accentColor else surfaceColor,
+                    border = BorderStroke(1.dp, if (activeAxis == ResizeAxis.BOTH) accentColor else textColor.copy(alpha = 0.25f)),
+                    modifier = Modifier.height(26.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 5.dp)
+                    ) {
+                        Text(
+                            text = "⤢",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (activeAxis == ResizeAxis.BOTH) Color.White else textColor
+                        )
+                    }
+                }
+
+                // Continuous Realtime Slider for selected axis
+                val currentSliderVal = when (activeAxis) {
+                    ResizeAxis.HORIZONTAL -> scaleX
+                    ResizeAxis.VERTICAL -> scaleY
+                    ResizeAxis.BOTH -> (scaleX + scaleY) / 2f
+                }
+
                 Slider(
-                    value = scale,
-                    onValueChange = onScaleChange,
+                    value = currentSliderVal,
+                    onValueChange = { newVal ->
+                        when (activeAxis) {
+                            ResizeAxis.HORIZONTAL -> onScaleXChange(newVal)
+                            ResizeAxis.VERTICAL -> onScaleYChange(newVal)
+                            ResizeAxis.BOTH -> onScaleBothChange(newVal)
+                        }
+                    },
                     onValueChangeFinished = onScaleChangeFinished,
-                    valueRange = 0.60f..1.30f,
+                    valueRange = 0.55f..1.35f,
                     modifier = Modifier
                         .weight(1f)
                         .height(28.dp)
-                        .padding(horizontal = 4.dp),
+                        .padding(horizontal = 2.dp),
                     colors = SliderDefaults.colors(
                         thumbColor = accentColor,
                         activeTrackColor = accentColor,
@@ -2135,7 +2384,7 @@ private fun FloatingControlBar(
                 // Done checkmark button
                 FilledTonalIconButton(
                     onClick = onToggleResizeMode,
-                    modifier = Modifier.size(30.dp),
+                    modifier = Modifier.size(28.dp),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = accentColor,
                         contentColor = Color.White
@@ -2145,7 +2394,7 @@ private fun FloatingControlBar(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Done Resizing",
                         tint = Color.White,
-                        modifier = Modifier.size(17.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
@@ -2230,7 +2479,7 @@ private fun FloatingControlBar(
                     Icon(
                         imageVector = Icons.Outlined.AspectRatio,
                         contentDescription = "Resize Keyboard (Custom Scale)",
-                        tint = if (scale != 1.0f) accentColor else textColor.copy(alpha = 0.85f),
+                        tint = if (scaleX != 1.0f || scaleY != 1.0f) accentColor else textColor.copy(alpha = 0.85f),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -2260,27 +2509,37 @@ private fun BoxScope.ResizeCornerHandle(
     onDragEnd: () -> Unit
 ) {
     val accentColor = Color(theme.accentHex)
+    var isDragging by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .align(alignment)
             .offset(
                 x = when (alignment) {
-                    Alignment.TopStart, Alignment.BottomStart -> (-8).dp
-                    else -> 8.dp
+                    Alignment.TopStart, Alignment.BottomStart -> (-9).dp
+                    else -> 9.dp
                 },
                 y = when (alignment) {
-                    Alignment.TopStart, Alignment.TopEnd -> (-8).dp
-                    else -> 8.dp
+                    Alignment.TopStart, Alignment.TopEnd -> (-9).dp
+                    else -> 9.dp
                 }
             )
-            .size(32.dp)
+            .size(if (isDragging) 34.dp else 30.dp)
             .clip(CircleShape)
             .background(accentColor)
-            .border(2.dp, Color.White, CircleShape)
-            .shadow(4.dp, CircleShape)
+            .border(if (isDragging) 2.5.dp else 2.dp, Color.White, CircleShape)
+            .shadow(if (isDragging) 8.dp else 4.dp, CircleShape)
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDragEnd = onDragEnd
+                    onDragStart = { isDragging = true },
+                    onDragEnd = {
+                        isDragging = false
+                        onDragEnd()
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                        onDragEnd()
+                    }
                 ) { change, dragAmount ->
                     change.consume()
                     onDeltaDrag(dragAmount.x, dragAmount.y)
@@ -2292,7 +2551,68 @@ private fun BoxScope.ResizeCornerHandle(
             imageVector = Icons.Outlined.AspectRatio,
             contentDescription = "Drag corner to resize",
             tint = Color.White,
-            modifier = Modifier.size(15.dp)
+            modifier = Modifier.size(if (isDragging) 16.dp else 14.dp)
+        )
+    }
+}
+
+@Composable
+private fun BoxScope.ResizeEdgeHandle(
+    alignment: Alignment,
+    isVertical: Boolean,
+    theme: KeyboardThemeOption,
+    onDeltaDrag: (Float, Float) -> Unit,
+    onDragEnd: () -> Unit
+) {
+    val accentColor = Color(theme.accentHex)
+    var isDragging by remember { mutableStateOf(false) }
+    val handleWidth = if (isVertical) 48.dp else 16.dp
+    val handleHeight = if (isVertical) 16.dp else 48.dp
+
+    Box(
+        modifier = Modifier
+            .align(alignment)
+            .offset(
+                x = when (alignment) {
+                    Alignment.CenterStart -> (-8).dp
+                    Alignment.CenterEnd -> 8.dp
+                    else -> 0.dp
+                },
+                y = when (alignment) {
+                    Alignment.TopCenter -> (-8).dp
+                    Alignment.BottomCenter -> 8.dp
+                    else -> 0.dp
+                }
+            )
+            .size(width = handleWidth, height = handleHeight)
+            .clip(RoundedCornerShape(8.dp))
+            .background(accentColor)
+            .border(if (isDragging) 2.dp else 1.5.dp, Color.White, RoundedCornerShape(8.dp))
+            .shadow(if (isDragging) 8.dp else 4.dp, RoundedCornerShape(8.dp))
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { isDragging = true },
+                    onDragEnd = {
+                        isDragging = false
+                        onDragEnd()
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                        onDragEnd()
+                    }
+                ) { change, dragAmount ->
+                    change.consume()
+                    onDeltaDrag(dragAmount.x, dragAmount.y)
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = if (isVertical) "↕" else "↔",
+            color = Color.White,
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.Bold,
+            lineHeight = 10.5.sp
         )
     }
 }

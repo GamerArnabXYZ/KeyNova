@@ -401,9 +401,24 @@ class KeyboardPreferences(context: Context) {
         get() = prefs.getFloat(KEY_FLOATING_OFFSET_Y, -80f)
         set(value) = prefs.edit().putFloat(KEY_FLOATING_OFFSET_Y, value).apply()
 
+    var floatingScaleX: Float
+        get() = prefs.getFloat(KEY_FLOATING_SCALE_X, prefs.getFloat(KEY_FLOATING_SCALE, 0.88f)).coerceIn(0.55f, 1.35f)
+        set(value) = prefs.edit().putFloat(KEY_FLOATING_SCALE_X, value.coerceIn(0.55f, 1.35f)).apply()
+
+    var floatingScaleY: Float
+        get() = prefs.getFloat(KEY_FLOATING_SCALE_Y, prefs.getFloat(KEY_FLOATING_SCALE, 0.88f)).coerceIn(0.55f, 1.35f)
+        set(value) = prefs.edit().putFloat(KEY_FLOATING_SCALE_Y, value.coerceIn(0.55f, 1.35f)).apply()
+
     var floatingScale: Float
-        get() = prefs.getFloat(KEY_FLOATING_SCALE, 0.88f)
-        set(value) = prefs.edit().putFloat(KEY_FLOATING_SCALE, value.coerceIn(0.65f, 1.0f)).apply()
+        get() = prefs.getFloat(KEY_FLOATING_SCALE, 0.88f).coerceIn(0.55f, 1.35f)
+        set(value) {
+            val clamped = value.coerceIn(0.55f, 1.35f)
+            prefs.edit()
+                .putFloat(KEY_FLOATING_SCALE, clamped)
+                .putFloat(KEY_FLOATING_SCALE_X, clamped)
+                .putFloat(KEY_FLOATING_SCALE_Y, clamped)
+                .apply()
+        }
 
     var floatingOpacity: Float
         get() = prefs.getFloat(KEY_FLOATING_OPACITY, 0.95f)
@@ -589,6 +604,8 @@ class KeyboardPreferences(context: Context) {
         floatingOffsetX = 0f
         floatingOffsetY = -80f
         floatingScale = 0.88f
+        floatingScaleX = 0.88f
+        floatingScaleY = 0.88f
         floatingOpacity = 0.95f
     }
 
@@ -613,6 +630,8 @@ class KeyboardPreferences(context: Context) {
         private const val KEY_FLOATING_OFFSET_X = "key_floating_offset_x"
         private const val KEY_FLOATING_OFFSET_Y = "key_floating_offset_y"
         private const val KEY_FLOATING_SCALE = "key_floating_scale"
+        private const val KEY_FLOATING_SCALE_X = "key_floating_scale_x"
+        private const val KEY_FLOATING_SCALE_Y = "key_floating_scale_y"
         private const val KEY_FLOATING_OPACITY = "key_floating_opacity"
         private const val KEY_ONBOARDING = "key_onboarding"
         private const val KEY_SINGLE_TAP_SWITCH = "key_single_tap_switch"
