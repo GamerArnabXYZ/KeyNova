@@ -760,13 +760,56 @@ fun KeyNovaKeyboardView(
         val scaledW = unscaledW * floatingScaleX
         val scaledH = unscaledH * floatingScaleY
         val centerX = baseRect.exactCenterX()
-        val bottomY = baseRect.bottom.toFloat()
+        val centerY = baseRect.exactCenterY()
         return android.graphics.Rect(
             (centerX - scaledW / 2f).toInt(),
-            (bottomY - scaledH).toInt(),
+            (centerY - scaledH / 2f).toInt(),
             (centerX + scaledW / 2f).toInt(),
-            bottomY.toInt()
+            (centerY + scaledH / 2f).toInt()
         )
+    }
+
+    // Gboard One-Sided Pinned Resize Math:
+    // When dragging one side or corner, the opposite side/corner remains 100% stationary
+    fun onHandleDrag(
+        isLeft: Boolean? = null,
+        isTop: Boolean? = null,
+        dx: Float,
+        dy: Float
+    ) {
+        val unscaledW = if (cardDimensions[0] > 0f) cardDimensions[0] else screenWidthPx * 0.88f
+        val unscaledH = if (cardDimensions[1] > 0f) cardDimensions[1] else 240f * density.density
+
+        var nextScaleX = floatingScaleX
+        var nextScaleY = floatingScaleY
+        var nextOffsetX = floatingOffsetX
+        var nextOffsetY = floatingOffsetY
+
+        if (isLeft != null) {
+            val deltaSX = if (isLeft) -dx / unscaledW else dx / unscaledW
+            val candidateScaleX = (floatingScaleX + deltaSX).coerceIn(0.55f, 1.35f)
+            val actualDeltaSX = candidateScaleX - floatingScaleX
+            nextScaleX = candidateScaleX
+
+            val shiftX = if (isLeft) -(actualDeltaSX * unscaledW) / 2f else (actualDeltaSX * unscaledW) / 2f
+            nextOffsetX += shiftX
+        }
+
+        if (isTop != null) {
+            val deltaSY = if (isTop) -dy / unscaledH else dy / unscaledH
+            val candidateScaleY = (floatingScaleY + deltaSY).coerceIn(0.55f, 1.35f)
+            val actualDeltaSY = candidateScaleY - floatingScaleY
+            nextScaleY = candidateScaleY
+
+            val shiftY = if (isTop) -(actualDeltaSY * unscaledH) / 2f else (actualDeltaSY * unscaledH) / 2f
+            nextOffsetY += shiftY
+        }
+
+        val (clampedX, clampedY) = clampFloatingOffsets(nextOffsetX, nextOffsetY, nextScaleX, nextScaleY)
+        floatingScaleX = nextScaleX
+        floatingScaleY = nextScaleY
+        floatingOffsetX = clampedX
+        floatingOffsetY = clampedY
     }
 
     // Auto-clamp floating position within visible screen bounds on configuration/rotation changes
@@ -832,7 +875,7 @@ fun KeyNovaKeyboardView(
                     .graphicsLayer {
                         scaleX = floatingScaleX
                         scaleY = floatingScaleY
-                        transformOrigin = TransformOrigin(0.5f, 1f)
+                        transformOrigin = TransformOrigin.Center
                     }
                     .onGloballyPositioned { coords ->
                         cardDimensions[0] = coords.size.width.toFloat()
@@ -965,18 +1008,13 @@ fun KeyNovaKeyboardView(
 
                 // Gboard Interactive Drag-to-Resize Frame
                 if (isResizeModeActive) {
-                    // --- 4 Corner Handles (2D Non-Uniform Resizing) ---
+                    // --- 4 Corner Handles (2D One-Sided Resizing: Opposite Corner Completely Stationary) ---
+                    // Top-Start (Top-Left): Bottom-Right remains pinned
                     ResizeCornerHandle(
                         alignment = Alignment.TopStart,
                         theme = currentTheme,
                         onDeltaDrag = { dx, dy ->
-                            val deltaX = -dx / 280f
-                            val deltaY = -dy / 280f
-                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
-                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
-                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
-                            floatingOffsetX = cx
-                            floatingOffsetY = cy
+                            onHandleDrag(isLeft = true, isTop = true, dx = dx, dy = dy)
                         },
                         onDragEnd = {
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
@@ -986,17 +1024,12 @@ fun KeyNovaKeyboardView(
                             onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         }
                     )
+                    // Top-End (Top-Right): Bottom-Left remains pinned
                     ResizeCornerHandle(
                         alignment = Alignment.TopEnd,
                         theme = currentTheme,
                         onDeltaDrag = { dx, dy ->
-                            val deltaX = dx / 280f
-                            val deltaY = -dy / 280f
-                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
-                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
-                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
-                            floatingOffsetX = cx
-                            floatingOffsetY = cy
+                            onHandleDrag(isLeft = false, isTop = true, dx = dx, dy = dy)
                         },
                         onDragEnd = {
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
@@ -1006,17 +1039,12 @@ fun KeyNovaKeyboardView(
                             onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         }
                     )
+                    // Bottom-Start (Bottom-Left): Top-Right remains pinned
                     ResizeCornerHandle(
                         alignment = Alignment.BottomStart,
                         theme = currentTheme,
                         onDeltaDrag = { dx, dy ->
-                            val deltaX = -dx / 280f
-                            val deltaY = dy / 280f
-                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
-                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
-                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
-                            floatingOffsetX = cx
-                            floatingOffsetY = cy
+                            onHandleDrag(isLeft = true, isTop = false, dx = dx, dy = dy)
                         },
                         onDragEnd = {
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
@@ -1026,17 +1054,12 @@ fun KeyNovaKeyboardView(
                             onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         }
                     )
+                    // Bottom-End (Bottom-Right): Top-Left remains pinned
                     ResizeCornerHandle(
                         alignment = Alignment.BottomEnd,
                         theme = currentTheme,
                         onDeltaDrag = { dx, dy ->
-                            val deltaX = dx / 280f
-                            val deltaY = dy / 280f
-                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
-                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
-                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
-                            floatingOffsetX = cx
-                            floatingOffsetY = cy
+                            onHandleDrag(isLeft = false, isTop = false, dx = dx, dy = dy)
                         },
                         onDragEnd = {
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
@@ -1047,18 +1070,14 @@ fun KeyNovaKeyboardView(
                         }
                     )
 
-                    // --- 4 Edge Handles (Pure Horizontal or Vertical Resizing) ---
-                    // Left Edge: Drag horizontally to resize Width
+                    // --- 4 Edge Handles (1D One-Sided Resizing: Opposite Edge Completely Stationary) ---
+                    // Left Edge: Drag horizontally to resize Left side, Right edge remains pinned
                     ResizeEdgeHandle(
                         alignment = Alignment.CenterStart,
                         isVertical = false,
                         theme = currentTheme,
                         onDeltaDrag = { dx, _ ->
-                            val deltaX = -dx / 260f
-                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
-                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
-                            floatingOffsetX = cx
-                            floatingOffsetY = cy
+                            onHandleDrag(isLeft = true, isTop = null, dx = dx, dy = 0f)
                         },
                         onDragEnd = {
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
@@ -1067,17 +1086,13 @@ fun KeyNovaKeyboardView(
                             onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         }
                     )
-                    // Right Edge: Drag horizontally to resize Width
+                    // Right Edge: Drag horizontally to resize Right side, Left edge remains pinned
                     ResizeEdgeHandle(
                         alignment = Alignment.CenterEnd,
                         isVertical = false,
                         theme = currentTheme,
                         onDeltaDrag = { dx, _ ->
-                            val deltaX = dx / 260f
-                            floatingScaleX = (floatingScaleX + deltaX).coerceIn(0.55f, 1.35f)
-                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
-                            floatingOffsetX = cx
-                            floatingOffsetY = cy
+                            onHandleDrag(isLeft = false, isTop = null, dx = dx, dy = 0f)
                         },
                         onDragEnd = {
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
@@ -1086,17 +1101,13 @@ fun KeyNovaKeyboardView(
                             onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         }
                     )
-                    // Top Edge: Drag vertically to resize Height
+                    // Top Edge: Drag vertically to resize Top side, Bottom edge remains pinned
                     ResizeEdgeHandle(
                         alignment = Alignment.TopCenter,
                         isVertical = true,
                         theme = currentTheme,
                         onDeltaDrag = { _, dy ->
-                            val deltaY = -dy / 260f
-                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
-                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
-                            floatingOffsetX = cx
-                            floatingOffsetY = cy
+                            onHandleDrag(isLeft = null, isTop = true, dx = 0f, dy = dy)
                         },
                         onDragEnd = {
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
@@ -1105,17 +1116,13 @@ fun KeyNovaKeyboardView(
                             onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         }
                     )
-                    // Bottom Edge: Drag vertically to resize Height
+                    // Bottom Edge: Drag vertically to resize Bottom side, Top edge remains pinned
                     ResizeEdgeHandle(
                         alignment = Alignment.BottomCenter,
                         isVertical = true,
                         theme = currentTheme,
                         onDeltaDrag = { _, dy ->
-                            val deltaY = dy / 260f
-                            floatingScaleY = (floatingScaleY + deltaY).coerceIn(0.55f, 1.35f)
-                            val (cx, cy) = clampFloatingOffsets(floatingOffsetX, floatingOffsetY, floatingScaleX, floatingScaleY)
-                            floatingOffsetX = cx
-                            floatingOffsetY = cy
+                            onHandleDrag(isLeft = null, isTop = false, dx = 0f, dy = dy)
                         },
                         onDragEnd = {
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
