@@ -70,11 +70,12 @@ fun KeyboardToolbar(
     val enabledTools = keyboardPreferences.enabledToolbarTools.take(ToolbarTool.MAX_ENABLED_TOOLS)
 
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(40.dp)
+            .then(modifier)
             .background(bgColor)
-            .padding(horizontal = 6.dp, vertical = 3.dp),
+            .padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {

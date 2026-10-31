@@ -191,9 +191,6 @@ class KeyNovaInputMethodService : InputMethodService(),
                     },
                     onFloatingBoundsChanged = { rect ->
                         floatingCardBounds = rect
-                        mainHandler.post {
-                            composeView?.requestLayout()
-                        }
                     }
                 )
             }

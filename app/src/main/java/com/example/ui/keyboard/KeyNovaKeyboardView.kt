@@ -164,21 +164,22 @@ fun KeyNovaKeyboardView(
     var isFloatingMode by remember(keyboardPreferences.isFloatingMode, prefRev) {
         mutableStateOf(keyboardPreferences.isFloatingMode)
     }
-    var floatingOffsetX by remember(keyboardPreferences.floatingOffsetX, prefRev) {
+    var floatingOffsetX by remember {
         mutableFloatStateOf(keyboardPreferences.floatingOffsetX)
     }
-    var floatingOffsetY by remember(keyboardPreferences.floatingOffsetY, prefRev) {
+    var floatingOffsetY by remember {
         mutableFloatStateOf(keyboardPreferences.floatingOffsetY)
     }
-    var floatingScaleX by remember(keyboardPreferences.floatingScaleX, prefRev) {
+    var floatingScaleX by remember {
         mutableFloatStateOf(keyboardPreferences.floatingScaleX)
     }
-    var floatingScaleY by remember(keyboardPreferences.floatingScaleY, prefRev) {
+    var floatingScaleY by remember {
         mutableFloatStateOf(keyboardPreferences.floatingScaleY)
     }
     var isResizeModeActive by remember { mutableStateOf(false) }
+    var isDraggingActive by remember { mutableStateOf(false) }
     var activeResizeAxis by remember { mutableStateOf(ResizeAxis.HORIZONTAL) }
-    var floatingOpacity by remember(keyboardPreferences.floatingOpacity, prefRev) {
+    var floatingOpacity by remember {
         mutableFloatStateOf(keyboardPreferences.floatingOpacity)
     }
     var switchMethod by remember(keyboardPreferences.languageSwitchMethod, prefRev) {
@@ -187,11 +188,22 @@ fun KeyNovaKeyboardView(
     val showNumberRow = remember(keyboardPreferences.showNumberRow, prefRev) { keyboardPreferences.showNumberRow }
     val keyHeight = remember(keyboardPreferences.keyHeightDp, prefRev) { keyboardPreferences.keyHeightDp.dp }
     val keySpacing = remember(keyboardPreferences.keySpacingDp, prefRev) { keyboardPreferences.keySpacingDp.dp }
-    val currentKeyHeight = remember(keyHeight, isFloatingMode) {
-        if (isFloatingMode) 40.dp else keyHeight
+
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val currentKeyHeight = remember(keyHeight, isFloatingMode, isLandscape) {
+        when {
+            isFloatingMode && isLandscape -> 31.dp
+            isFloatingMode -> 38.dp
+            isLandscape -> 34.dp
+            else -> keyHeight
+        }
     }
-    val currentKeySpacing = remember(keySpacing, isFloatingMode) {
-        if (isFloatingMode) 2.dp else keySpacing
+    val currentKeySpacing = remember(keySpacing, isFloatingMode, isLandscape) {
+        when {
+            isFloatingMode && isLandscape -> 1.5.dp
+            isFloatingMode -> 2.dp
+            else -> keySpacing
+        }
     }
     val hapticEnabled = remember(keyboardPreferences.hapticFeedback, prefRev) { keyboardPreferences.hapticFeedback }
     val popupOnKeypress = remember(keyboardPreferences.popupOnKeypress, prefRev) { keyboardPreferences.popupOnKeypress }
@@ -305,6 +317,7 @@ fun KeyNovaKeyboardView(
             theme = currentTheme,
             activePage = activePage,
             keyboardPreferences = keyboardPreferences,
+            modifier = if (inFloating && isLandscape) Modifier.height(34.dp) else Modifier,
             onPageSelected = { newPage ->
                 activePage = newPage
                 performHaptic()
@@ -756,10 +769,11 @@ fun KeyNovaKeyboardView(
     val cardDimensions = remember { FloatArray(2) }
 
     fun clampFloatingOffsets(ox: Float, oy: Float, sx: Float, sy: Float): Pair<Float, Float> {
-        val cardW = if (cardDimensions[0] > 0f) cardDimensions[0] * sx else screenWidthPx * 0.88f
-        val cardH = if (cardDimensions[1] > 0f) cardDimensions[1] * sy else 240f * density.density
+        val defaultW = if (isLandscape) 340f * density.density else screenWidthPx * 0.88f
+        val cardW = if (cardDimensions[0] > 0f) cardDimensions[0] * sx else defaultW
+        val cardH = if (cardDimensions[1] > 0f) cardDimensions[1] * sy else (if (isLandscape) 180f else 240f) * density.density
         val maxHorizontalOffset = ((screenWidthPx - cardW) / 2f).coerceAtLeast(0f) + 20f
-        val maxUpwardOffset = (screenHeightPx - cardH - 48f).coerceAtLeast(0f)
+        val maxUpwardOffset = (screenHeightPx - cardH - 36f).coerceAtLeast(0f)
         return Pair(
             ox.coerceIn(-maxHorizontalOffset, maxHorizontalOffset),
             oy.coerceIn(-maxUpwardOffset, 8f)
@@ -883,8 +897,17 @@ fun KeyNovaKeyboardView(
                             floatingOffsetY.roundToInt()
                         )
                     }
-                    .fillMaxWidth(0.90f)
-                    .widthIn(min = 280.dp, max = 460.dp)
+                    .then(
+                        if (isLandscape) {
+                            Modifier
+                                .width(340.dp)
+                                .widthIn(min = 280.dp, max = 360.dp)
+                        } else {
+                            Modifier
+                                .fillMaxWidth(0.90f)
+                                .widthIn(min = 280.dp, max = 400.dp)
+                        }
+                    )
                     .graphicsLayer {
                         scaleX = floatingScaleX
                         scaleY = floatingScaleY
@@ -900,8 +923,12 @@ fun KeyNovaKeyboardView(
                             wb.right.toInt(),
                             wb.bottom.toInt()
                         )
-                        latestBoundsRect.set(r)
-                        onFloatingBoundsChanged(computeScaledBounds(r))
+                        if (r != latestBoundsRect) {
+                            latestBoundsRect.set(r)
+                            if (!isDraggingActive) {
+                                onFloatingBoundsChanged(computeScaledBounds(r))
+                            }
+                        }
                     }
             ) {
                 // Main Keyboard Card
@@ -981,12 +1008,14 @@ fun KeyNovaKeyboardView(
                             keyboardPreferences.floatingScaleY = floatingScaleY
                             onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
                         },
+                        onDragStart = { isDraggingActive = true },
                         onDrag = { dx, dy ->
                             val (cx, cy) = clampFloatingOffsets(floatingOffsetX + dx, floatingOffsetY + dy, floatingScaleX, floatingScaleY)
                             floatingOffsetX = cx
                             floatingOffsetY = cy
                         },
                         onDragEnd = {
+                            isDraggingActive = false
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
                             keyboardPreferences.floatingOffsetY = floatingOffsetY
                             onFloatingBoundsChanged(computeScaledBounds(latestBoundsRect))
@@ -1026,10 +1055,12 @@ fun KeyNovaKeyboardView(
                     ResizeCornerHandle(
                         alignment = Alignment.TopStart,
                         theme = currentTheme,
+                        onDragStart = { isDraggingActive = true },
                         onDeltaDrag = { dx, dy ->
                             onHandleDrag(isLeft = true, isTop = true, dx = dx, dy = dy)
                         },
                         onDragEnd = {
+                            isDraggingActive = false
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
                             keyboardPreferences.floatingOffsetY = floatingOffsetY
                             keyboardPreferences.floatingScaleX = floatingScaleX
@@ -1041,10 +1072,12 @@ fun KeyNovaKeyboardView(
                     ResizeCornerHandle(
                         alignment = Alignment.TopEnd,
                         theme = currentTheme,
+                        onDragStart = { isDraggingActive = true },
                         onDeltaDrag = { dx, dy ->
                             onHandleDrag(isLeft = false, isTop = true, dx = dx, dy = dy)
                         },
                         onDragEnd = {
+                            isDraggingActive = false
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
                             keyboardPreferences.floatingOffsetY = floatingOffsetY
                             keyboardPreferences.floatingScaleX = floatingScaleX
@@ -1056,10 +1089,12 @@ fun KeyNovaKeyboardView(
                     ResizeCornerHandle(
                         alignment = Alignment.BottomStart,
                         theme = currentTheme,
+                        onDragStart = { isDraggingActive = true },
                         onDeltaDrag = { dx, dy ->
                             onHandleDrag(isLeft = true, isTop = false, dx = dx, dy = dy)
                         },
                         onDragEnd = {
+                            isDraggingActive = false
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
                             keyboardPreferences.floatingOffsetY = floatingOffsetY
                             keyboardPreferences.floatingScaleX = floatingScaleX
@@ -1071,10 +1106,12 @@ fun KeyNovaKeyboardView(
                     ResizeCornerHandle(
                         alignment = Alignment.BottomEnd,
                         theme = currentTheme,
+                        onDragStart = { isDraggingActive = true },
                         onDeltaDrag = { dx, dy ->
                             onHandleDrag(isLeft = false, isTop = false, dx = dx, dy = dy)
                         },
                         onDragEnd = {
+                            isDraggingActive = false
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
                             keyboardPreferences.floatingOffsetY = floatingOffsetY
                             keyboardPreferences.floatingScaleX = floatingScaleX
@@ -1089,10 +1126,12 @@ fun KeyNovaKeyboardView(
                         alignment = Alignment.CenterStart,
                         isVertical = false,
                         theme = currentTheme,
+                        onDragStart = { isDraggingActive = true },
                         onDeltaDrag = { dx, _ ->
                             onHandleDrag(isLeft = true, isTop = null, dx = dx, dy = 0f)
                         },
                         onDragEnd = {
+                            isDraggingActive = false
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
                             keyboardPreferences.floatingOffsetY = floatingOffsetY
                             keyboardPreferences.floatingScaleX = floatingScaleX
@@ -1104,10 +1143,12 @@ fun KeyNovaKeyboardView(
                         alignment = Alignment.CenterEnd,
                         isVertical = false,
                         theme = currentTheme,
+                        onDragStart = { isDraggingActive = true },
                         onDeltaDrag = { dx, _ ->
                             onHandleDrag(isLeft = false, isTop = null, dx = dx, dy = 0f)
                         },
                         onDragEnd = {
+                            isDraggingActive = false
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
                             keyboardPreferences.floatingOffsetY = floatingOffsetY
                             keyboardPreferences.floatingScaleX = floatingScaleX
@@ -1119,10 +1160,12 @@ fun KeyNovaKeyboardView(
                         alignment = Alignment.TopCenter,
                         isVertical = true,
                         theme = currentTheme,
+                        onDragStart = { isDraggingActive = true },
                         onDeltaDrag = { _, dy ->
                             onHandleDrag(isLeft = null, isTop = true, dx = 0f, dy = dy)
                         },
                         onDragEnd = {
+                            isDraggingActive = false
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
                             keyboardPreferences.floatingOffsetY = floatingOffsetY
                             keyboardPreferences.floatingScaleY = floatingScaleY
@@ -1134,10 +1177,12 @@ fun KeyNovaKeyboardView(
                         alignment = Alignment.BottomCenter,
                         isVertical = true,
                         theme = currentTheme,
+                        onDragStart = { isDraggingActive = true },
                         onDeltaDrag = { _, dy ->
                             onHandleDrag(isLeft = null, isTop = false, dx = 0f, dy = dy)
                         },
                         onDragEnd = {
+                            isDraggingActive = false
                             keyboardPreferences.floatingOffsetX = floatingOffsetX
                             keyboardPreferences.floatingOffsetY = floatingOffsetY
                             keyboardPreferences.floatingScaleY = floatingScaleY
@@ -2285,6 +2330,7 @@ private fun FloatingControlBar(
     onScaleYChange: (Float) -> Unit,
     onScaleBothChange: (Float) -> Unit,
     onScaleChangeFinished: () -> Unit,
+    onDragStart: () -> Unit = {},
     onDrag: (dx: Float, dy: Float) -> Unit,
     onDragEnd: () -> Unit,
     onDock: () -> Unit,
@@ -2463,6 +2509,9 @@ private fun FloatingControlBar(
                 }
 
                 // Central Drag Handle Pill
+                val currentOnDragStart by rememberUpdatedState(onDragStart)
+                val currentOnDrag by rememberUpdatedState(onDrag)
+                val currentOnDragEnd by rememberUpdatedState(onDragEnd)
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -2472,10 +2521,12 @@ private fun FloatingControlBar(
                         .background(accentColor.copy(alpha = 0.15f))
                         .pointerInput(Unit) {
                             detectDragGestures(
-                                onDragEnd = onDragEnd
+                                onDragStart = { currentOnDragStart() },
+                                onDragEnd = { currentOnDragEnd() },
+                                onDragCancel = { currentOnDragEnd() }
                             ) { change, dragAmount ->
                                 change.consume()
-                                onDrag(dragAmount.x, dragAmount.y)
+                                currentOnDrag(dragAmount.x, dragAmount.y)
                             }
                         },
                     contentAlignment = Alignment.Center
@@ -2548,10 +2599,14 @@ private fun BoxScope.ResizeCornerHandle(
     alignment: Alignment,
     theme: KeyboardThemeOption,
     onDeltaDrag: (Float, Float) -> Unit,
+    onDragStart: () -> Unit = {},
     onDragEnd: () -> Unit
 ) {
     val accentColor = Color(theme.accentHex)
     var isDragging by remember { mutableStateOf(false) }
+    val currentOnDeltaDrag by rememberUpdatedState(onDeltaDrag)
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
+    val currentOnDragEnd by rememberUpdatedState(onDragEnd)
 
     Box(
         modifier = Modifier
@@ -2573,18 +2628,21 @@ private fun BoxScope.ResizeCornerHandle(
             .shadow(if (isDragging) 8.dp else 4.dp, CircleShape)
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDragStart = { isDragging = true },
+                    onDragStart = {
+                        isDragging = true
+                        currentOnDragStart()
+                    },
                     onDragEnd = {
                         isDragging = false
-                        onDragEnd()
+                        currentOnDragEnd()
                     },
                     onDragCancel = {
                         isDragging = false
-                        onDragEnd()
+                        currentOnDragEnd()
                     }
                 ) { change, dragAmount ->
                     change.consume()
-                    onDeltaDrag(dragAmount.x, dragAmount.y)
+                    currentOnDeltaDrag(dragAmount.x, dragAmount.y)
                 }
             },
         contentAlignment = Alignment.Center
@@ -2604,10 +2662,14 @@ private fun BoxScope.ResizeEdgeHandle(
     isVertical: Boolean,
     theme: KeyboardThemeOption,
     onDeltaDrag: (Float, Float) -> Unit,
+    onDragStart: () -> Unit = {},
     onDragEnd: () -> Unit
 ) {
     val accentColor = Color(theme.accentHex)
     var isDragging by remember { mutableStateOf(false) }
+    val currentOnDeltaDrag by rememberUpdatedState(onDeltaDrag)
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
+    val currentOnDragEnd by rememberUpdatedState(onDragEnd)
     val handleWidth = if (isVertical) 48.dp else 16.dp
     val handleHeight = if (isVertical) 16.dp else 48.dp
 
@@ -2633,18 +2695,21 @@ private fun BoxScope.ResizeEdgeHandle(
             .shadow(if (isDragging) 8.dp else 4.dp, RoundedCornerShape(8.dp))
             .pointerInput(Unit) {
                 detectDragGestures(
-                    onDragStart = { isDragging = true },
+                    onDragStart = {
+                        isDragging = true
+                        currentOnDragStart()
+                    },
                     onDragEnd = {
                         isDragging = false
-                        onDragEnd()
+                        currentOnDragEnd()
                     },
                     onDragCancel = {
                         isDragging = false
-                        onDragEnd()
+                        currentOnDragEnd()
                     }
                 ) { change, dragAmount ->
                     change.consume()
-                    onDeltaDrag(dragAmount.x, dragAmount.y)
+                    currentOnDeltaDrag(dragAmount.x, dragAmount.y)
                 }
             },
         contentAlignment = Alignment.Center

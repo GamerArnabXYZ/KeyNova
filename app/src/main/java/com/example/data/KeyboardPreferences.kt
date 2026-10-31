@@ -320,8 +320,16 @@ class KeyboardPreferences(context: Context) {
 
     val preferenceRevision = androidx.compose.runtime.mutableIntStateOf(0)
 
-    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-        preferenceRevision.intValue++
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key != KEY_FLOATING_OFFSET_X &&
+            key != KEY_FLOATING_OFFSET_Y &&
+            key != KEY_FLOATING_SCALE &&
+            key != KEY_FLOATING_SCALE_X &&
+            key != KEY_FLOATING_SCALE_Y &&
+            key != KEY_FLOATING_OPACITY
+        ) {
+            preferenceRevision.intValue++
+        }
     }
 
     init {
