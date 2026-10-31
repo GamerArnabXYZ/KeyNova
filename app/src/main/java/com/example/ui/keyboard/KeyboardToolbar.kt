@@ -88,6 +88,22 @@ fun KeyboardToolbar(
         ) {
             enabledTools.forEach { tool ->
                 when (tool) {
+                    ToolbarTool.TRANSLATE -> {
+                        val isSelected = activePage == ActiveKeyboardPage.TRANSLATE
+                        ModernToolbarPill(
+                            icon = getToolbarIconForTool(tool),
+                            contentDescription = "Translate",
+                            isSelected = isSelected,
+                            textColor = textColor,
+                            accentColor = accentColor,
+                            testTag = "toolbar_tool_translate",
+                            onClick = {
+                                if (isSelected) onPageSelected(ActiveKeyboardPage.LETTERS)
+                                else onPageSelected(ActiveKeyboardPage.TRANSLATE)
+                            }
+                        )
+                    }
+
                     ToolbarTool.EMOJI -> {
                         val isSelected = activePage == ActiveKeyboardPage.EMOJI
                         ModernToolbarPill(

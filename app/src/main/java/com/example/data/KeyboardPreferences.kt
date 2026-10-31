@@ -136,7 +136,8 @@ enum class ActiveKeyboardPage {
     CLIPBOARD,
     SNIPPETS,
     TEXT_EDITING,
-    NUMPAD
+    NUMPAD,
+    TRANSLATE
 }
 
 enum class ToolbarTool(
@@ -147,6 +148,14 @@ enum class ToolbarTool(
     val description: String,
     val defaultEnabled: Boolean
 ) {
+    TRANSLATE(
+        id = "translate",
+        titleRes = com.example.R.string.tool_translate_title,
+        descriptionRes = com.example.R.string.tool_translate_desc,
+        title = "Translate",
+        description = "Translate text directly inside keyboard with instant insert",
+        defaultEnabled = true
+    ),
     EMOJI(
         id = "emoji",
         titleRes = com.example.R.string.tool_emoji_title,
@@ -471,6 +480,10 @@ class KeyboardPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_BACKSPACE_SWIPE_DELETE, true)
         set(value) = prefs.edit().putBoolean(KEY_BACKSPACE_SWIPE_DELETE, value).apply()
 
+    var popupOnKeypress: Boolean
+        get() = prefs.getBoolean(KEY_POPUP_ON_KEYPRESS, true)
+        set(value) = prefs.edit().putBoolean(KEY_POPUP_ON_KEYPRESS, value).apply()
+
     var enabledToolbarTools: List<ToolbarTool>
         get() {
             val raw = prefs.getString(KEY_ENABLED_TOOLBAR_TOOLS, null)
@@ -591,6 +604,7 @@ class KeyboardPreferences(context: Context) {
         keyLongPressDelayMs = 240
         hapticFeedback = true
         soundFeedback = false
+        popupOnKeypress = true
         oneHandedMode = OneHandedMode.OFF
         autoCapitalization = true
         doubleSpacePeriod = true
@@ -647,5 +661,6 @@ class KeyboardPreferences(context: Context) {
         private const val KEY_DOUBLE_SPACE_PERIOD = "key_double_space_period"
         private const val KEY_SPACEBAR_CURSOR_CONTROL = "key_spacebar_cursor_control"
         private const val KEY_BACKSPACE_SWIPE_DELETE = "key_backspace_swipe_delete"
+        private const val KEY_POPUP_ON_KEYPRESS = "key_popup_on_keypress"
     }
 }

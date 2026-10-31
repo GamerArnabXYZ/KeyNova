@@ -89,4 +89,7 @@
 
     <string name="tool_settings_title">Keyboard Settings</string>
     <string name="tool_settings_desc">Direct shortcut to customize KeyNova preferences</string>
+
+    <string name="tool_translate_title">Translate</string>
+    <string name="tool_translate_desc">Translate text directly inside keyboard with instant insert</string>
 </resources>

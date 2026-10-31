@@ -47,6 +47,7 @@ fun LayoutSettingsScreen(
     var longPressDelay by remember { mutableFloatStateOf(keyboardPreferences.keyLongPressDelayMs.toFloat()) }
     var haptic by remember { mutableStateOf(keyboardPreferences.hapticFeedback) }
     var sound by remember { mutableStateOf(keyboardPreferences.soundFeedback) }
+    var popupOnKeypress by remember { mutableStateOf(keyboardPreferences.popupOnKeypress) }
     var autoCap by remember { mutableStateOf(keyboardPreferences.autoCapitalization) }
     var doubleSpace by remember { mutableStateOf(keyboardPreferences.doubleSpacePeriod) }
     var spaceCursor by remember { mutableStateOf(keyboardPreferences.spacebarCursorControl) }
@@ -381,6 +382,37 @@ fun LayoutSettingsScreen(
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(stringResource(R.string.layout_settings_sound_test), fontSize = 12.sp)
                             }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF1F5F9))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Popup on Keypress",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "Show magnified letter preview bubble when pressed",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748B),
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            Switch(
+                                checked = popupOnKeypress,
+                                onCheckedChange = {
+                                    popupOnKeypress = it
+                                    keyboardPreferences.popupOnKeypress = it
+                                },
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF2563EB))
+                            )
                         }
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFF1F5F9))
@@ -1142,6 +1174,7 @@ fun LayoutSettingsScreen(
                         longPressDelay = 240f
                         haptic = true
                         sound = false
+                        popupOnKeypress = true
                         autoCap = true
                         doubleSpace = true
                         spaceCursor = true

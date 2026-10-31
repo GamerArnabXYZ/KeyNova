@@ -520,6 +520,7 @@ fun ToolbarSettingsScreen(
  */
 fun getToolbarIconForTool(tool: ToolbarTool): ImageVector {
     return when (tool) {
+        ToolbarTool.TRANSLATE -> Icons.Outlined.Translate
         ToolbarTool.EMOJI -> Icons.Outlined.Mood
         ToolbarTool.CLIPBOARD -> Icons.Outlined.ContentPaste
         ToolbarTool.TEXT_EDITING -> Icons.Outlined.EditNote

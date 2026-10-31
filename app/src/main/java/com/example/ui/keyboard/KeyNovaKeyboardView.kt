@@ -194,6 +194,7 @@ fun KeyNovaKeyboardView(
         if (isFloatingMode) 2.dp else keySpacing
     }
     val hapticEnabled = remember(keyboardPreferences.hapticFeedback, prefRev) { keyboardPreferences.hapticFeedback }
+    val popupOnKeypress = remember(keyboardPreferences.popupOnKeypress, prefRev) { keyboardPreferences.popupOnKeypress }
     val longPressDelayMs = remember(keyboardPreferences.keyLongPressDelayMs, prefRev) { keyboardPreferences.keyLongPressDelayMs.toLong() }
     val standardKeyboardContentHeight = remember(showNumberRow, currentKeyHeight, currentKeySpacing) {
         val rowCount = if (showNumberRow) 5 else 4
@@ -418,6 +419,17 @@ fun KeyNovaKeyboardView(
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
+                        ActiveKeyboardPage.TRANSLATE -> {
+                            TranslationPanelView(
+                                theme = currentTheme,
+                                onInsertText = { text ->
+                                    actionTarget.onCommitText(text)
+                                    performHaptic()
+                                },
+                                onClose = { activePage = ActiveKeyboardPage.LETTERS },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                         else -> {
                             // Standard Key Matrix
                             Column(
@@ -579,6 +591,7 @@ fun KeyNovaKeyboardView(
                                                 isGamingMode = activePage == ActiveKeyboardPage.GAMING,
                                                 rootCoordinates = keyboardRootCoordinates,
                                                 longPressDelayMs = longPressDelayMs,
+                                                popupOnKeypress = popupOnKeypress,
                                                 customConfig = customThemeConfig,
                                                 onShowPopup = { targetKey, bounds, initialIndex ->
                                                     val (disp, commit) = resolveSecondaryText(targetKey.primaryText, targetKey.secondaryText)
@@ -1444,6 +1457,7 @@ private fun KeyItem(
     isGamingMode: Boolean,
     rootCoordinates: LayoutCoordinates?,
     longPressDelayMs: Long = 240L,
+    popupOnKeypress: Boolean = true,
     customConfig: CustomThemeConfig? = null,
     onShowPopup: (keyDef: KeyDef, bounds: Rect, initialIndex: Int) -> Unit,
     onUpdatePopupIndex: (newIndex: Int) -> Unit,
@@ -1627,6 +1641,27 @@ private fun KeyItem(
                     fontSize = if (isEllipsis) 10.sp else 8.5.sp,
                     fontWeight = FontWeight.Normal,
                     lineHeight = 9.sp
+                )
+            }
+        }
+
+        // Gboard-Style Key Press Magnifier Bubble
+        if (isPressed && popupOnKeypress && keyDef.action == KeyAction.CHARACTER && keyDef.primaryText.length == 1) {
+            Box(
+                modifier = Modifier
+                    .offset(y = (-44).dp)
+                    .size(width = 44.dp, height = 44.dp)
+                    .shadow(8.dp, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(accentColor)
+                    .border(1.5.dp, Color.White, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = keyDef.primaryText,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
