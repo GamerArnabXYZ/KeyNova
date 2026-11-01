@@ -1,6 +1,7 @@
 package com.example.ui.keyboard
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -13,206 +14,37 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Fastfood
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Flight
-import androidx.compose.material.icons.outlined.Laptop
-import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Mood
-import androidx.compose.material.icons.outlined.PanTool
-import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.data.KeyboardThemeOption
-
-data class EmojiCategory(
-    val title: String,
-    val iconVector: ImageVector,
-    val emojis: List<String>
-)
-
-object EmojiCatalog {
-    val categories = listOf(
-        EmojiCategory(
-            title = "Smileys",
-            iconVector = Icons.Outlined.Mood,
-            emojis = listOf(
-                "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "🥲", "🥹",
-                "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗",
-                "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓",
-                "😎", "🥸", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕",
-                "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😮‍💨",
-                "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨"
-            )
-        ),
-        EmojiCategory(
-            title = "Gestures",
-            iconVector = Icons.Outlined.PanTool,
-            emojis = listOf(
-                "👋", "🤚", "🖐️", "✋", "🖖", "🫱", "🫲", "👌", "🤌", "🤏",
-                "✌️", "🤞", "🫰", "🤟", "🤘", "🤙", "👈", "👉", "👆", "🖕",
-                "👇", "☝️", "👍", "👎", "✊", "👊", "🤛", "🤜", "👏", "🙌",
-                "🫶", "👐", "🤲", "🤝", "🙏", "✍️", "💅", "🤳", "💪", "🦾"
-            )
-        ),
-        EmojiCategory(
-            title = "Hearts",
-            iconVector = Icons.Outlined.FavoriteBorder,
-            emojis = listOf(
-                "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔",
-                "❤️‍🔥", "❤️‍🩹", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝",
-                "💟", "💌", "💋", "💯", "🔥", "✨", "💫", "⭐", "🌟", "⚡"
-            )
-        ),
-        EmojiCategory(
-            title = "Animals",
-            iconVector = Icons.Outlined.Pets,
-            emojis = listOf(
-                "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯",
-                "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🦆", "🦅",
-                "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🦋", "🐌", "🐞",
-                "🌴", "🌵", "🌾", "🌿", "🍀", "🍁", "🍂", "🍃", "🌸", "🌺"
-            )
-        ),
-        EmojiCategory(
-            title = "Food",
-            iconVector = Icons.Outlined.Fastfood,
-            emojis = listOf(
-                "🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🫐",
-                "🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🍜", "🍣", "🍦",
-                "🍩", "🍪", "🎂", "🍫", "🍿", "☕", "🧋", "🍵", "🥤", "🍺"
-            )
-        ),
-        EmojiCategory(
-            title = "Gaming",
-            iconVector = Icons.Outlined.SportsEsports,
-            emojis = listOf(
-                "🎮", "🕹️", "👾", "🎯", "🎲", "🧩", "🎳", "🏆", "🥇", "🥈",
-                "🥉", "👑", "⚔️", "🛡️", "💣", "🪄", "🔮", "🛸", "🤖", "🚀"
-            )
-        ),
-        EmojiCategory(
-            title = "Dev",
-            iconVector = Icons.Outlined.Laptop,
-            emojis = listOf(
-                "💻", "🖥️", "⌨️", "🖱️", "📱", "💾", "💿", "🔌", "🔋", "💡",
-                "🛠️", "⚙️", "🔧", "🪛", "📡", "🛰️", "🔬", "🔭", "📊", "📈"
-            )
-        ),
-        EmojiCategory(
-            title = "Travel",
-            iconVector = Icons.Outlined.Flight,
-            emojis = listOf(
-                "🚗", "🚕", "🚙", "🚌", "🏎️", "🚓", "🚑", "🚒", "🚲", "🏍️",
-                "✈️", "🛫", "🛬", "🚀", "🛸", "🚁", "⛵", "🚢", "🏠", "🏙️"
-            )
-        ),
-        EmojiCategory(
-            title = "Objects",
-            iconVector = Icons.Outlined.Lightbulb,
-            emojis = listOf(
-                "💡", "📱", "💻", "⏰", "⏱️", "💎", "💰", "💳", "🎁", "🎈",
-                "📦", "📌", "✂️", "🔒", "🔑", "🔍", "🔔", "💬", "💭", "🎉"
-            )
-        )
-    )
-
-    // Tag based search index
-    val emojiTags = mapOf(
-        "laugh" to listOf("😂", "🤣", "😆", "😀", "😄", "😅"),
-        "smile" to listOf("😀", "😃", "😄", "😁", "😊", "🙂", "😇"),
-        "happy" to listOf("😀", "😊", "🥳", "🤩", "😁", "😇"),
-        "love" to listOf("❤️", "🥰", "😍", "😘", "💖", "💕", "💓", "💗"),
-        "heart" to listOf("❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔"),
-        "cry" to listOf("😢", "😭", "🥺", "😿", "💧", "🥲"),
-        "sad" to listOf("😞", "😔", "😟", "🙁", "☹️", "😢", "😭"),
-        "fire" to listOf("🔥", "❤️‍🔥", "💥", "⚡", "✨"),
-        "cool" to listOf("😎", "🤩", "🤙", "✌️", "🔥"),
-        "thumbs" to listOf("👍", "👎"),
-        "ok" to listOf("👌", "👍", "🙆"),
-        "dog" to listOf("🐶", "🐕", "🦮"),
-        "cat" to listOf("🐱", "🐈", "🦁"),
-        "food" to listOf("🍕", "🍔", "🍟", "🌭", "🥪", "🍜", "🍣"),
-        "coffee" to listOf("☕", "🧋", "🍵"),
-        "game" to listOf("🎮", "🕹️", "👾", "🎲", "🎯"),
-        "code" to listOf("💻", "🖥️", "⌨️", "📱", "💡"),
-        "star" to listOf("⭐", "🌟", "✨", "💫"),
-        "party" to listOf("🥳", "🎉", "🎈", "🍾", "🥂"),
-        "money" to listOf("💰", "💳", "💎", "🤑"),
-        "car" to listOf("🚗", "🏎️", "🚕", "🚙"),
-        "plane" to listOf("✈️", "🛫", "🛬", "🚀")
-    )
-}
-
-data class EmoticonCategory(
-    val title: String,
-    val icon: String,
-    val emoticons: List<String>
-)
-
-object EmoticonCatalog {
-    val categories = listOf(
-        EmoticonCategory(
-            title = "Shrug & Cool",
-            icon = "¯\\_(ツ)_/¯",
-            emoticons = listOf("¯\\_(ツ)_/¯", "( ͡° ͜ʖ ͡°)", "(•_•)", "(▀̿Ĺ̯▀̿ ̿)", "(⌐■_■)", "¯\\(°_o)/¯", "(☞ﾟヮﾟ)☞", "☜(ﾟヮﾟ☜)")
-        ),
-        EmoticonCategory(
-            title = "Happy",
-            icon = "(^o^)",
-            emoticons = listOf("(^o^)", "(*^▽^*)", "(✿◠‿◠)", "(◕‿◕)", "(◠‿◠✿)", "(＾◡＾)", "(ﾉ◕ヮ◕)ﾉ*:･ﾟ✧", "٩(◕‿◕｡)۶", "(o^▽^o)", "(≧◡≦)")
-        ),
-        EmoticonCategory(
-            title = "Love",
-            icon = "(｡♥‿♥｡)",
-            emoticons = listOf("(♡-_-♡)", "(｡♥‿♥｡)", "(⁄ ⁄>⁄ ▽ ⁄<⁄ ⁄)", "(♥ω♥*)", "(✿ ♥‿♥)", "(♡‿♡)", "(灬♥ω♥灬)", "(ര‿ര♥)")
-        ),
-        EmoticonCategory(
-            title = "Cute / Animals",
-            icon = "ʕ•ᴥ•ʔ",
-            emoticons = listOf("ʕ•ᴥ•ʔ", "(=^･^=)", "(づ｡◕‿‿◕｡)づ", "⊂(・ヮ・⊂)", "(=^ェ^=)", "ʕᵔᴥᵔʔ", "(ᵔᴥᵔ)", "(=^-ω-^=)")
-        ),
-        EmoticonCategory(
-            title = "Angry / Rage",
-            icon = "(╯°□°)╯",
-            emoticons = listOf("(╯°□°)╯︵ ┻━┻", "(ง'̀-'́)ง", "(ಠ_ಠ)", "(｀Д´)", "(ノಠ益ಠ)ノ彡┻━┻", "凸(｀0´)凸", "٩(╬ʘ益ʘ╬)۶")
-        ),
-        EmoticonCategory(
-            title = "Sad / Cry",
-            icon = "(╥﹏╥)",
-            emoticons = listOf("(╥﹏╥)", "(T_T)", "(｡•́︿•̀｡)", "(;´༎ຶٹ༎ຶ)", "(ಥ﹏ಥ)", "(╯︵╰,)", "(ノ_<。)", "(っ˘̩╭╮˘̩)っ")
-        ),
-        EmoticonCategory(
-            title = "Confused",
-            icon = "(・_・;)",
-            emoticons = listOf("(°o°)", "(・_・;)", "(¬_¬)", "(⊙_⊙)", "(ﾟДﾟ?))", "(・o・)", "(o_O)", "(°ロ°)", "(>_<)")
-        ),
-        EmoticonCategory(
-            title = "Classic",
-            icon = ":-)",
-            emoticons = listOf(":-)", ":-D", ":-P", ";-)", "B-)", "XD", ":-O", ":-*", ":-(", ":'-(", ":-/", ":-|", "O:)", "o_O")
-        )
-    )
-}
 
 enum class EmojiSubMode {
     EMOJI,
+    GIF,
+    STICKER,
     EMOTICON
 }
 
@@ -220,6 +52,7 @@ enum class EmojiSubMode {
 fun EmojiPickerView(
     theme: KeyboardThemeOption,
     onEmojiSelected: (String) -> Unit,
+    onMediaSelected: (String, String, String) -> Unit = { url, _, _ -> onEmojiSelected(url) },
     onBackspace: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -228,6 +61,18 @@ fun EmojiPickerView(
     val prefs = remember { context.getSharedPreferences("keynova_recent_emojis", Context.MODE_PRIVATE) }
 
     var subMode by remember { mutableStateOf(EmojiSubMode.EMOJI) }
+    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+
+    BackHandler {
+        if (isSearchActive) {
+            isSearchActive = false
+            searchQuery = ""
+        } else {
+            onClose()
+        }
+    }
 
     var recentEmojis by remember {
         val raw = prefs.getString("recent_list", null)
@@ -257,16 +102,23 @@ fun EmojiPickerView(
     val textColor = Color(theme.textHex)
     val accentColor = Color(theme.accentHex)
     val surfaceColor = Color(theme.surfaceHex)
+    val indicatorColor = if (theme == KeyboardThemeOption.LIGHT) accentColor else Color.White
 
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedCategoryIndex by remember { mutableIntStateOf(0) }
+    // Category selection indices per mode
+    var selectedEmojiCategoryIndex by remember { mutableIntStateOf(0) }
+    var selectedGifCategoryIndex by remember { mutableIntStateOf(0) }
+    var selectedStickerCategoryIndex by remember { mutableIntStateOf(0) }
     var selectedEmoticonCategoryIndex by remember { mutableIntStateOf(0) }
 
     // Categories list with Recent at the beginning
     val categories = remember(recentEmojis) {
-        listOf(
+        val baseCategories = listOf(
             EmojiCategory(title = "Recent", iconVector = Icons.Outlined.Schedule, emojis = recentEmojis)
         ) + EmojiCatalog.categories
+
+        baseCategories.map { cat ->
+            cat.copy(emojis = cat.emojis.filter { EmojiValidator.isRenderable(it) })
+        }
     }
 
     val emoticonCategories = remember(recentEmoticons) {
@@ -275,7 +127,8 @@ fun EmojiPickerView(
         ) + EmoticonCatalog.categories
     }
 
-    val filteredEmojis = remember(searchQuery, selectedCategoryIndex, recentEmojis) {
+    // Filtered items based on query
+    val filteredEmojis = remember(searchQuery, selectedEmojiCategoryIndex, recentEmojis, categories) {
         if (searchQuery.isNotBlank()) {
             val q = searchQuery.trim().lowercase()
             val matches = mutableListOf<String>()
@@ -284,321 +137,657 @@ fun EmojiPickerView(
                     matches.addAll(list)
                 }
             }
-            EmojiCatalog.categories.flatMap { it.emojis }.filter { it.contains(q) }.forEach { matches.add(it) }
-            matches.distinct().ifEmpty {
-                EmojiCatalog.categories.flatMap { it.emojis }.take(40)
+            categories.flatMap { it.emojis }.filter { it.contains(q) }.forEach { matches.add(it) }
+            matches.filter { EmojiValidator.isRenderable(it) }.distinct().ifEmpty {
+                categories.flatMap { it.emojis }.take(64)
             }
         } else {
-            categories.getOrNull(selectedCategoryIndex)?.emojis ?: emptyList()
+            categories.getOrNull(selectedEmojiCategoryIndex)?.emojis ?: emptyList()
+        }
+    }
+
+    val filteredGifs = remember(searchQuery, selectedGifCategoryIndex) {
+        if (searchQuery.isNotBlank()) {
+            val q = searchQuery.trim().lowercase()
+            MediaCatalog.allGifs.filter { gif ->
+                gif.title.lowercase().contains(q) || gif.category.lowercase().contains(q) || gif.tags.any { it.contains(q) }
+            }.ifEmpty { MediaCatalog.allGifs }
+        } else {
+            MediaCatalog.gifCategories.getOrNull(selectedGifCategoryIndex)?.gifs ?: MediaCatalog.trendingGifs
+        }
+    }
+
+    val filteredStickers = remember(searchQuery, selectedStickerCategoryIndex) {
+        if (searchQuery.isNotBlank()) {
+            val q = searchQuery.trim().lowercase()
+            MediaCatalog.allStickers.filter { sticker ->
+                sticker.title.lowercase().contains(q) || sticker.category.lowercase().contains(q) || sticker.tags.any { it.contains(q) }
+            }.ifEmpty { MediaCatalog.allStickers }
+        } else {
+            MediaCatalog.stickerCategories.getOrNull(selectedStickerCategoryIndex)?.stickers ?: MediaCatalog.trendingStickers
         }
     }
 
     Column(
         modifier = modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .background(bgColor)
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .padding(horizontal = 4.dp, vertical = 2.dp)
     ) {
-        // Mode Switcher: [ 😊 Emoji ] [ ¯\_(ツ)_/¯ Emoticon ]
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 4.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = surfaceColor,
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (theme == KeyboardThemeOption.LIGHT) Color(0xFFCBD5E1) else Color(0xFF404040)),
-                modifier = Modifier.padding(vertical = 2.dp)
-            ) {
-                Row(modifier = Modifier.padding(2.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(if (subMode == EmojiSubMode.EMOJI) accentColor else Color.Transparent)
-                            .clickable { subMode = EmojiSubMode.EMOJI }
-                            .padding(horizontal = 14.dp, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "😀 Emojis",
-                            color = if (subMode == EmojiSubMode.EMOJI) Color.White else textColor,
-                            fontSize = 12.sp,
-                            fontWeight = if (subMode == EmojiSubMode.EMOJI) FontWeight.Bold else FontWeight.Medium
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(if (subMode == EmojiSubMode.EMOTICON) accentColor else Color.Transparent)
-                            .clickable { subMode = EmojiSubMode.EMOTICON }
-                            .padding(horizontal = 14.dp, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "¯\\_(ツ)_/¯ Emoticons",
-                            color = if (subMode == EmojiSubMode.EMOTICON) Color.White else textColor,
-                            fontSize = 12.sp,
-                            fontWeight = if (subMode == EmojiSubMode.EMOTICON) FontWeight.Bold else FontWeight.Medium
-                        )
-                    }
-                }
-            }
-        }
-
-        if (subMode == EmojiSubMode.EMOJI) {
-            // Search Bar
+        // TOP STRIP (Search icon + Category strip)
+        if (isSearchActive) {
+            // Search Input Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    .height(38.dp)
+                    .padding(horizontal = 2.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(
+                    onClick = {
+                        isSearchActive = false
+                        searchQuery = ""
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = textColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(32.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .weight(1f)
+                        .height(34.dp)
+                        .clip(RoundedCornerShape(17.dp))
                         .background(surfaceColor)
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = 12.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = textColor.copy(alpha = 0.6f),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            textStyle = TextStyle(color = textColor, fontSize = 13.sp),
-                            cursorBrush = SolidColor(accentColor),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            decorationBox = { innerTextField ->
-                                if (searchQuery.isEmpty()) {
-                                    Text(
-                                        text = "Search emojis (e.g. fire, smile, love)...",
-                                        color = textColor.copy(alpha = 0.45f),
-                                        fontSize = 11.5.sp
-                                    )
-                                }
-                                innerTextField()
-                            }
-                        )
-                        if (searchQuery.isNotEmpty()) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear",
-                                tint = textColor.copy(alpha = 0.6f),
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { searchQuery = "" }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Category Tab Bar (visible when search is empty) - Gboard style icon-only tabs
-            if (searchQuery.isEmpty()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    categories.forEachIndexed { index, cat ->
-                        val isSelected = index == selectedCategoryIndex
-                        Box(
-                            modifier = Modifier
-                                .height(36.dp)
-                                .widthIn(min = 40.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) accentColor.copy(alpha = 0.18f) else Color.Transparent)
-                                .clickable { selectedCategoryIndex = index }
-                                .padding(horizontal = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = cat.iconVector,
-                                    contentDescription = cat.title,
-                                    tint = if (isSelected) accentColor else textColor.copy(alpha = 0.55f),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                if (isSelected) {
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .width(14.dp)
-                                            .height(2.dp)
-                                            .clip(RoundedCornerShape(1.dp))
-                                            .background(accentColor)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Emoji Grid
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(8),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .background(surfaceColor.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                    .padding(2.dp)
-            ) {
-                items(filteredEmojis) { emoji ->
-                    Box(
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        textStyle = TextStyle(color = textColor, fontSize = 13.5.sp),
+                        cursorBrush = SolidColor(indicatorColor),
+                        singleLine = true,
                         modifier = Modifier
-                            .padding(2.dp)
-                            .aspectRatio(1f)
-                            .clip(CircleShape)
-                            .clickable {
-                                saveRecentEmoji(emoji)
-                                onEmojiSelected(emoji)
-                            },
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = when (subMode) {
+                                        EmojiSubMode.EMOJI -> "Search emojis..."
+                                        EmojiSubMode.GIF -> "Search GIFs (e.g. dance, lol)..."
+                                        EmojiSubMode.STICKER -> "Search stickers (e.g. meme, cat)..."
+                                        EmojiSubMode.EMOTICON -> "Search emoticons..."
+                                    },
+                                    color = textColor.copy(alpha = 0.5f),
+                                    fontSize = 12.5.sp
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
+                }
+
+                LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
+                }
+
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = { searchQuery = "" },
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        Text(text = emoji, fontSize = 23.sp)
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Clear",
+                            tint = textColor.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
         } else {
-            // Emoticon Mode: Category Bar & Emoticon Cards
+            // Top Category Strip per Mode
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(vertical = 2.dp),
+                    .height(38.dp)
+                    .padding(horizontal = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                emoticonCategories.forEachIndexed { index, cat ->
-                    val isSelected = index == selectedEmoticonCategoryIndex
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 3.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) accentColor.copy(alpha = 0.2f) else Color.Transparent)
-                            .clickable { selectedEmoticonCategoryIndex = index }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = cat.title,
-                            color = if (isSelected) accentColor else textColor.copy(alpha = 0.8f),
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
+                IconButton(
+                    onClick = { isSearchActive = true },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = textColor.copy(alpha = 0.75f),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
-            }
 
-            // Emoticons Grid
-            val activeEmoticons = emoticonCategories.getOrNull(selectedEmoticonCategoryIndex)?.emoticons ?: emptyList()
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .background(surfaceColor.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                items(activeEmoticons) { emoticon ->
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = surfaceColor,
-                        border = androidx.compose.foundation.BorderStroke(0.8.dp, if (theme == KeyboardThemeOption.LIGHT) Color(0xFFCBD5E1) else Color(0xFF404040)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(42.dp)
-                            .clickable {
-                                saveRecentEmoticon(emoticon)
-                                onEmojiSelected(emoticon)
-                            }
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(horizontal = 4.dp)
+                Spacer(modifier = Modifier.width(2.dp))
+
+                when (subMode) {
+                    EmojiSubMode.EMOJI -> {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .horizontalScroll(rememberScrollState()),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Text(
-                                text = emoticon,
-                                color = textColor,
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1
-                            )
+                            categories.forEachIndexed { index, cat ->
+                                val isSelected = index == selectedEmojiCategoryIndex
+                                Column(
+                                    modifier = Modifier
+                                        .height(38.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .clickable { selectedEmojiCategoryIndex = index }
+                                        .padding(horizontal = 8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = cat.iconVector,
+                                        contentDescription = cat.title,
+                                        tint = if (isSelected) indicatorColor else textColor.copy(alpha = 0.45f),
+                                        modifier = Modifier.size(19.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    if (isSelected) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(18.dp)
+                                                .height(2.dp)
+                                                .clip(RoundedCornerShape(1.dp))
+                                                .background(indicatorColor)
+                                        )
+                                    } else {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    EmojiSubMode.GIF -> {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .horizontalScroll(rememberScrollState()),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            MediaCatalog.gifCategories.forEachIndexed { index, cat ->
+                                val isSelected = index == selectedGifCategoryIndex
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (isSelected) accentColor.copy(alpha = 0.25f) else surfaceColor.copy(alpha = 0.4f))
+                                        .clickable { selectedGifCategoryIndex = index }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${cat.icon} ${cat.title}",
+                                        color = if (isSelected) indicatorColor else textColor.copy(alpha = 0.7f),
+                                        fontSize = 11.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    EmojiSubMode.STICKER -> {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .horizontalScroll(rememberScrollState()),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            MediaCatalog.stickerCategories.forEachIndexed { index, cat ->
+                                val isSelected = index == selectedStickerCategoryIndex
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (isSelected) accentColor.copy(alpha = 0.25f) else surfaceColor.copy(alpha = 0.4f))
+                                        .clickable { selectedStickerCategoryIndex = index }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${cat.icon} ${cat.title}",
+                                        color = if (isSelected) indicatorColor else textColor.copy(alpha = 0.7f),
+                                        fontSize = 11.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    EmojiSubMode.EMOTICON -> {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .horizontalScroll(rememberScrollState()),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            emoticonCategories.forEachIndexed { index, cat ->
+                                val isSelected = index == selectedEmoticonCategoryIndex
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (isSelected) accentColor.copy(alpha = 0.25f) else surfaceColor.copy(alpha = 0.4f))
+                                        .clickable { selectedEmoticonCategoryIndex = index }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = cat.title,
+                                        color = if (isSelected) indicatorColor else textColor.copy(alpha = 0.7f),
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Bottom Bar: ABC / Backspace / Close
+        // CENTER MEDIA CONTENT
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            when (subMode) {
+                EmojiSubMode.EMOJI -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(8),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 2.dp, vertical = 2.dp),
+                        contentPadding = PaddingValues(vertical = 2.dp)
+                    ) {
+                        items(filteredEmojis) { emoji ->
+                            Box(
+                                modifier = Modifier
+                                    .aspectRatio(1f)
+                                    .clip(CircleShape)
+                                    .clickable {
+                                        saveRecentEmoji(emoji)
+                                        onEmojiSelected(emoji)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = emoji,
+                                    fontSize = 23.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
+
+                EmojiSubMode.GIF -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(filteredGifs) { gif ->
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = surfaceColor.copy(alpha = 0.7f),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    0.6.dp,
+                                    textColor.copy(alpha = 0.15f)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(100.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        onMediaSelected(gif.url, "image/gif", gif.title)
+                                    }
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    AsyncImage(
+                                        model = gif.url,
+                                        contentDescription = gif.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    // Title chip at bottom
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .align(Alignment.BottomCenter)
+                                            .background(Color.Black.copy(alpha = 0.55f))
+                                            .padding(horizontal = 6.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = gif.title,
+                                            color = Color.White,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                EmojiSubMode.STICKER -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(filteredStickers) { sticker ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = surfaceColor.copy(alpha = 0.75f),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    0.6.dp,
+                                    textColor.copy(alpha = 0.15f)
+                                ),
+                                modifier = Modifier
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        onMediaSelected(sticker.url, "image/png", sticker.title)
+                                    }
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    // Fallback emoji preview
+                                    Text(
+                                        text = sticker.previewEmoji,
+                                        fontSize = 32.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    AsyncImage(
+                                        model = sticker.url,
+                                        contentDescription = sticker.title,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(6.dp)
+                                    )
+                                    // Title label
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .align(Alignment.BottomCenter)
+                                            .background(surfaceColor.copy(alpha = 0.85f))
+                                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = sticker.title,
+                                            color = textColor,
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            textAlign = TextAlign.Center,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                EmojiSubMode.EMOTICON -> {
+                    val activeEmoticons = emoticonCategories.getOrNull(selectedEmoticonCategoryIndex)?.emoticons ?: emptyList()
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(activeEmoticons) { emoticon ->
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = surfaceColor,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    0.8.dp,
+                                    if (theme == KeyboardThemeOption.LIGHT) Color(0xFFCBD5E1) else Color(0xFF333333)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                                    .clickable {
+                                        saveRecentEmoticon(emoticon)
+                                        onEmojiSelected(emoticon)
+                                    }
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.padding(horizontal = 6.dp)
+                                ) {
+                                    Text(
+                                        text = emoticon,
+                                        color = textColor,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // BOTTOM BAR (ABC on left, Mode tabs in center: [😊 Emoji] [GIF] [🏷️ Sticker] [¯\_(ツ)_/¯], Backspace on right)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 3.dp),
+                .height(44.dp)
+                .padding(horizontal = 4.dp, vertical = 3.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(
-                onClick = onClose,
-                colors = ButtonDefaults.buttonColors(containerColor = surfaceColor, contentColor = textColor),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.height(36.dp)
+            // Left: ABC button to return to letters
+            Box(
+                modifier = Modifier
+                    .width(48.dp)
+                    .height(36.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(surfaceColor)
+                    .clickable { onClose() },
+                contentAlignment = Alignment.Center
             ) {
-                Text("ABC", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text(
+                    text = "ABC",
+                    color = textColor,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.5.sp
+                )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconButton(
-                    onClick = onBackspace,
+            // Center: Mode Switchers (Emoji / GIF / Sticker / Emoticon)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Emojis Tab
+                Column(
                     modifier = Modifier
-                        .size(36.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(surfaceColor)
+                        .clickable {
+                            subMode = EmojiSubMode.EMOJI
+                            isSearchActive = false
+                        }
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Backspace,
-                        contentDescription = "Backspace",
-                        tint = textColor,
-                        modifier = Modifier.size(18.dp)
+                        imageVector = Icons.Outlined.Mood,
+                        contentDescription = "Emojis",
+                        tint = if (subMode == EmojiSubMode.EMOJI) indicatorColor else textColor.copy(alpha = 0.45f),
+                        modifier = Modifier.size(20.dp)
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    if (subMode == EmojiSubMode.EMOJI) {
+                        Box(
+                            modifier = Modifier
+                                .width(16.dp)
+                                .height(2.dp)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(indicatorColor)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
                 }
 
-                IconButton(
-                    onClick = onClose,
+                // GIF Tab
+                Column(
                     modifier = Modifier
-                        .size(36.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(accentColor)
+                        .clickable {
+                            subMode = EmojiSubMode.GIF
+                            isSearchActive = false
+                        }
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "GIF",
+                        color = if (subMode == EmojiSubMode.GIF) indicatorColor else textColor.copy(alpha = 0.45f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    if (subMode == EmojiSubMode.GIF) {
+                        Box(
+                            modifier = Modifier
+                                .width(16.dp)
+                                .height(2.dp)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(indicatorColor)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+                }
+
+                // Stickers Tab
+                Column(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            subMode = EmojiSubMode.STICKER
+                            isSearchActive = false
+                        }
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
+                        imageVector = Icons.Outlined.StickyNote2,
+                        contentDescription = "Stickers",
+                        tint = if (subMode == EmojiSubMode.STICKER) indicatorColor else textColor.copy(alpha = 0.45f),
+                        modifier = Modifier.size(20.dp)
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    if (subMode == EmojiSubMode.STICKER) {
+                        Box(
+                            modifier = Modifier
+                                .width(16.dp)
+                                .height(2.dp)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(indicatorColor)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
                 }
+
+                // Emoticon / Kaomoji Tab
+                Column(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            subMode = EmojiSubMode.EMOTICON
+                            isSearchActive = false
+                        }
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "¯\\_(ツ)_/¯",
+                        color = if (subMode == EmojiSubMode.EMOTICON) indicatorColor else textColor.copy(alpha = 0.45f),
+                        fontSize = 11.5.sp,
+                        fontWeight = if (subMode == EmojiSubMode.EMOTICON) FontWeight.Bold else FontWeight.Normal
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    if (subMode == EmojiSubMode.EMOTICON) {
+                        Box(
+                            modifier = Modifier
+                                .width(20.dp)
+                                .height(2.dp)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(indicatorColor)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+                }
+            }
+
+            // Right: Backspace button
+            Box(
+                modifier = Modifier
+                    .width(48.dp)
+                    .height(36.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(surfaceColor)
+                    .clickable { onBackspace() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Backspace,
+                    contentDescription = "Backspace",
+                    tint = textColor,
+                    modifier = Modifier.size(19.dp)
+                )
             }
         }
     }

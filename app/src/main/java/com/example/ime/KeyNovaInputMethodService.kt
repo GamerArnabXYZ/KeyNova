@@ -15,6 +15,8 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.emoji2.bundled.BundledEmojiCompatConfig
+import androidx.emoji2.text.EmojiCompat
 import androidx.lifecycle.*
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
@@ -96,6 +98,13 @@ class KeyNovaInputMethodService : InputMethodService(),
         clipboardRepo = ClipboardRepository(this)
         snippetsRepo = SnippetsRepository(this)
         KeyboardLayoutModel.init(this)
+
+        try {
+            if (!EmojiCompat.isConfigured()) {
+                val config = BundledEmojiCompatConfig(this).setReplaceAll(true)
+                EmojiCompat.init(config)
+            }
+        } catch (_: Exception) {}
 
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         try {
@@ -314,6 +323,41 @@ class KeyNovaInputMethodService : InputMethodService(),
             ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
             ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
         }
+    }
+
+    override fun onCommitMedia(uri: String, mimeType: String, description: String) {
+        val ic = currentInputConnection ?: return
+        val info = currentInputEditorInfo
+        if (info != null) {
+            try {
+                val contentUri = android.net.Uri.parse(uri)
+                val descriptionCompat = android.content.ClipDescription(
+                    description.ifEmpty { "Media" },
+                    arrayOf(mimeType)
+                )
+                val inputContentInfo = androidx.core.view.inputmethod.InputContentInfoCompat(
+                    contentUri,
+                    descriptionCompat,
+                    contentUri
+                )
+                val supportedMimes = androidx.core.view.inputmethod.EditorInfoCompat.getContentMimeTypes(info)
+                val isSupported = supportedMimes.any { mime ->
+                    mimeType.equals(mime, ignoreCase = true) || (mime.endsWith("/*") && mimeType.startsWith(mime.dropLast(2)))
+                }
+                if (isSupported) {
+                    var flags = 0
+                    if (android.os.Build.VERSION.SDK_INT >= 25) {
+                        flags = flags or androidx.core.view.inputmethod.InputConnectionCompat.INPUT_CONTENT_GRANT_READ_URI_PERMISSION
+                    }
+                    androidx.core.view.inputmethod.InputConnectionCompat.commitContent(ic, info, inputContentInfo, flags, null)
+                    return
+                }
+            } catch (_: Exception) {}
+        }
+        try {
+            clipboardRepo.copyToSystemClipboard(uri, this)
+        } catch (_: Exception) {}
+        onCommitText(uri)
     }
 
     private var isSelecting = false

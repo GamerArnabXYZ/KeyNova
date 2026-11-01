@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.DragIndicator
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Opacity
 import androidx.compose.material.icons.outlined.PictureInPicture
 import androidx.compose.material.icons.outlined.RestartAlt
@@ -222,6 +223,7 @@ fun KeyNovaKeyboardView(
     val englishCandidates: List<String> = remember(englishComposingWord) {
         EnglishWordPredictor.predict(englishComposingWord)
     }
+    var showToolbarTools by remember { mutableStateOf(false) }
 
     val showGlobeKey = (switchMethod == LanguageSwitchMethod.GLOBE_KEY)
     val isCustomTheme = (currentTheme == KeyboardThemeOption.CUSTOM || keyboardPreferences.isCustomThemeActive)
@@ -366,11 +368,86 @@ fun KeyNovaKeyboardView(
         )
     }
 
+    val isAvroActive = activePage == ActiveKeyboardPage.LETTERS && currentLayout.id == "bn_avro"
+    val isEnglishActive = activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "en" && englishCandidates.isNotEmpty()
+    val hasSuggestions = isAvroActive || isEnglishActive
+
+    val topBarComposable: @Composable (Boolean) -> Unit = { inFloating ->
+        if (activePage == ActiveKeyboardPage.EMOJI) {
+            // Emoji page handles its own top bar
+        } else if (hasSuggestions && !showToolbarTools) {
+            if (isAvroActive) {
+                AvroPhoneticSuggestionStrip(
+                    composingText = avroComposingText,
+                    candidates = avroCandidates,
+                    theme = currentTheme,
+                    onToggleTools = { showToolbarTools = true },
+                    onSelectCandidate = { chosen ->
+                        actionTarget.onCommitText(chosen + " ")
+                        avroComposingText = ""
+                        performHaptic()
+                    },
+                    onClearComposing = {
+                        avroComposingText = ""
+                        performHaptic()
+                    }
+                )
+            } else {
+                EnglishWordSuggestionStrip(
+                    composingWord = englishComposingWord,
+                    candidates = englishCandidates,
+                    theme = currentTheme,
+                    onToggleTools = { showToolbarTools = true },
+                    onSelectCandidate = { chosen ->
+                        for (i in 0 until englishComposingWord.length) {
+                            actionTarget.onDeleteBackward()
+                        }
+                        actionTarget.onCommitText(chosen + " ")
+                        englishComposingWord = ""
+                        performHaptic()
+                    },
+                    onClearComposing = {
+                        englishComposingWord = ""
+                        performHaptic()
+                    }
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (hasSuggestions && showToolbarTools) {
+                    IconButton(
+                        onClick = { showToolbarTools = false },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back to Suggestions",
+                            tint = Color(currentTheme.textHex).copy(alpha = 0.8f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                Box(modifier = Modifier.weight(1f)) {
+                    keyboardToolbarComposable(inFloating)
+                }
+            }
+        }
+    }
+
+    val effectiveContentHeight = if (activePage == ActiveKeyboardPage.EMOJI) {
+        standardKeyboardContentHeight + 42.dp
+    } else {
+        standardKeyboardContentHeight
+    }
+
     val keyboardPagesContent: @Composable () -> Unit = {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(standardKeyboardContentHeight)
+                .height(effectiveContentHeight)
         ) {
             when (activePage) {
                         ActiveKeyboardPage.TEXT_EDITING -> {
@@ -396,6 +473,10 @@ fun KeyNovaKeyboardView(
                                 theme = currentTheme,
                                 onEmojiSelected = { emoji ->
                                     actionTarget.onCommitText(emoji)
+                                    performHaptic()
+                                },
+                                onMediaSelected = { mediaUrl, mimeType, description ->
+                                    actionTarget.onCommitMedia(mediaUrl, mimeType, description)
                                     performHaptic()
                                 },
                                 onBackspace = {
@@ -451,44 +532,7 @@ fun KeyNovaKeyboardView(
                                     .padding(vertical = 2.dp),
                                 verticalArrangement = Arrangement.spacedBy(currentKeySpacing)
                             ) {
-                            if (activePage == ActiveKeyboardPage.LETTERS && currentLayout.id == "bn_avro") {
-                                AvroPhoneticSuggestionStrip(
-                                    composingText = avroComposingText,
-                                    candidates = avroCandidates,
-                                    theme = currentTheme,
-                                    onSelectCandidate = { chosen ->
-                                        actionTarget.onCommitText(chosen + " ")
-                                        avroComposingText = ""
-                                        performHaptic()
-                                    },
-                                    onClearComposing = {
-                                        avroComposingText = ""
-                                        performHaptic()
-                                    }
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                            } else if (activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "en" && englishCandidates.isNotEmpty()) {
-                                EnglishWordSuggestionStrip(
-                                    composingWord = englishComposingWord,
-                                    candidates = englishCandidates,
-                                    theme = currentTheme,
-                                    onSelectCandidate = { chosen ->
-                                        for (i in 0 until englishComposingWord.length) {
-                                            actionTarget.onDeleteBackward()
-                                        }
-                                        actionTarget.onCommitText(chosen + " ")
-                                        englishComposingWord = ""
-                                        performHaptic()
-                                    },
-                                    onClearComposing = {
-                                        englishComposingWord = ""
-                                        performHaptic()
-                                    }
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                            }
-
-                            rows.forEach { row ->
+                                rows.forEach { row ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(currentKeySpacing),
@@ -957,8 +1001,8 @@ fun KeyNovaKeyboardView(
                         .padding(horizontal = 4.dp, vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Toolbar
-                    keyboardToolbarComposable(true)
+                    // Unified Top Bar (Toolbar or Suggestions)
+                    topBarComposable(true)
 
                     // Main keyboard pages
                     keyboardPagesContent()
@@ -1219,7 +1263,8 @@ fun KeyNovaKeyboardView(
                         .weight(1f)
                         .padding(horizontal = 2.dp, vertical = 2.dp)
                 ) {
-                    keyboardToolbarComposable(false)
+                    // Unified Top Bar (Toolbar or Suggestions)
+                    topBarComposable(false)
                     keyboardPagesContent()
                 }
 
@@ -2148,6 +2193,7 @@ private fun AvroPhoneticSuggestionStrip(
     composingText: String,
     candidates: List<String>,
     theme: KeyboardThemeOption,
+    onToggleTools: () -> Unit,
     onSelectCandidate: (String) -> Unit,
     onClearComposing: () -> Unit
 ) {
@@ -2158,32 +2204,46 @@ private fun AvroPhoneticSuggestionStrip(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(34.dp)
+            .height(38.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(surfaceColor)
-            .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp),
+            .background(surfaceColor.copy(alpha = 0.6f))
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Toggle to Toolbar button (Gboard/Ridmik style)
+        IconButton(
+            onClick = onToggleTools,
+            modifier = Modifier.size(34.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.GridView,
+                contentDescription = "Toolbar Tools",
+                tint = textColor.copy(alpha = 0.75f),
+                modifier = Modifier.size(19.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(2.dp))
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(end = 6.dp)
+            modifier = Modifier.padding(end = 4.dp)
         ) {
             Surface(
                 shape = RoundedCornerShape(4.dp),
-                color = accentColor.copy(alpha = 0.15f)
+                color = accentColor.copy(alpha = 0.18f)
             ) {
                 Text(
-                    text = if (composingText.isNotEmpty()) "[$composingText]" else "Avro",
+                    text = if (composingText.isNotEmpty()) composingText else "Avro",
                     color = accentColor,
-                    fontSize = 11.sp,
+                    fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                 )
             }
             Text(
                 text = " ➔ ",
-                color = textColor.copy(alpha = 0.45f),
+                color = textColor.copy(alpha = 0.4f),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -2193,8 +2253,9 @@ private fun AvroPhoneticSuggestionStrip(
             Text(
                 text = "English to Bangla (e.g. ami ➔ আমি)",
                 color = textColor.copy(alpha = 0.5f),
-                fontSize = 11.sp,
-                maxLines = 1
+                fontSize = 12.sp,
+                maxLines = 1,
+                modifier = Modifier.weight(1f)
             )
         } else {
             Row(
@@ -2212,14 +2273,14 @@ private fun AvroPhoneticSuggestionStrip(
                             .clickable { onSelectCandidate(candidate) },
                         shape = RoundedCornerShape(6.dp),
                         color = if (isFirst) accentColor else surfaceColor,
-                        border = if (isFirst) null else androidx.compose.foundation.BorderStroke(0.5.dp, textColor.copy(alpha = 0.2f))
+                        border = if (isFirst) null else androidx.compose.foundation.BorderStroke(0.6.dp, textColor.copy(alpha = 0.2f))
                     ) {
                         Text(
                             text = candidate,
                             color = if (isFirst) Color.White else textColor,
-                            fontSize = 13.5.sp,
+                            fontSize = 14.sp,
                             fontWeight = if (isFirst) FontWeight.Bold else FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp)
                         )
                     }
                 }
@@ -2227,21 +2288,21 @@ private fun AvroPhoneticSuggestionStrip(
             if (composingText.isNotEmpty()) {
                 IconButton(
                     onClick = onClearComposing,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(28.dp)
                 ) {
-                    Text("✕", color = textColor.copy(alpha = 0.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("✕", color = textColor.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
     }
 }
 
-
 @Composable
 private fun EnglishWordSuggestionStrip(
     composingWord: String,
     candidates: List<String>,
     theme: KeyboardThemeOption,
+    onToggleTools: () -> Unit,
     onSelectCandidate: (String) -> Unit,
     onClearComposing: () -> Unit
 ) {
@@ -2252,26 +2313,26 @@ private fun EnglishWordSuggestionStrip(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(34.dp)
+            .height(38.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(surfaceColor)
-            .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp),
+            .background(surfaceColor.copy(alpha = 0.6f))
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Surface(
-            shape = RoundedCornerShape(4.dp),
-            color = accentColor.copy(alpha = 0.15f),
-            modifier = Modifier.padding(end = 6.dp)
+        // Toggle to Toolbar button (Gboard/Ridmik style)
+        IconButton(
+            onClick = onToggleTools,
+            modifier = Modifier.size(34.dp)
         ) {
-            Text(
-                text = "⚡ ",
-                color = accentColor,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            Icon(
+                imageVector = Icons.Outlined.GridView,
+                contentDescription = "Toolbar Tools",
+                tint = textColor.copy(alpha = 0.75f),
+                modifier = Modifier.size(19.dp)
             )
         }
+
+        Spacer(modifier = Modifier.width(2.dp))
 
         Row(
             modifier = Modifier
@@ -2288,14 +2349,14 @@ private fun EnglishWordSuggestionStrip(
                         .clickable { onSelectCandidate(candidate) },
                     shape = RoundedCornerShape(6.dp),
                     color = if (isFirst) accentColor else surfaceColor,
-                    border = if (isFirst) null else androidx.compose.foundation.BorderStroke(0.5.dp, textColor.copy(alpha = 0.2f))
+                    border = if (isFirst) null else androidx.compose.foundation.BorderStroke(0.6.dp, textColor.copy(alpha = 0.2f))
                 ) {
                     Text(
                         text = candidate,
                         color = if (isFirst) Color.White else textColor,
-                        fontSize = 13.5.sp,
+                        fontSize = 14.sp,
                         fontWeight = if (isFirst) FontWeight.Bold else FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -2303,9 +2364,9 @@ private fun EnglishWordSuggestionStrip(
 
         IconButton(
             onClick = onClearComposing,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(28.dp)
         ) {
-            Text("✕", color = textColor.copy(alpha = 0.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("✕", color = textColor.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

@@ -241,12 +241,14 @@ fun PlaygroundScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.app_name),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 19.sp,
-                            color = Color(0xFF0F172A)
+                            fontSize = 18.sp,
+                            color = Color(0xFF0F172A),
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 },
@@ -257,9 +259,9 @@ fun PlaygroundScreen(
                         label = {
                             Text(
                                 text = when {
-                                    isDefaultSelected -> stringResource(R.string.playground_status_default)
-                                    isEnabledInSystem -> stringResource(R.string.playground_status_enabled)
-                                    else -> stringResource(R.string.playground_status_not_default)
+                                    isDefaultSelected -> "Active"
+                                    isEnabledInSystem -> "Enabled"
+                                    else -> "Setup"
                                 },
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -329,19 +331,21 @@ fun PlaygroundScreen(
                         ) {
                             Text(
                                 text = "System Keyboard Setup",
-                                fontSize = 14.sp,
+                                fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = Color(0xFF0F172A),
+                                maxLines = 1
                             )
                             Text(
                                 text = when {
                                     isDefaultSelected -> "Ready in all apps"
-                                    isEnabledInSystem -> "Step 2 pending"
-                                    else -> "Step 1 of 2"
+                                    isEnabledInSystem -> "Step 2: Select"
+                                    else -> "Step 1: Enable"
                                 },
-                                fontSize = 11.sp,
+                                fontSize = 11.5.sp,
                                 color = if (isDefaultSelected) Color(0xFF10B981) else Color(0xFF2563EB),
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
                             )
                         }
 

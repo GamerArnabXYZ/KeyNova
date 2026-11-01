@@ -50,6 +50,13 @@ class MainActivity : ComponentActivity() {
         snippetsRepo = SnippetsRepository(this)
         KeyboardLayoutModel.init(this)
 
+        try {
+            if (!androidx.emoji2.text.EmojiCompat.isConfigured()) {
+                val config = androidx.emoji2.bundled.BundledEmojiCompatConfig(this).setReplaceAll(true)
+                androidx.emoji2.text.EmojiCompat.init(config)
+            }
+        } catch (_: Exception) {}
+
         setContent {
             MyApplicationTheme {
                 KeyNovaApp(

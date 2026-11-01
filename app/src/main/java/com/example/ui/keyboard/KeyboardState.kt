@@ -23,6 +23,9 @@ data class KeyboardUiState(
 
 interface KeyboardActionTarget {
     fun onCommitText(text: String)
+    fun onCommitMedia(uri: String, mimeType: String, description: String = "") {
+        onCommitText(uri)
+    }
     fun onDeleteBackward()
     fun onDeleteWordBackward() {
         onDeleteBackward()
