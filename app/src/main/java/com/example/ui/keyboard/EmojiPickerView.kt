@@ -110,15 +110,15 @@ fun EmojiPickerView(
     var selectedStickerCategoryIndex by remember { mutableIntStateOf(0) }
     var selectedEmoticonCategoryIndex by remember { mutableIntStateOf(0) }
 
-    // Categories list with Recent at the beginning
+    // Categories list with Recent at the beginning (validatedCategories is pre-computed lazily once)
     val categories = remember(recentEmojis) {
-        val baseCategories = listOf(
-            EmojiCategory(title = "Recent", iconVector = Icons.Outlined.Schedule, emojis = recentEmojis)
-        ) + EmojiCatalog.categories
-
-        baseCategories.map { cat ->
-            cat.copy(emojis = cat.emojis.filter { EmojiValidator.isRenderable(it) })
-        }
+        listOf(
+            EmojiCategory(
+                title = "Recent",
+                iconVector = Icons.Outlined.Schedule,
+                emojis = recentEmojis.filter { EmojiValidator.isRenderable(it) }
+            )
+        ) + EmojiCatalog.validatedCategories
     }
 
     val emoticonCategories = remember(recentEmoticons) {
@@ -424,7 +424,7 @@ fun EmojiPickerView(
                             .padding(horizontal = 2.dp, vertical = 2.dp),
                         contentPadding = PaddingValues(vertical = 2.dp)
                     ) {
-                        items(filteredEmojis) { emoji ->
+                        items(filteredEmojis, key = { it }) { emoji ->
                             Box(
                                 modifier = Modifier
                                     .aspectRatio(1f)
@@ -455,7 +455,7 @@ fun EmojiPickerView(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                         contentPadding = PaddingValues(vertical = 4.dp)
                     ) {
-                        items(filteredGifs) { gif ->
+                        items(filteredGifs, key = { it.id }) { gif ->
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = surfaceColor.copy(alpha = 0.7f),
@@ -511,7 +511,7 @@ fun EmojiPickerView(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(vertical = 4.dp)
                     ) {
-                        items(filteredStickers) { sticker ->
+                        items(filteredStickers, key = { it.id }) { sticker ->
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
                                 color = surfaceColor.copy(alpha = 0.75f),
@@ -580,7 +580,7 @@ fun EmojiPickerView(
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                         contentPadding = PaddingValues(vertical = 4.dp)
                     ) {
-                        items(activeEmoticons) { emoticon ->
+                        items(activeEmoticons, key = { it }) { emoticon ->
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = surfaceColor,

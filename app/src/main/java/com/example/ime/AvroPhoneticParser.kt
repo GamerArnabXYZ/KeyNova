@@ -445,12 +445,19 @@ object AvroPhoneticParser {
         return c.isLetter() && !isVowel(c)
     }
 
+    private val candidateCache = object : java.util.LinkedHashMap<String, List<String>>(128, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<String>>?): Boolean = size > 256
+    }
+
     /**
      * Generates a ranked list of candidate Bangla predictions for an active Avro composing buffer.
      * e.g., "ami" -> ["আমি", "অমি", "আমিই"]
      */
     fun getCandidates(rawInput: String): List<String> {
         if (rawInput.isBlank()) return emptyList()
+        synchronized(candidateCache) {
+            candidateCache[rawInput]?.let { return it }
+        }
 
         val lower = rawInput.lowercase().trim()
         val list = mutableListOf<String>()
@@ -477,6 +484,10 @@ object AvroPhoneticParser {
             }
         }
 
-        return list.distinct().take(5)
+        val result = list.distinct().take(5)
+        synchronized(candidateCache) {
+            candidateCache[rawInput] = result
+        }
+        return result
     }
 }

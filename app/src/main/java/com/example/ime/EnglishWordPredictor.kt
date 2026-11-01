@@ -25,9 +25,18 @@ object EnglishWordPredictor {
         "agree", "support", "hit", "produce", "eat", "cover", "catch", "draw", "choose", "beautiful", "important"
     )
 
+    private val predictionCache = object : java.util.LinkedHashMap<String, List<String>>(128, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<String>>?): Boolean = size > 256
+    }
+
     fun predict(prefix: String, limit: Int = 3): List<String> {
         val trimmed = prefix.trim()
         if (trimmed.length < 2) return emptyList()
+
+        val cacheKey = "$trimmed|$limit"
+        synchronized(predictionCache) {
+            predictionCache[cacheKey]?.let { return it }
+        }
 
         val lower = trimmed.lowercase()
         val matches = dictionary.filter { it.startsWith(lower) && it != lower }
@@ -38,12 +47,17 @@ object EnglishWordPredictor {
         val isAllUpper = trimmed.all { it.isUpperCase() }
         val isCapitalized = trimmed[0].isUpperCase()
 
-        return matches.map { word ->
+        val result = matches.map { word ->
             when {
                 isAllUpper -> word.uppercase()
                 isCapitalized -> word.replaceFirstChar { it.uppercase() }
                 else -> word
             }
         }
+
+        synchronized(predictionCache) {
+            predictionCache[cacheKey] = result
+        }
+        return result
     }
 }

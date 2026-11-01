@@ -1558,44 +1558,43 @@ private fun KeyItem(
     modifier: Modifier = Modifier
 ) {
     var isPressed by remember { mutableStateOf(false) }
-    var keyCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val keyCoordinatesRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val density = LocalDensity.current
 
-    val textColor = when {
-        customConfig != null -> Color(customConfig.keyTextColor)
-        else -> Color(theme.textHex)
+    val textColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.keyTextColor) else Color(theme.textHex)
     }
-    val accentColor = when {
-        customConfig != null -> Color(customConfig.funcKeyBackgroundColor)
-        else -> Color(theme.accentHex)
+    val accentColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyBackgroundColor) else Color(theme.accentHex)
     }
-    val keyColor = when {
-        customConfig != null -> Color(customConfig.keyBackgroundColor).copy(alpha = customConfig.keyBrightness)
-        else -> Color(theme.keyHex)
+    val keyColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.keyBackgroundColor).copy(alpha = customConfig.keyBrightness) else Color(theme.keyHex)
     }
-    val surfaceColor = when {
-        customConfig != null -> Color(customConfig.funcKeyBackgroundColor).copy(alpha = customConfig.funcKeyBrightness)
-        else -> Color(theme.surfaceHex)
+    val surfaceColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyBackgroundColor).copy(alpha = customConfig.funcKeyBrightness) else Color(theme.surfaceHex)
     }
-    val funcTextColor = when {
-        customConfig != null -> Color(customConfig.funcKeyTextColor)
-        else -> Color.White
+    val funcTextColor = remember(customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyTextColor) else Color.White
     }
 
     // Gaming highlight for WASD
     val isWasdKey = isGamingMode && keyDef.primaryText in listOf("W", "A", "S", "D")
 
-    val containerColor = when {
-        isPressed -> accentColor.copy(alpha = 0.4f)
-        keyDef.action == KeyAction.ENTER -> accentColor
-        keyDef.isSpecial -> surfaceColor
-        else -> keyColor
+    val containerColor = remember(isPressed, accentColor, keyDef.action, keyDef.isSpecial, surfaceColor, keyColor) {
+        when {
+            isPressed -> accentColor.copy(alpha = 0.4f)
+            keyDef.action == KeyAction.ENTER -> accentColor
+            keyDef.isSpecial -> surfaceColor
+            else -> keyColor
+        }
     }
 
-    val contentColor = when {
-        keyDef.action == KeyAction.ENTER -> funcTextColor
-        keyDef.isSpecial -> if (customConfig != null) funcTextColor else textColor.copy(alpha = 0.9f)
-        else -> textColor
+    val contentColor = remember(keyDef.action, keyDef.isSpecial, customConfig, funcTextColor, textColor) {
+        when {
+            keyDef.action == KeyAction.ENTER -> funcTextColor
+            keyDef.isSpecial -> if (customConfig != null) funcTextColor else textColor.copy(alpha = 0.9f)
+            else -> textColor
+        }
     }
 
     val hasSecondary = keyDef.secondaryText != null
@@ -1612,7 +1611,7 @@ private fun KeyItem(
                 else Modifier
             )
             .onGloballyPositioned { coords ->
-                keyCoordinates = coords
+                keyCoordinatesRef[0] = coords
             }
             .then(
                 if (hasSecondary) {
@@ -1643,7 +1642,7 @@ private fun KeyItem(
                                 onPerformHaptic()
 
                                 val root = rootCoordinates
-                                val key = keyCoordinates
+                                val key = keyCoordinatesRef[0]
                                 val bounds = if (root != null && root.isAttached && key != null && key.isAttached) {
                                     val offset = root.localPositionOf(key, Offset.Zero)
                                     Rect(offset.x, offset.y, offset.x + key.size.width, offset.y + key.size.height)
@@ -1780,25 +1779,21 @@ private fun SpaceKeyItem(
     modifier: Modifier = Modifier
 ) {
     var isPressed by remember { mutableStateOf(false) }
-    var spaceCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val spaceCoordinatesRef = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val density = LocalDensity.current
 
-    val textColor = when {
-        customConfig != null -> Color(customConfig.keyTextColor)
-        else -> Color(theme.textHex)
+    val textColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.keyTextColor) else Color(theme.textHex)
     }
-    val accentColor = when {
-        customConfig != null -> Color(customConfig.funcKeyBackgroundColor)
-        else -> Color(theme.accentHex)
+    val accentColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyBackgroundColor) else Color(theme.accentHex)
     }
-    val keyColor = when {
-        customConfig != null -> Color(customConfig.keyBackgroundColor).copy(alpha = customConfig.keyBrightness)
-        else -> Color(theme.keyHex)
+    val keyColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.keyBackgroundColor).copy(alpha = customConfig.keyBrightness) else Color(theme.keyHex)
     }
 
-    val containerColor = when {
-        isPressed -> accentColor.copy(alpha = 0.35f)
-        else -> keyColor
+    val containerColor = remember(isPressed, accentColor, keyColor) {
+        if (isPressed) accentColor.copy(alpha = 0.35f) else keyColor
     }
 
     Box(
@@ -1812,7 +1807,7 @@ private fun SpaceKeyItem(
                 else Modifier
             )
             .onGloballyPositioned { coords ->
-                spaceCoordinates = coords
+                spaceCoordinatesRef[0] = coords
             }
             .pointerInput(currentLayout, switchMethod, isLanguageSpace, rootCoordinates, enabledLayouts, spacebarCursorControl) {
                 awaitEachGesture {
@@ -1851,7 +1846,7 @@ private fun SpaceKeyItem(
                             onPerformHaptic()
 
                             val root = rootCoordinates
-                            val space = spaceCoordinates
+                            val space = spaceCoordinatesRef[0]
                             val bounds = if (root != null && root.isAttached && space != null && space.isAttached) {
                                 val offset = root.localPositionOf(space, Offset.Zero)
                                 Rect(offset.x, offset.y, offset.x + space.size.width, offset.y + space.size.height)
@@ -2044,22 +2039,18 @@ private fun BackspaceKeyItem(
     var isPressed by remember { mutableStateOf(false) }
     var isHoldingWordDelete by remember { mutableStateOf(false) }
 
-    val textColor = when {
-        customConfig != null -> Color(customConfig.funcKeyTextColor)
-        else -> Color(theme.textHex)
+    val textColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyTextColor) else Color(theme.textHex)
     }
-    val accentColor = when {
-        customConfig != null -> Color(customConfig.funcKeyBackgroundColor)
-        else -> Color(theme.accentHex)
+    val accentColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyBackgroundColor) else Color(theme.accentHex)
     }
-    val surfaceColor = when {
-        customConfig != null -> Color(customConfig.funcKeyBackgroundColor).copy(alpha = customConfig.funcKeyBrightness)
-        else -> Color(theme.surfaceHex)
+    val surfaceColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyBackgroundColor).copy(alpha = customConfig.funcKeyBrightness) else Color(theme.surfaceHex)
     }
 
-    val containerColor = when {
-        isPressed -> accentColor.copy(alpha = 0.35f)
-        else -> surfaceColor
+    val containerColor = remember(isPressed, accentColor, surfaceColor) {
+        if (isPressed) accentColor.copy(alpha = 0.35f) else surfaceColor
     }
 
     Box(

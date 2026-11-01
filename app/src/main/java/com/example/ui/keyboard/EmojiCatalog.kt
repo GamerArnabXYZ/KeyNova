@@ -255,6 +255,12 @@ object EmojiCatalog {
         )
     )
 
+    val validatedCategories: List<EmojiCategory> by lazy {
+        categories.map { cat ->
+            cat.copy(emojis = cat.emojis.filter { EmojiValidator.isRenderable(it) })
+        }
+    }
+
     // Tag based search index for fast instant search
     val emojiTags = mapOf(
         "laugh" to listOf("😂", "🤣", "😆", "😀", "😄", "😅"),
