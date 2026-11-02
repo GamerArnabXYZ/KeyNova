@@ -1,7 +1,10 @@
 package com.example.ui.keyboard
 
 import android.content.Context
-import androidx.activity.compose.BackHandler
+import android.view.HapticFeedbackConstants
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Keyboard
@@ -28,9 +32,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.KeyboardThemeOption
+import com.example.data.OnlineMediaRepository
+import kotlinx.coroutines.delay
 
 enum class EmojiSubMode {
     EMOJI,
@@ -62,15 +70,9 @@ fun EmojiPickerView(
     var showSearchKeyboard by remember { mutableStateOf(true) }
     var isNumericSearchKeyboard by remember { mutableStateOf(false) }
 
-    // Intercept back key to close search or exit emoji mode
-    BackHandler(enabled = true) {
-        if (isSearchActive) {
-            isSearchActive = false
-            searchQuery = ""
-        } else {
-            onClose()
-        }
-    }
+    // NOTE: NEVER call BackHandler here directly! In an InputMethodService window,
+    // LocalOnBackPressedDispatcherOwner is NULL which causes an instant crash in other apps.
+    // Back navigation is handled by the in-view arrow and ABC buttons.
 
     val prefs = remember {
         context.getSharedPreferences("keynova_recent_emojis", Context.MODE_PRIVATE)
@@ -141,7 +143,66 @@ fun EmojiPickerView(
 
     // Quick filter chips for fast search
     val quickSearchChips = remember {
-        listOf("Trending", "LOL", "Dance", "Love", "Sad", "Applause", "Cat", "Dog", "Coffee", "Gaming", "Party", "Yes", "No", "Shocked", "Sleepy", "Food", "Fire", "Meme")
+        listOf(
+            "🔥 Trending", "😂 LOL", "💃 Dance", "❤️ Love", "😢 Sad", "👏 Claps",
+            "🐱 Cat", "🐶 Dog", "☕ Coffee", "🎮 Gaming", "🎉 Party", "👍 Yes",
+            "😱 Wow", "😴 Sleepy", "🍕 Food", "✨ Meme"
+        )
+    }
+
+    // ONLINE LIVE MEDIA STATE (Fetched from internet via OnlineMediaRepository)
+    var onlineGifs by remember { mutableStateOf<List<GifItem>>(MediaCatalog.allGifs) }
+    var isFetchingGifs by remember { mutableStateOf(false) }
+
+    var onlineStickers by remember { mutableStateOf<List<StickerItem>>(MediaCatalog.allStickers) }
+    var isFetchingStickers by remember { mutableStateOf(false) }
+
+    // Live internet fetch for GIFs
+    LaunchedEffect(subMode, selectedGifCategoryIndex, searchQuery) {
+        if (subMode == EmojiSubMode.GIF) {
+            isFetchingGifs = true
+            // Debounce slightly if user is typing
+            if (searchQuery.isNotBlank()) delay(250)
+
+            val categoryTitle = MediaCatalog.gifCategories.getOrNull(selectedGifCategoryIndex)?.title
+            val targetQuery = if (searchQuery.isNotBlank()) {
+                searchQuery
+            } else if (categoryTitle != null && !categoryTitle.equals("Trending", ignoreCase = true)) {
+                categoryTitle
+            } else {
+                null
+            }
+
+            val fetched = OnlineMediaRepository.fetchGifs(query = targetQuery)
+            if (fetched.isNotEmpty()) {
+                onlineGifs = fetched
+            }
+            isFetchingGifs = false
+        }
+    }
+
+    // Live internet fetch for Stickers
+    LaunchedEffect(subMode, selectedStickerCategoryIndex, searchQuery) {
+        if (subMode == EmojiSubMode.STICKER) {
+            isFetchingStickers = true
+            // Debounce slightly if user is typing
+            if (searchQuery.isNotBlank()) delay(250)
+
+            val categoryTitle = MediaCatalog.stickerCategories.getOrNull(selectedStickerCategoryIndex)?.title
+            val targetQuery = if (searchQuery.isNotBlank()) {
+                searchQuery
+            } else if (categoryTitle != null && !categoryTitle.equals("Trending", ignoreCase = true)) {
+                categoryTitle
+            } else {
+                null
+            }
+
+            val fetched = OnlineMediaRepository.fetchStickers(query = targetQuery)
+            if (fetched.isNotEmpty()) {
+                onlineStickers = fetched
+            }
+            isFetchingStickers = false
+        }
     }
 
     // Filtered items based on query
@@ -161,40 +222,6 @@ fun EmojiPickerView(
             matches.filter { EmojiValidator.isRenderable(it) }.distinct()
         } else {
             categories.getOrNull(selectedEmojiCategoryIndex)?.emojis ?: emptyList()
-        }
-    }
-
-    val filteredGifs = remember(searchQuery, selectedGifCategoryIndex) {
-        if (searchQuery.isNotBlank()) {
-            val q = searchQuery.trim().lowercase()
-            val tokens = q.split("\\s+".toRegex()).filter { it.isNotEmpty() }
-            MediaCatalog.allGifs.filter { gif ->
-                val title = gif.title.lowercase()
-                val cat = gif.category.lowercase()
-                val tags = gif.tags.map { it.lowercase() }
-                tokens.all { t ->
-                    title.contains(t) || cat.contains(t) || tags.any { it.contains(t) || t.contains(it) }
-                }
-            }
-        } else {
-            MediaCatalog.gifCategories.getOrNull(selectedGifCategoryIndex)?.gifs ?: MediaCatalog.trendingGifs
-        }
-    }
-
-    val filteredStickers = remember(searchQuery, selectedStickerCategoryIndex) {
-        if (searchQuery.isNotBlank()) {
-            val q = searchQuery.trim().lowercase()
-            val tokens = q.split("\\s+".toRegex()).filter { it.isNotEmpty() }
-            MediaCatalog.allStickers.filter { sticker ->
-                val title = sticker.title.lowercase()
-                val cat = sticker.category.lowercase()
-                val tags = sticker.tags.map { it.lowercase() }
-                tokens.all { t ->
-                    title.contains(t) || cat.contains(t) || tags.any { it.contains(t) || t.contains(it) }
-                }
-            }
-        } else {
-            MediaCatalog.stickerCategories.getOrNull(selectedStickerCategoryIndex)?.stickers ?: MediaCatalog.trendingStickers
         }
     }
 
@@ -222,7 +249,7 @@ fun EmojiPickerView(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(38.dp)
+                    .height(42.dp)
                     .padding(horizontal = 2.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -241,55 +268,87 @@ fun EmojiPickerView(
                     )
                 }
 
-                // Search Query Display Field
-                Box(
+                // Sleek Search Query Display Capsule
+                Row(
                     modifier = Modifier
                         .weight(1f)
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(17.dp))
+                        .height(36.dp)
+                        .clip(RoundedCornerShape(18.dp))
                         .background(surfaceColor)
+                        .border(
+                            width = 0.8.dp,
+                            color = if (searchQuery.isNotEmpty()) accentColor.copy(alpha = 0.6f) else textColor.copy(alpha = 0.14f),
+                            shape = RoundedCornerShape(18.dp)
+                        )
                         .clickable { showSearchKeyboard = true }
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.CenterStart
+                        .padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (searchQuery.isEmpty()) {
-                        Text(
-                            text = when (subMode) {
-                                EmojiSubMode.EMOJI -> "Search emojis (e.g. fire, smile)..."
-                                EmojiSubMode.GIF -> "Search GIFs (e.g. dance, lol, cat)..."
-                                EmojiSubMode.STICKER -> "Search stickers (e.g. meme, pet)..."
-                                EmojiSubMode.EMOTICON -> "Search emoticons..."
-                            },
-                            color = textColor.copy(alpha = 0.5f),
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    } else {
-                        Text(
-                            text = searchQuery,
-                            color = textColor,
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = if (searchQuery.isNotEmpty()) accentColor else textColor.copy(alpha = 0.45f),
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                text = when (subMode) {
+                                    EmojiSubMode.EMOJI -> "Search emojis (e.g. fire, smile)..."
+                                    EmojiSubMode.GIF -> "Search live GIFs online..."
+                                    EmojiSubMode.STICKER -> "Search live stickers online..."
+                                    EmojiSubMode.EMOTICON -> "Search emoticons..."
+                                },
+                                color = textColor.copy(alpha = 0.45f),
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = searchQuery,
+                                    color = textColor,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "|",
+                                    color = accentColor,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(start = 1.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    if (searchQuery.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(textColor.copy(alpha = 0.14f))
+                                .clickable { searchQuery = "" },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear",
+                                tint = textColor,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
                     }
                 }
 
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(
-                        onClick = { searchQuery = "" },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Clear",
-                            tint = textColor.copy(alpha = 0.7f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.width(4.dp))
 
                 // Toggle Keyboard / Full Grid view
                 IconButton(
@@ -309,14 +368,15 @@ fun EmojiPickerView(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(32.dp)
+                    .height(34.dp)
                     .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 4.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 quickSearchChips.forEach { chip ->
-                    val isSelected = searchQuery.equals(chip, ignoreCase = true)
+                    val cleanKeyword = chip.substringAfter(" ").lowercase()
+                    val isSelected = searchQuery.equals(cleanKeyword, ignoreCase = true)
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
@@ -327,16 +387,16 @@ fun EmojiPickerView(
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable {
-                                searchQuery = chip.lowercase()
+                                searchQuery = cleanKeyword
                             }
                             .padding(horizontal = 10.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = chip,
-                            color = if (isSelected) indicatorColor else textColor.copy(alpha = 0.8f),
+                            color = if (isSelected) indicatorColor else textColor.copy(alpha = 0.85f),
                             fontSize = 11.5.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         )
                     }
                 }
@@ -500,6 +560,21 @@ fun EmojiPickerView(
             }
         }
 
+        // Live Fetching indicator bar
+        AnimatedVisibility(
+            visible = (subMode == EmojiSubMode.GIF && isFetchingGifs) || (subMode == EmojiSubMode.STICKER && isFetchingStickers),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp),
+                color = accentColor,
+                trackColor = surfaceColor
+            )
+        }
+
         Divider(
             color = textColor.copy(alpha = 0.08f),
             thickness = 0.8.dp,
@@ -548,7 +623,7 @@ fun EmojiPickerView(
                 }
 
                 EmojiSubMode.GIF -> {
-                    if (filteredGifs.isEmpty()) {
+                    if (onlineGifs.isEmpty() && !isFetchingGifs) {
                         SearchEmptyState(
                             query = searchQuery,
                             textColor = textColor,
@@ -566,7 +641,7 @@ fun EmojiPickerView(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
-                            items(filteredGifs, key = { it.id }) { gif ->
+                            items(onlineGifs, key = { it.id }) { gif ->
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = surfaceColor.copy(alpha = 0.7f),
@@ -614,7 +689,7 @@ fun EmojiPickerView(
                 }
 
                 EmojiSubMode.STICKER -> {
-                    if (filteredStickers.isEmpty()) {
+                    if (onlineStickers.isEmpty() && !isFetchingStickers) {
                         SearchEmptyState(
                             query = searchQuery,
                             textColor = textColor,
@@ -632,7 +707,7 @@ fun EmojiPickerView(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
-                            items(filteredStickers, key = { it.id }) { sticker ->
+                            items(onlineStickers, key = { it.id }) { sticker ->
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
                                     color = surfaceColor.copy(alpha = 0.75f),
@@ -644,7 +719,7 @@ fun EmojiPickerView(
                                         .aspectRatio(1f)
                                         .clip(RoundedCornerShape(12.dp))
                                         .clickable {
-                                            onMediaSelected(sticker.url, "image/png", sticker.title)
+                                            onMediaSelected(sticker.url, "image/gif", sticker.title)
                                         }
                                 ) {
                                     Box(
@@ -654,8 +729,10 @@ fun EmojiPickerView(
                                         AsyncImage(
                                             model = sticker.url,
                                             contentDescription = sticker.title,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(6.dp)
                                         )
                                         // Title label at bottom
                                         Box(
@@ -666,7 +743,7 @@ fun EmojiPickerView(
                                                 .padding(horizontal = 4.dp, vertical = 2.dp)
                                         ) {
                                             Text(
-                                                text = "${sticker.previewEmoji} ${sticker.title}",
+                                                text = sticker.title,
                                                 color = Color.White,
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Medium,
@@ -737,10 +814,12 @@ fun EmojiPickerView(
             )
 
             SearchSoftKeyboard(
+                theme = theme,
                 isNumeric = isNumericSearchKeyboard,
                 textColor = textColor,
                 surfaceColor = surfaceColor,
                 accentColor = accentColor,
+                keyColor = Color(theme.keyHex),
                 onChar = { char -> searchQuery += char },
                 onBackspace = {
                     if (searchQuery.isNotEmpty()) {
@@ -993,16 +1072,20 @@ private fun SearchEmptyState(
 
 @Composable
 private fun SearchSoftKeyboard(
+    theme: KeyboardThemeOption,
     isNumeric: Boolean,
     textColor: Color,
     surfaceColor: Color,
     accentColor: Color,
+    keyColor: Color,
     onChar: (String) -> Unit,
     onBackspace: () -> Unit,
     onSpace: () -> Unit,
     onToggleNumeric: () -> Unit,
     onDone: () -> Unit
 ) {
+    var isShifted by remember { mutableStateOf(false) }
+
     val row1 = if (isNumeric) listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
                else listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
     val row2 = if (isNumeric) listOf("@", "#", "$", "%", "&", "-", "+", "(", ")", "/")
@@ -1010,140 +1093,302 @@ private fun SearchSoftKeyboard(
     val row3 = if (isNumeric) listOf("*", "\"", "'", ":", ";", "!", "?")
                else listOf("z", "x", "c", "v", "b", "n", "m")
 
+    val keyBorder = if (theme == KeyboardThemeOption.LIGHT) {
+        androidx.compose.foundation.BorderStroke(0.6.dp, Color(0xFFCBD5E1))
+    } else {
+        androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f))
+    }
+    val funcKeyBorder = if (theme == KeyboardThemeOption.LIGHT) {
+        androidx.compose.foundation.BorderStroke(0.6.dp, Color(0xFF94A3B8).copy(alpha = 0.35f))
+    } else {
+        androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.06f))
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 2.dp, vertical = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp)
+            .padding(horizontal = 3.dp, vertical = 3.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // Row 1
+        // ROW 1
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             row1.forEach { char ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(surfaceColor)
-                        .clickable { onChar(char) },
-                    contentAlignment = Alignment.Center
+                val displayChar = if (!isNumeric && isShifted) char.uppercase() else char
+                SearchKeyCap(
+                    modifier = Modifier.weight(1f),
+                    backgroundColor = keyColor,
+                    contentColor = textColor,
+                    border = keyBorder,
+                    elevation = 1.2.dp,
+                    onClick = {
+                        onChar(displayChar)
+                        if (isShifted) isShifted = false
+                    }
                 ) {
-                    Text(text = char, color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = displayChar,
+                        color = textColor,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
 
-        // Row 2
+        // ROW 2 (indented slightly on letters for realistic keyboard geometry)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = if (isNumeric) 0.dp else 14.dp),
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             row2.forEach { char ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(surfaceColor)
-                        .clickable { onChar(char) },
-                    contentAlignment = Alignment.Center
+                val displayChar = if (!isNumeric && isShifted) char.uppercase() else char
+                SearchKeyCap(
+                    modifier = Modifier.weight(1f),
+                    backgroundColor = keyColor,
+                    contentColor = textColor,
+                    border = keyBorder,
+                    elevation = 1.2.dp,
+                    onClick = {
+                        onChar(displayChar)
+                        if (isShifted) isShifted = false
+                    }
                 ) {
-                    Text(text = char, color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = displayChar,
+                        color = textColor,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
 
-        // Row 3
+        // ROW 3 (Shift / Symbols on Left, Letters in Center, Backspace on Right)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Numeric Toggle
-            Box(
-                modifier = Modifier
-                    .weight(1.3f)
-                    .height(34.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(surfaceColor.copy(alpha = 0.8f))
-                    .clickable { onToggleNumeric() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (isNumeric) "ABC" else "?123",
-                    color = textColor,
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            if (isNumeric) {
+                // Secondary symbol helper key
+                SearchKeyCap(
+                    modifier = Modifier.weight(1.2f),
+                    backgroundColor = surfaceColor,
+                    contentColor = textColor,
+                    border = funcKeyBorder,
+                    elevation = 1.dp,
+                    onClick = { onChar("=") }
+                ) {
+                    Text(
+                        text = "=",
+                        color = textColor,
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            } else {
+                // Shift key with active highlight indicator
+                SearchKeyCap(
+                    modifier = Modifier.weight(1.35f),
+                    backgroundColor = if (isShifted) accentColor else surfaceColor,
+                    contentColor = if (isShifted) Color.White else textColor,
+                    border = if (isShifted) null else funcKeyBorder,
+                    elevation = 1.dp,
+                    onClick = { isShifted = !isShifted }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowUpward,
+                        contentDescription = "Shift",
+                        tint = if (isShifted) Color.White else textColor,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
             }
 
             row3.forEach { char ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(surfaceColor)
-                        .clickable { onChar(char) },
-                    contentAlignment = Alignment.Center
+                val displayChar = if (!isNumeric && isShifted) char.uppercase() else char
+                SearchKeyCap(
+                    modifier = Modifier.weight(1f),
+                    backgroundColor = keyColor,
+                    contentColor = textColor,
+                    border = keyBorder,
+                    elevation = 1.2.dp,
+                    onClick = {
+                        onChar(displayChar)
+                        if (isShifted) isShifted = false
+                    }
                 ) {
-                    Text(text = char, color = textColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = displayChar,
+                        color = textColor,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
 
             // Backspace Key
-            Box(
-                modifier = Modifier
-                    .weight(1.3f)
-                    .height(34.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(surfaceColor.copy(alpha = 0.8f))
-                    .clickable { onBackspace() },
-                contentAlignment = Alignment.Center
+            SearchKeyCap(
+                modifier = Modifier.weight(1.35f),
+                backgroundColor = surfaceColor,
+                contentColor = textColor,
+                border = funcKeyBorder,
+                elevation = 1.dp,
+                onClick = onBackspace
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Backspace,
                     contentDescription = "Backspace",
                     tint = textColor,
-                    modifier = Modifier.size(17.dp)
+                    modifier = Modifier.size(19.dp)
                 )
             }
         }
 
-        // Row 4: Space and Done
+        // ROW 4 (?123 / ABC, comma, Space, dot, Search action)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(34.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(surfaceColor)
-                    .clickable { onSpace() },
-                contentAlignment = Alignment.Center
+            // Numeric Toggle
+            SearchKeyCap(
+                modifier = Modifier.weight(1.35f),
+                backgroundColor = surfaceColor,
+                contentColor = textColor,
+                border = funcKeyBorder,
+                elevation = 1.dp,
+                onClick = onToggleNumeric
             ) {
-                Text(text = "Space", color = textColor.copy(alpha = 0.7f), fontSize = 12.sp)
+                Text(
+                    text = if (isNumeric) "ABC" else "?123",
+                    color = textColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
-            Box(
-                modifier = Modifier
-                    .width(72.dp)
-                    .height(34.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(accentColor)
-                    .clickable { onDone() },
-                contentAlignment = Alignment.Center
+            // Comma Punctuation
+            SearchKeyCap(
+                modifier = Modifier.weight(1f),
+                backgroundColor = keyColor,
+                contentColor = textColor,
+                border = keyBorder,
+                elevation = 1.2.dp,
+                onClick = { onChar(",") }
             ) {
-                Text(text = "Done", color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = ",",
+                    color = textColor,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
+
+            // Spacebar
+            SearchKeyCap(
+                modifier = Modifier.weight(4.0f),
+                backgroundColor = keyColor,
+                contentColor = textColor.copy(alpha = 0.5f),
+                border = keyBorder,
+                elevation = 1.2.dp,
+                onClick = onSpace
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.55f)
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(1.5.dp))
+                        .background(textColor.copy(alpha = 0.22f))
+                )
+            }
+
+            // Period Punctuation
+            SearchKeyCap(
+                modifier = Modifier.weight(1f),
+                backgroundColor = keyColor,
+                contentColor = textColor,
+                border = keyBorder,
+                elevation = 1.2.dp,
+                onClick = { onChar(".") }
+            ) {
+                Text(
+                    text = ".",
+                    color = textColor,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Search Action Button
+            SearchKeyCap(
+                modifier = Modifier.weight(1.6f),
+                backgroundColor = accentColor,
+                contentColor = Color.White,
+                border = null,
+                elevation = 2.dp,
+                onClick = onDone
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "Go",
+                        color = Color.White,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchKeyCap(
+    modifier: Modifier = Modifier,
+    backgroundColor: Color,
+    contentColor: Color,
+    border: androidx.compose.foundation.BorderStroke? = null,
+    elevation: androidx.compose.ui.unit.Dp = 1.2.dp,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val view = LocalView.current
+    Surface(
+        modifier = modifier
+            .height(39.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .clickable {
+                try {
+                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                } catch (_: Exception) {}
+                onClick()
+            },
+        shape = RoundedCornerShape(7.dp),
+        color = backgroundColor,
+        contentColor = contentColor,
+        shadowElevation = elevation,
+        border = border
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            content()
         }
     }
 }
