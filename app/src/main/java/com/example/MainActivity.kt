@@ -115,6 +115,20 @@ fun KeyNovaApp(
                     },
                     onNavigateToToolbarSettings = {
                         currentScreen = AppNavigationScreen.SETTINGS_TOOLBAR
+                    },
+                    onNavigateToDestination = { dest ->
+                        currentScreen = when (dest) {
+                            SettingsDestination.MAIN -> AppNavigationScreen.SETTINGS_MAIN
+                            SettingsDestination.LANGUAGES -> AppNavigationScreen.SETTINGS_LANGUAGES
+                            SettingsDestination.THEMES -> AppNavigationScreen.SETTINGS_THEMES
+                            SettingsDestination.CUSTOM_THEME -> AppNavigationScreen.SETTINGS_CUSTOM_THEME
+                            SettingsDestination.TOOLBAR -> AppNavigationScreen.SETTINGS_TOOLBAR
+                            SettingsDestination.LAYOUT -> AppNavigationScreen.SETTINGS_LAYOUT
+                            SettingsDestination.CLIPBOARD -> AppNavigationScreen.SETTINGS_CLIPBOARD
+                            SettingsDestination.GAMING_CODING -> AppNavigationScreen.SETTINGS_GAMING_CODING
+                            SettingsDestination.PRIVACY -> AppNavigationScreen.SETTINGS_PRIVACY
+                            SettingsDestination.ABOUT -> AppNavigationScreen.SETTINGS_ABOUT
+                        }
                     }
                 )
             }

@@ -1607,8 +1607,8 @@ private fun KeyItem(
             .background(containerColor)
             .then(
                 if (isWasdKey) Modifier.border(1.5.dp, accentColor, RoundedCornerShape(8.dp))
-                else if (theme == KeyboardThemeOption.LIGHT) Modifier.border(0.5.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                else Modifier
+                else if (theme == KeyboardThemeOption.LIGHT) Modifier.border(0.6.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                else Modifier.border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
             )
             .onGloballyPositioned { coords ->
                 keyCoordinatesRef[0] = coords
@@ -2196,40 +2196,41 @@ private fun AvroPhoneticSuggestionStrip(
         modifier = Modifier
             .fillMaxWidth()
             .height(38.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(surfaceColor.copy(alpha = 0.6f))
+            .clip(RoundedCornerShape(10.dp))
+            .background(surfaceColor.copy(alpha = 0.55f))
+            .border(0.6.dp, textColor.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Toggle to Toolbar button (Gboard/Ridmik style)
         IconButton(
             onClick = onToggleTools,
-            modifier = Modifier.size(34.dp)
+            modifier = Modifier.size(32.dp)
         ) {
             Icon(
                 imageVector = Icons.Outlined.GridView,
                 contentDescription = "Toolbar Tools",
-                tint = textColor.copy(alpha = 0.75f),
-                modifier = Modifier.size(19.dp)
+                tint = textColor.copy(alpha = 0.8f),
+                modifier = Modifier.size(18.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(2.dp))
+        Spacer(modifier = Modifier.width(3.dp))
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(end = 4.dp)
         ) {
             Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = accentColor.copy(alpha = 0.18f)
+                shape = RoundedCornerShape(8.dp),
+                color = accentColor.copy(alpha = 0.18f),
+                border = BorderStroke(0.6.dp, accentColor.copy(alpha = 0.4f))
             ) {
                 Text(
                     text = if (composingText.isNotEmpty()) composingText else "Avro",
                     color = accentColor,
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
                 )
             }
             Text(
@@ -2260,18 +2261,19 @@ private fun AvroPhoneticSuggestionStrip(
                     val isFirst = index == 0
                     Surface(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .clickable { onSelectCandidate(candidate) },
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (isFirst) accentColor else surfaceColor,
-                        border = if (isFirst) null else androidx.compose.foundation.BorderStroke(0.6.dp, textColor.copy(alpha = 0.2f))
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isFirst) accentColor.copy(alpha = 0.22f) else surfaceColor.copy(alpha = 0.75f),
+                        border = if (isFirst) BorderStroke(1.dp, accentColor.copy(alpha = 0.65f))
+                                 else BorderStroke(0.6.dp, textColor.copy(alpha = 0.12f))
                     ) {
                         Text(
                             text = candidate,
-                            color = if (isFirst) Color.White else textColor,
-                            fontSize = 14.sp,
+                            color = if (isFirst) (if (theme == KeyboardThemeOption.LIGHT) accentColor else Color.White) else textColor.copy(alpha = 0.9f),
+                            fontSize = 13.5.sp,
                             fontWeight = if (isFirst) FontWeight.Bold else FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.5.dp)
                         )
                     }
                 }
@@ -2279,7 +2281,7 @@ private fun AvroPhoneticSuggestionStrip(
             if (composingText.isNotEmpty()) {
                 IconButton(
                     onClick = onClearComposing,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(26.dp)
                 ) {
                     Text("✕", color = textColor.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
@@ -2301,29 +2303,35 @@ private fun EnglishWordSuggestionStrip(
     val textColor = Color(theme.textHex)
     val surfaceColor = Color(theme.surfaceHex)
 
+    val displayedCandidates = if (candidates.isEmpty()) {
+        if (composingWord.isEmpty()) listOf("I", "The", "KeyNova", "Hello")
+        else listOf(composingWord)
+    } else candidates
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(38.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(surfaceColor.copy(alpha = 0.6f))
+            .clip(RoundedCornerShape(10.dp))
+            .background(surfaceColor.copy(alpha = 0.55f))
+            .border(0.6.dp, textColor.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Toggle to Toolbar button (Gboard/Ridmik style)
+        // Toggle to Toolbar button
         IconButton(
             onClick = onToggleTools,
-            modifier = Modifier.size(34.dp)
+            modifier = Modifier.size(32.dp)
         ) {
             Icon(
                 imageVector = Icons.Outlined.GridView,
                 contentDescription = "Toolbar Tools",
-                tint = textColor.copy(alpha = 0.75f),
-                modifier = Modifier.size(19.dp)
+                tint = textColor.copy(alpha = 0.8f),
+                modifier = Modifier.size(18.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(2.dp))
+        Spacer(modifier = Modifier.width(3.dp))
 
         Row(
             modifier = Modifier
@@ -2332,32 +2340,35 @@ private fun EnglishWordSuggestionStrip(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            candidates.forEachIndexed { index, candidate ->
-                val isFirst = index == 0
+            displayedCandidates.forEachIndexed { index, candidate ->
+                val isPrimary = index == 0 && composingWord.isNotEmpty()
                 Surface(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable { onSelectCandidate(candidate) },
-                    shape = RoundedCornerShape(6.dp),
-                    color = if (isFirst) accentColor else surfaceColor,
-                    border = if (isFirst) null else androidx.compose.foundation.BorderStroke(0.6.dp, textColor.copy(alpha = 0.2f))
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isPrimary) accentColor.copy(alpha = 0.22f) else surfaceColor.copy(alpha = 0.75f),
+                    border = if (isPrimary) BorderStroke(1.dp, accentColor.copy(alpha = 0.65f))
+                             else BorderStroke(0.6.dp, textColor.copy(alpha = 0.12f))
                 ) {
                     Text(
                         text = candidate,
-                        color = if (isFirst) Color.White else textColor,
-                        fontSize = 14.sp,
-                        fontWeight = if (isFirst) FontWeight.Bold else FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp)
+                        color = if (isPrimary) (if (theme == KeyboardThemeOption.LIGHT) accentColor else Color.White) else textColor.copy(alpha = 0.9f),
+                        fontSize = 13.5.sp,
+                        fontWeight = if (isPrimary) FontWeight.Bold else FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.5.dp)
                     )
                 }
             }
         }
 
-        IconButton(
-            onClick = onClearComposing,
-            modifier = Modifier.size(28.dp)
-        ) {
-            Text("✕", color = textColor.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        if (composingWord.isNotEmpty()) {
+            IconButton(
+                onClick = onClearComposing,
+                modifier = Modifier.size(26.dp)
+            ) {
+                Text("✕", color = textColor.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
