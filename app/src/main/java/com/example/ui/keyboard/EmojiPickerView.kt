@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.outlined.Mood
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.StickyNote2
@@ -51,6 +52,7 @@ enum class EmojiSubMode {
     EMOJI,
     GIF,
     STICKER,
+    KITCHEN,
     EMOTICON
 }
 
@@ -301,6 +303,7 @@ fun EmojiPickerView(
                                     EmojiSubMode.EMOJI -> "Search emojis (e.g. fire, smile)..."
                                     EmojiSubMode.GIF -> "Search live GIFs online..."
                                     EmojiSubMode.STICKER -> "Search live stickers online..."
+                                    EmojiSubMode.KITCHEN -> "Mix emojis in kitchen..."
                                     EmojiSubMode.EMOTICON -> "Search emoticons..."
                                 },
                                 color = textColor.copy(alpha = 0.45f),
@@ -556,6 +559,10 @@ fun EmojiPickerView(
                             }
                         }
                     }
+
+                    EmojiSubMode.KITCHEN -> {
+                        // Kitchen handles its own mixing controls internally
+                    }
                 }
             }
         }
@@ -802,6 +809,15 @@ fun EmojiPickerView(
                         }
                     }
                 }
+
+                EmojiSubMode.KITCHEN -> {
+                    EmojiKitchenView(
+                        theme = theme,
+                        onEmojiSelected = onEmojiSelected,
+                        onMediaSelected = onMediaSelected,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 
@@ -957,6 +973,37 @@ fun EmojiPickerView(
                     }
                 }
 
+                // Emoji Kitchen / Mix Tab
+                Column(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            subMode = EmojiSubMode.KITCHEN
+                            isSearchActive = false
+                        }
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = "Emoji Kitchen Mixer",
+                        tint = if (subMode == EmojiSubMode.KITCHEN) indicatorColor else textColor.copy(alpha = 0.45f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    if (subMode == EmojiSubMode.KITCHEN) {
+                        Box(
+                            modifier = Modifier
+                                .width(16.dp)
+                                .height(2.dp)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(indicatorColor)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+                }
+
                 // Emoticon / Kaomoji Tab
                 Column(
                     modifier = Modifier
@@ -1071,7 +1118,7 @@ private fun SearchEmptyState(
 }
 
 @Composable
-private fun SearchSoftKeyboard(
+internal fun SearchSoftKeyboard(
     theme: KeyboardThemeOption,
     isNumeric: Boolean,
     textColor: Color,

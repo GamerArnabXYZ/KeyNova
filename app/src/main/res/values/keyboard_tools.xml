@@ -92,4 +92,7 @@
 
     <string name="tool_translate_title">Translate</string>
     <string name="tool_translate_desc">Translate text directly inside keyboard with instant insert</string>
+
+    <string name="tool_fancy_fonts_title">Text Magic / Fonts</string>
+    <string name="tool_fancy_fonts_desc">Transform text into 20+ cool aesthetic, cursive, gothic &amp; bubble fonts</string>
 </resources>

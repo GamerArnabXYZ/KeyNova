@@ -89,6 +89,22 @@ fun KeyboardToolbar(
         ) {
             enabledTools.forEach { tool ->
                 when (tool) {
+                    ToolbarTool.FANCY_FONTS -> {
+                        val isSelected = activePage == ActiveKeyboardPage.FANCY_FONTS
+                        ModernToolbarPill(
+                            icon = getToolbarIconForTool(tool),
+                            contentDescription = "Text Magic / Fonts",
+                            isSelected = isSelected,
+                            textColor = textColor,
+                            accentColor = accentColor,
+                            testTag = "toolbar_tool_fancy_fonts",
+                            onClick = {
+                                if (isSelected) onPageSelected(ActiveKeyboardPage.LETTERS)
+                                else onPageSelected(ActiveKeyboardPage.FANCY_FONTS)
+                            }
+                        )
+                    }
+
                     ToolbarTool.TRANSLATE -> {
                         val isSelected = activePage == ActiveKeyboardPage.TRANSLATE
                         ModernToolbarPill(

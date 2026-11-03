@@ -220,8 +220,21 @@ fun KeyNovaKeyboardView(
     }
 
     var englishComposingWord by remember { mutableStateOf("") }
-    val englishCandidates: List<String> = remember(englishComposingWord) {
-        EnglishWordPredictor.predict(englishComposingWord)
+    val matchingShortcuts: List<CodeSnippet> = remember(englishComposingWord) {
+        if (englishComposingWord.length >= 2 || englishComposingWord.startsWith("!")) {
+            snippetsRepository.getShortcutMatches(englishComposingWord)
+        } else {
+            emptyList()
+        }
+    }
+    val englishCandidates: List<String> = remember(englishComposingWord, matchingShortcuts) {
+        val base = EnglishWordPredictor.predict(englishComposingWord.removePrefix("!"))
+        if (matchingShortcuts.isNotEmpty()) {
+            val shortcutChips = matchingShortcuts.map { "⚡ ${it.shortcut} ➔ ${it.title}" }
+            shortcutChips + base
+        } else {
+            base
+        }
     }
     var showToolbarTools by remember { mutableStateOf(false) }
 
@@ -373,8 +386,8 @@ fun KeyNovaKeyboardView(
     val hasSuggestions = isAvroActive || isEnglishActive
 
     val topBarComposable: @Composable (Boolean) -> Unit = { inFloating ->
-        if (activePage == ActiveKeyboardPage.EMOJI) {
-            // Emoji page handles its own top bar
+        if (activePage == ActiveKeyboardPage.EMOJI || activePage == ActiveKeyboardPage.FANCY_FONTS) {
+            // Emoji and Fancy Fonts pages handle their own top bar
         } else if (hasSuggestions && !showToolbarTools) {
             if (isAvroActive) {
                 AvroPhoneticSuggestionStrip(
@@ -402,7 +415,13 @@ fun KeyNovaKeyboardView(
                         for (i in 0 until englishComposingWord.length) {
                             actionTarget.onDeleteBackward()
                         }
-                        actionTarget.onCommitText(chosen + " ")
+                        val textToInsert = if (chosen.startsWith("⚡ ")) {
+                            val snippet = matchingShortcuts.firstOrNull { "⚡ ${it.shortcut} ➔ ${it.title}" == chosen }
+                            snippet?.code ?: chosen
+                        } else {
+                            chosen + " "
+                        }
+                        actionTarget.onCommitText(textToInsert)
                         englishComposingWord = ""
                         performHaptic()
                     },
@@ -437,7 +456,7 @@ fun KeyNovaKeyboardView(
         }
     }
 
-    val effectiveContentHeight = if (activePage == ActiveKeyboardPage.EMOJI) {
+    val effectiveContentHeight = if (activePage == ActiveKeyboardPage.EMOJI || activePage == ActiveKeyboardPage.FANCY_FONTS) {
         standardKeyboardContentHeight + 42.dp
     } else {
         standardKeyboardContentHeight
@@ -515,6 +534,17 @@ fun KeyNovaKeyboardView(
                         }
                         ActiveKeyboardPage.TRANSLATE -> {
                             TranslationPanelView(
+                                theme = currentTheme,
+                                onInsertText = { text ->
+                                    actionTarget.onCommitText(text)
+                                    performHaptic()
+                                },
+                                onClose = { activePage = ActiveKeyboardPage.LETTERS },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        ActiveKeyboardPage.FANCY_FONTS -> {
+                            FancyFontsView(
                                 theme = currentTheme,
                                 onInsertText = { text ->
                                     actionTarget.onCommitText(text)
@@ -695,7 +725,7 @@ fun KeyNovaKeyboardView(
                                                                     actionTarget.onCommitText(primary)
                                                                     avroComposingText = ""
                                                                 }
-                                                                if (currentLayout.languageCode == "en" && keyDef.primaryText.length == 1 && keyDef.primaryText[0].isLetter()) {
+                                                                if (currentLayout.languageCode == "en" && keyDef.primaryText.length == 1 && (keyDef.primaryText[0].isLetter() || keyDef.primaryText == "!")) {
                                                                     englishComposingWord += keyDef.primaryText
                                                                 } else {
                                                                     englishComposingWord = ""

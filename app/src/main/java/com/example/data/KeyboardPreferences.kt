@@ -137,7 +137,8 @@ enum class ActiveKeyboardPage {
     SNIPPETS,
     TEXT_EDITING,
     NUMPAD,
-    TRANSLATE
+    TRANSLATE,
+    FANCY_FONTS
 }
 
 enum class ToolbarTool(
@@ -148,6 +149,14 @@ enum class ToolbarTool(
     val description: String,
     val defaultEnabled: Boolean
 ) {
+    FANCY_FONTS(
+        id = "fancy_fonts",
+        titleRes = com.example.R.string.tool_fancy_fonts_title,
+        descriptionRes = com.example.R.string.tool_fancy_fonts_desc,
+        title = "Text Magic / Fonts",
+        description = "Transform text into 20+ cool aesthetic, cursive, gothic & bubble fonts",
+        defaultEnabled = true
+    ),
     TRANSLATE(
         id = "translate",
         titleRes = com.example.R.string.tool_translate_title,
@@ -279,12 +288,12 @@ enum class ToolbarTool(
         const val MAX_ENABLED_TOOLS = 7
 
         val DEFAULT_TOOL_IDS = listOf(
+            FANCY_FONTS.id,
             EMOJI.id,
             CLIPBOARD.id,
             TEXT_EDITING.id,
             NUMPAD.id,
             CODING.id,
-            THEMES.id,
             SETTINGS.id
         )
 

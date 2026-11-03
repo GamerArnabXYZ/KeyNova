@@ -745,10 +745,11 @@ fun PlaygroundScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             listOf(
-                                "✨ Hello KeyNova!",
+                                "⚡ Try typing !addr or !email",
+                                "✨ Text Magic Fonts",
+                                "🧪 Emoji Kitchen Mix",
                                 "🇧🇩 আমি বাংলায় গান গাই",
-                                "😂 Emojis & GIFs",
-                                "⚡ Fast Typing"
+                                "Hello KeyNova!"
                             ).forEach { prompt ->
                                 Surface(
                                     onClick = {
