@@ -457,7 +457,7 @@ fun KeyNovaKeyboardView(
     }
 
     val effectiveContentHeight = if (activePage == ActiveKeyboardPage.EMOJI || activePage == ActiveKeyboardPage.FANCY_FONTS) {
-        standardKeyboardContentHeight + 42.dp
+        standardKeyboardContentHeight + 38.dp
     } else {
         standardKeyboardContentHeight
     }
@@ -546,7 +546,14 @@ fun KeyNovaKeyboardView(
                         ActiveKeyboardPage.FANCY_FONTS -> {
                             FancyFontsView(
                                 theme = currentTheme,
+                                initialText = englishComposingWord,
                                 onInsertText = { text ->
+                                    if (englishComposingWord.isNotEmpty()) {
+                                        for (i in 0 until englishComposingWord.length) {
+                                            actionTarget.onDeleteBackward()
+                                        }
+                                        englishComposingWord = ""
+                                    }
                                     actionTarget.onCommitText(text)
                                     performHaptic()
                                 },

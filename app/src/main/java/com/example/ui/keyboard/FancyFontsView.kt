@@ -23,7 +23,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.*
@@ -113,14 +115,14 @@ object UnicodeFontEngine {
     private const val SCRIPT_REG_LOWER = "𝒶𝒷𝒸𝒹ℯ𝒻ℊ𝒽𝒾𝒿𝓀𝓁𝓂𝓃ℴ𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏"
 
     private const val DOUBLE_STRUCK_UPPER = "𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ"
-    private const val DOUBLE_STRUCK_LOWER = "𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝕠𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫"
+    private const val DOUBLE_STRUCK_LOWER = "𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝓸𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫"
     private const val DOUBLE_STRUCK_DIGITS = "𝟘𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡"
 
     private const val CIRCLED_UPPER = "ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ"
     private const val CIRCLED_LOWER = "ⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ"
     private const val CIRCLED_DIGITS = "⓪①②③④⑤⑥⑦⑧⑨"
 
-    private const val DARK_CIRCLED_UPPER = "🅐🅑🅒🅓🅔🅕🅖🅗🅘🅙🅚🅛🅜🅝🅞🅟🅠🅡🅢🅣🅤🅥🅦🅧🅨🅩"
+    private const val DARK_CIRCLED_UPPER = "🅐🅑🅒🅓🅔🅕🅖🅗🅘🅙🅚🅛🅜🅝🅞🅟🅠🅡🅢🅣🅤𝅥🅦🅧🅨🅩"
     private const val DARK_CIRCLED_LOWER = "🅐🅑🅒🅓🅔🅕🅖🅗🅘🅙🅚🅛🅜🅝🅞🅟🅠🅡🅢🅣🅤🅥🅦🅧🅨🅩"
 
     private const val SQUARED_UPPER = "🄰🄱🄲🄳🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉"
@@ -138,14 +140,11 @@ object UnicodeFontEngine {
     private const val MONOSPACE_DIGITS = "𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿"
 
     private const val BOLD_SANS_UPPER = "𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭"
-    private const val BOLD_SANS_LOWER = "𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇"
+    private const val BOLD_SANS_LOWER = "𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸ｌｍ𝗻𝗼𝗽𝗾ｒｓｔｕｖｗ𝘅𝘆𝘇"
     private const val BOLD_SANS_DIGITS = "𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵"
 
     private const val ITALIC_SANS_UPPER = "𝘈𝘉𝘊𝘋𝘌𝘍𝘎𝘏𝘐𝘑𝘒𝘓𝘔𝘕𝘖𝘗𝘘𝘙𝘚𝘛𝘜𝘝𝘞𝘟𝘠𝘡"
-    private const val ITALIC_SANS_LOWER = "𝘢𝘣𝘤𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻"
-
-    private const val BOLD_ITALIC_SANS_UPPER = "𝘼𝘽𝘾𝘿𝙀𝙁𝙂𝙃𝙄𝙅𝙆𝙇𝙈𝙉𝙊𝙋𝙌𝙍𝙎𝙏𝙐𝙑𝙒𝙓𝙔𝙕"
-    private const val BOLD_ITALIC_SANS_LOWER = "𝙖𝙗𝙘𝙙𝙚𝙛𝙜𝙝𝙞𝙟𝙠𝙡𝙢𝙣𝙤𝙥𝙦𝙧𝙨𝙩𝙪𝙫𝙬𝙭𝙮𝙯"
+    private const val ITALIC_SANS_LOWER = "𝘢𝘣𝘤𝘥𝘦ｆ𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲ｒ𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻"
 
     // Small Caps characters: a-z map
     private val SMALL_CAPS_MAP = mapOf(
@@ -333,14 +332,16 @@ object UnicodeFontEngine {
 @Composable
 fun FancyFontsView(
     theme: KeyboardThemeOption,
+    initialText: String = "",
     onInsertText: (String) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var inputText by remember { mutableStateOf("") }
+    var inputText by remember(initialText) { mutableStateOf(initialText) }
     var selectedCategory by remember { mutableStateOf("All") }
-    var showQuickKeyboard by remember { mutableStateOf(false) }
+    // DEFAULT TO TRUE so soft keys are immediately open for typing custom texts!
+    var showQuickKeyboard by remember { mutableStateOf(true) }
 
     val accentColor = Color(theme.accentHex)
     val textColor = Color(theme.textHex)
@@ -377,6 +378,18 @@ fun FancyFontsView(
         Toast.makeText(context, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
     }
 
+    val pasteFromClipboard: () -> Unit = {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = clipboard.primaryClip
+        if (clip != null && clip.itemCount > 0) {
+            val pasted = clip.getItemAt(0).coerceToText(context).toString()
+            if (pasted.isNotBlank()) {
+                inputText = pasted
+                Toast.makeText(context, "Pasted: $pasted", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -387,7 +400,7 @@ fun FancyFontsView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(42.dp)
+                .height(40.dp)
                 .background(surfaceColor.copy(alpha = 0.5f))
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -431,14 +444,14 @@ fun FancyFontsView(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Quick Type Toggle
+            // Toggle Keyboard visibility
             IconButton(
                 onClick = { showQuickKeyboard = !showQuickKeyboard },
                 modifier = Modifier.size(34.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Keyboard,
-                    contentDescription = "Toggle Keyboard Input",
+                    imageVector = if (showQuickKeyboard) Icons.Default.KeyboardHide else Icons.Default.Keyboard,
+                    contentDescription = if (showQuickKeyboard) "Hide Keyboard" else "Show Keyboard",
                     tint = if (showQuickKeyboard) accentColor else textColor.copy(alpha = 0.7f),
                     modifier = Modifier.size(20.dp)
                 )
@@ -460,14 +473,15 @@ fun FancyFontsView(
             }
         }
 
-        // Live Input Bar
+        // Live Custom Text Input Bar with direct Paste button
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .clickable { showQuickKeyboard = true },
             shape = RoundedCornerShape(12.dp),
             color = surfaceColor,
-            border = BorderStroke(1.dp, if (inputText.isNotBlank()) accentColor.copy(alpha = 0.6f) else textColor.copy(alpha = 0.12f))
+            border = BorderStroke(1.dp, if (inputText.isNotBlank()) accentColor.copy(alpha = 0.6f) else textColor.copy(alpha = 0.15f))
         ) {
             Row(
                 modifier = Modifier
@@ -475,87 +489,67 @@ fun FancyFontsView(
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                BasicTextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    textStyle = TextStyle(
-                        color = textColor,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    cursorBrush = SolidColor(accentColor),
-                    singleLine = true,
+                Box(
                     modifier = Modifier
                         .weight(1f)
-                        .testTag("fancy_fonts_input"),
-                    decorationBox = { innerTextField ->
-                        if (inputText.isEmpty()) {
-                            Text(
-                                text = "Type text to transform (e.g. KeyNova)...",
-                                color = textColor.copy(alpha = 0.45f),
-                                fontSize = 13.sp
-                            )
-                        }
-                        innerTextField()
-                    }
-                )
-
-                if (inputText.isNotBlank()) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    // 1-tap insert of first style
-                    FilledTonalIconButton(
-                        onClick = {
-                            val styled = UnicodeFontEngine.transform(inputText, "fraktur_bold")
-                            onInsertText(styled)
-                        },
-                        modifier = Modifier.size(28.dp),
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = accentColor,
-                            contentColor = Color.White
+                        .clickable { showQuickKeyboard = true }
+                ) {
+                    if (inputText.isEmpty()) {
+                        Text(
+                            text = "✍️ Type or paste custom text below...",
+                            color = textColor.copy(alpha = 0.45f),
+                            fontSize = 13.sp
                         )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = "Insert",
-                            tint = Color.White,
-                            modifier = Modifier.size(14.dp)
+                    } else {
+                        Text(
+                            text = inputText,
+                            color = textColor,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
-            }
-        }
 
-        // Preset Chips Row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(30.dp)
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            samplePresets.forEach { preset ->
-                val isSelected = inputText.equals(preset, ignoreCase = true)
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) accentColor.copy(alpha = 0.25f) else surfaceColor.copy(alpha = 0.6f))
-                        .border(
-                            0.6.dp,
-                            if (isSelected) accentColor else textColor.copy(alpha = 0.10f),
-                            RoundedCornerShape(8.dp)
-                        )
-                        .clickable { inputText = preset }
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = preset,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) accentColor else textColor.copy(alpha = 0.8f)
-                    )
+                    // Paste Button
+                    IconButton(
+                        onClick = pasteFromClipboard,
+                        modifier = Modifier.size(30.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentPaste,
+                            contentDescription = "Paste text",
+                            tint = accentColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    if (inputText.isNotBlank()) {
+                        // 1-tap insert of first style
+                        FilledTonalIconButton(
+                            onClick = {
+                                val styled = UnicodeFontEngine.transform(inputText, "cursive_bold")
+                                onInsertText(styled)
+                            },
+                            modifier = Modifier.size(28.dp),
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = accentColor,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = "Insert",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -564,9 +558,9 @@ fun FancyFontsView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(34.dp)
+                .height(32.dp)
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp, vertical = 2.dp),
+                .padding(horizontal = 8.dp, vertical = 1.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -580,7 +574,7 @@ fun FancyFontsView(
                     modifier = Modifier.height(26.dp)
                 ) {
                     Box(
-                        modifier = Modifier.padding(horizontal = 10.dp),
+                        modifier = Modifier.padding(horizontal = 9.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -594,35 +588,14 @@ fun FancyFontsView(
             }
         }
 
-        // Mini On-Screen Keyboard if user wants to type directly without leaving
-        if (showQuickKeyboard) {
-            SearchSoftKeyboard(
-                theme = theme,
-                isNumeric = false,
-                textColor = textColor,
-                surfaceColor = surfaceColor,
-                accentColor = accentColor,
-                keyColor = Color(theme.keyHex),
-                onChar = { char -> inputText += char },
-                onBackspace = {
-                    if (inputText.isNotEmpty()) {
-                        inputText = inputText.dropLast(1)
-                    }
-                },
-                onSpace = { inputText += " " },
-                onToggleNumeric = {},
-                onDone = { showQuickKeyboard = false }
-            )
-        }
-
         // Scrollable List of Styled Text Cards
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(bottom = 12.dp)
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(bottom = 6.dp)
         ) {
             items(filteredStyles, key = { it.id }) { style ->
                 val styledText = style.transform(effectiveText)
@@ -638,7 +611,7 @@ fun FancyFontsView(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -669,11 +642,11 @@ fun FancyFontsView(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(3.dp))
 
                             Text(
                                 text = styledText,
-                                fontSize = 17.sp,
+                                fontSize = 16.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = textColor,
                                 maxLines = 2,
@@ -692,7 +665,7 @@ fun FancyFontsView(
                             IconButton(
                                 onClick = { copyToClipboard(styledText) },
                                 modifier = Modifier
-                                    .size(34.dp)
+                                    .size(32.dp)
                                     .clip(CircleShape)
                                     .background(textColor.copy(alpha = 0.06f))
                             ) {
@@ -700,7 +673,7 @@ fun FancyFontsView(
                                     imageVector = Icons.Default.ContentCopy,
                                     contentDescription = "Copy styled font",
                                     tint = textColor.copy(alpha = 0.75f),
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
 
@@ -709,7 +682,7 @@ fun FancyFontsView(
                                 onClick = { onInsertText(styledText) },
                                 shape = RoundedCornerShape(10.dp),
                                 color = accentColor,
-                                modifier = Modifier.height(34.dp)
+                                modifier = Modifier.height(32.dp)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp),
@@ -720,11 +693,11 @@ fun FancyFontsView(
                                         imageVector = Icons.Default.Send,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(13.dp)
+                                        modifier = Modifier.size(12.dp)
                                     )
                                     Text(
                                         text = "Insert",
-                                        fontSize = 12.sp,
+                                        fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
                                     )
@@ -734,6 +707,33 @@ fun FancyFontsView(
                     }
                 }
             }
+        }
+
+        // Mini Soft Keyboard (Open by default so users can type custom text easily!)
+        if (showQuickKeyboard) {
+            Divider(
+                color = textColor.copy(alpha = 0.08f),
+                thickness = 0.8.dp,
+                modifier = Modifier.padding(vertical = 1.dp)
+            )
+
+            SearchSoftKeyboard(
+                theme = theme,
+                isNumeric = false,
+                textColor = textColor,
+                surfaceColor = surfaceColor,
+                accentColor = accentColor,
+                keyColor = Color(theme.keyHex),
+                onChar = { char -> inputText += char },
+                onBackspace = {
+                    if (inputText.isNotEmpty()) {
+                        inputText = inputText.dropLast(1)
+                    }
+                },
+                onSpace = { inputText += " " },
+                onToggleNumeric = {},
+                onDone = { showQuickKeyboard = false }
+            )
         }
     }
 }

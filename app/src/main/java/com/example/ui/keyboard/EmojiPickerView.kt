@@ -666,7 +666,7 @@ fun EmojiPickerView(
                                 ) {
                                     Box(modifier = Modifier.fillMaxSize()) {
                                         AsyncImage(
-                                            model = gif.url,
+                                            model = gif.previewUrl.ifEmpty { gif.url },
                                             contentDescription = gif.title,
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize()
@@ -734,7 +734,7 @@ fun EmojiPickerView(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         AsyncImage(
-                                            model = sticker.url,
+                                            model = sticker.previewUrl.ifEmpty { sticker.url },
                                             contentDescription = sticker.title,
                                             contentScale = ContentScale.Fit,
                                             modifier = Modifier

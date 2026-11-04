@@ -37,11 +37,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.example.data.ClipboardRepository
 import com.example.data.KeyboardPreferences
 import com.example.data.SnippetsRepository
 import com.example.ui.keyboard.KeyNovaKeyboardView
 import com.example.ui.keyboard.KeyboardActionTarget
+
+data class PlaygroundSentMedia(
+    val uri: String,
+    val mimeType: String,
+    val description: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +76,7 @@ fun PlaygroundScreen(
 
     var testText by remember { mutableStateOf("Hello, KeyNova!") }
     var cursorPosition by remember { mutableIntStateOf(testText.length) }
+    var sentMediaItems by remember { mutableStateOf(listOf<PlaygroundSentMedia>()) }
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
@@ -104,6 +117,10 @@ fun PlaygroundScreen(
                 val after = testText.substring(safePos)
                 testText = before + text + after
                 cursorPosition = safePos + text.length
+            }
+
+            override fun onCommitMedia(uri: String, mimeType: String, description: String) {
+                sentMediaItems = listOf(PlaygroundSentMedia(uri, mimeType, description)) + sentMediaItems
             }
 
             override fun onDeleteBackward() {
@@ -731,6 +748,71 @@ fun PlaygroundScreen(
                                     fontSize = 15.5.sp,
                                     lineHeight = 22.sp
                                 )
+                            }
+                        }
+
+                        // Sent Stickers & Media Preview Section (Shows real mixed stickers and GIFs sent from keyboard)
+                        if (sentMediaItems.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = Color(0xFF2563EB),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Sent Stickers & GIFs (${sentMediaItems.size})",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                }
+                                Text(
+                                    text = "Clear",
+                                    fontSize = 11.5.sp,
+                                    color = Color(0xFFEF4444),
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier
+                                        .clickable { sentMediaItems = emptyList() }
+                                        .padding(4.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(sentMediaItems) { media ->
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = Color(0xFFF8FAFC),
+                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                        modifier = Modifier
+                                            .size(76.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                    ) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.fillMaxSize()
+                                        ) {
+                                            AsyncImage(
+                                                model = media.uri,
+                                                contentDescription = media.description,
+                                                contentScale = ContentScale.Fit,
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .padding(6.dp)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 

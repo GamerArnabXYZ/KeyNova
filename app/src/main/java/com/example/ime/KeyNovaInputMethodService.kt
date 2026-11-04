@@ -28,6 +28,12 @@ import com.example.data.KeyboardPreferences
 import com.example.data.SnippetsRepository
 import com.example.ui.keyboard.KeyNovaKeyboardView
 import com.example.ui.keyboard.KeyboardActionTarget
+import com.example.util.MediaStickerDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class KeyNovaInputMethodService : InputMethodService(),
     LifecycleOwner,
@@ -35,6 +41,7 @@ class KeyNovaInputMethodService : InputMethodService(),
     ViewModelStoreOwner,
     KeyboardActionTarget {
 
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
     private val vmStore = ViewModelStore()
@@ -163,6 +170,11 @@ class KeyNovaInputMethodService : InputMethodService(),
     }
 
     override fun onCreateInputView(): View {
+        composeView?.let { existingView ->
+            (existingView.parent as? ViewGroup)?.removeView(existingView)
+            return existingView
+        }
+
         updateWindowAppearance()
         window?.window?.let { win ->
             androidx.core.view.WindowCompat.setDecorFitsSystemWindows(win, false)
@@ -178,7 +190,7 @@ class KeyNovaInputMethodService : InputMethodService(),
             )
             setBackgroundColor(android.graphics.Color.TRANSPARENT)
 
-            // CRITICAL: Keep composition alive across hide/show cycles in other apps
+            // Keep composition alive across hide/show cycles in other apps
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(this@KeyNovaInputMethodService))
 
             setViewTreeLifecycleOwner(this@KeyNovaInputMethodService)
@@ -210,25 +222,32 @@ class KeyNovaInputMethodService : InputMethodService(),
 
     override fun onWindowShown() {
         super.onWindowShown()
-        mainHandler.postDelayed({ syncPrimaryClip() }, 100)
-        mainHandler.postDelayed({ syncPrimaryClip() }, 400)
+        if (lifecycleRegistry.currentState != Lifecycle.State.RESUMED) {
+            if (lifecycleRegistry.currentState == Lifecycle.State.CREATED) {
+                lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+            }
+            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+        }
+        mainHandler.postDelayed({ syncPrimaryClip() }, 150)
+    }
+
+    override fun onWindowHidden() {
+        super.onWindowHidden()
+        if (lifecycleRegistry.currentState == Lifecycle.State.RESUMED) {
+            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+        }
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
 
-        prefs.notifyPreferencesChanged()
-        syncPrimaryClip()
-        mainHandler.postDelayed({ syncPrimaryClip() }, 200)
-        mainHandler.postDelayed({ syncPrimaryClip() }, 600)
+        if (restarting) {
+            // Typing in active input, cursor position update, or autocomplete:
+            // DO NOT rebuild, do NOT touch window flags, and do NOT spam clipboard sync!
+            return
+        }
 
         updateWindowAppearance()
-        window?.window?.let { win ->
-            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(win, false)
-            win.decorView.setViewTreeLifecycleOwner(this)
-            win.decorView.setViewTreeSavedStateRegistryOwner(this)
-            win.decorView.setViewTreeViewModelStoreOwner(this)
-        }
 
         if (lifecycleRegistry.currentState != Lifecycle.State.RESUMED) {
             if (lifecycleRegistry.currentState == Lifecycle.State.CREATED) {
@@ -240,9 +259,8 @@ class KeyNovaInputMethodService : InputMethodService(),
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
-        if (lifecycleRegistry.currentState == Lifecycle.State.RESUMED) {
-            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-        }
+        // Keep Lifecycle RESUMED while keyboard window is physically open.
+        // Pausing is handled exclusively in onWindowHidden() when the keyboard dismisses.
     }
 
     override fun onDestroy() {
@@ -256,6 +274,7 @@ class KeyNovaInputMethodService : InputMethodService(),
         } catch (_: Exception) {}
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        serviceScope.cancel()
         vmStore.clear()
     }
 
@@ -326,38 +345,16 @@ class KeyNovaInputMethodService : InputMethodService(),
     }
 
     override fun onCommitMedia(uri: String, mimeType: String, description: String) {
-        val ic = currentInputConnection ?: return
-        val info = currentInputEditorInfo
-        if (info != null) {
-            try {
-                val contentUri = android.net.Uri.parse(uri)
-                val descriptionCompat = android.content.ClipDescription(
-                    description.ifEmpty { "Media" },
-                    arrayOf(mimeType)
-                )
-                val inputContentInfo = androidx.core.view.inputmethod.InputContentInfoCompat(
-                    contentUri,
-                    descriptionCompat,
-                    contentUri
-                )
-                val supportedMimes = androidx.core.view.inputmethod.EditorInfoCompat.getContentMimeTypes(info)
-                val isSupported = supportedMimes.any { mime ->
-                    mimeType.equals(mime, ignoreCase = true) || (mime.endsWith("/*") && mimeType.startsWith(mime.dropLast(2)))
-                }
-                if (isSupported) {
-                    var flags = 0
-                    if (android.os.Build.VERSION.SDK_INT >= 25) {
-                        flags = flags or androidx.core.view.inputmethod.InputConnectionCompat.INPUT_CONTENT_GRANT_READ_URI_PERMISSION
-                    }
-                    androidx.core.view.inputmethod.InputConnectionCompat.commitContent(ic, info, inputContentInfo, flags, null)
-                    return
-                }
-            } catch (_: Exception) {}
+        serviceScope.launch {
+            MediaStickerDispatcher.dispatchMedia(
+                context = this@KeyNovaInputMethodService,
+                ic = currentInputConnection,
+                info = currentInputEditorInfo,
+                rawUri = uri,
+                mimeType = mimeType,
+                description = description
+            )
         }
-        try {
-            clipboardRepo.copyToSystemClipboard(uri, this)
-        } catch (_: Exception) {}
-        onCommitText(uri)
     }
 
     private var isSelecting = false

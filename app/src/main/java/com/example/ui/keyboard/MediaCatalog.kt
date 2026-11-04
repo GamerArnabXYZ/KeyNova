@@ -6,7 +6,8 @@ data class StickerItem(
     val category: String,
     val url: String,
     val previewEmoji: String,
-    val tags: List<String>
+    val tags: List<String>,
+    val previewUrl: String = url
 )
 
 data class StickerCategory(

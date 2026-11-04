@@ -56,6 +56,8 @@ object OnlineMediaRepository {
                 val fixedHeight = images.optJSONObject("fixed_height") ?: images.optJSONObject("original") ?: continue
                 val url = fixedHeight.optString("url", "")
                 val fixedHeightSmall = images.optJSONObject("fixed_height_small")
+                    ?: images.optJSONObject("fixed_height_downsampled")
+                    ?: images.optJSONObject("preview_gif")
                 val previewUrl = fixedHeightSmall?.optString("url", url) ?: url
 
                 if (url.isNotEmpty() && id.isNotEmpty()) {
@@ -116,6 +118,10 @@ object OnlineMediaRepository {
                 val images = obj.optJSONObject("images") ?: continue
                 val fixedHeight = images.optJSONObject("fixed_height") ?: images.optJSONObject("original") ?: continue
                 val url = fixedHeight.optString("url", "")
+                val fixedHeightSmall = images.optJSONObject("fixed_height_small")
+                    ?: images.optJSONObject("fixed_height_downsampled")
+                    ?: images.optJSONObject("preview_gif")
+                val previewUrl = fixedHeightSmall?.optString("url", url) ?: url
 
                 if (url.isNotEmpty() && id.isNotEmpty()) {
                     results.add(
@@ -125,7 +131,8 @@ object OnlineMediaRepository {
                             category = query ?: "Trending",
                             url = url,
                             previewEmoji = "✨",
-                            tags = listOf(title.lowercase(), query?.lowercase() ?: "sticker")
+                            tags = listOf(title.lowercase(), query?.lowercase() ?: "sticker"),
+                            previewUrl = previewUrl
                         )
                     )
                 }
@@ -149,8 +156,8 @@ object OnlineMediaRepository {
             val url = URL(urlStr)
             conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "GET"
-            conn.connectTimeout = 6000
-            conn.readTimeout = 6000
+            conn.connectTimeout = 3500
+            conn.readTimeout = 3500
             conn.setRequestProperty("User-Agent", "KeyNovaKeyboard/1.0 (Android)")
             conn.setRequestProperty("Accept", "application/json")
 
