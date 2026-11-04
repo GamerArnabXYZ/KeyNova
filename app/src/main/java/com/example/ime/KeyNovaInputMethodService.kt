@@ -281,7 +281,6 @@ class KeyNovaInputMethodService : InputMethodService(),
     // KeyboardActionTarget Implementation
     override fun onCommitText(text: String) {
         val ic = currentInputConnection ?: return
-        ic.finishComposingText()
         ic.commitText(text, 1)
     }
 

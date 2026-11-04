@@ -388,76 +388,85 @@ fun KeyNovaKeyboardView(
     val topBarComposable: @Composable (Boolean) -> Unit = { inFloating ->
         if (activePage == ActiveKeyboardPage.EMOJI || activePage == ActiveKeyboardPage.FANCY_FONTS) {
             // Emoji and Fancy Fonts pages handle their own top bar
-        } else if (hasSuggestions && !showToolbarTools) {
-            if (isAvroActive) {
-                AvroPhoneticSuggestionStrip(
-                    composingText = avroComposingText,
-                    candidates = avroCandidates,
-                    theme = currentTheme,
-                    onToggleTools = { showToolbarTools = true },
-                    onSelectCandidate = { chosen ->
-                        actionTarget.onCommitText(chosen + " ")
-                        avroComposingText = ""
-                        performHaptic()
-                    },
-                    onClearComposing = {
-                        avroComposingText = ""
-                        performHaptic()
-                    }
-                )
-            } else {
-                EnglishWordSuggestionStrip(
-                    composingWord = englishComposingWord,
-                    candidates = englishCandidates,
-                    theme = currentTheme,
-                    onToggleTools = { showToolbarTools = true },
-                    onSelectCandidate = { chosen ->
-                        for (i in 0 until englishComposingWord.length) {
-                            actionTarget.onDeleteBackward()
-                        }
-                        val textToInsert = if (chosen.startsWith("⚡ ")) {
-                            val snippet = matchingShortcuts.firstOrNull { "⚡ ${it.shortcut} ➔ ${it.title}" == chosen }
-                            snippet?.code ?: chosen
-                        } else {
-                            chosen + " "
-                        }
-                        actionTarget.onCommitText(textToInsert)
-                        englishComposingWord = ""
-                        performHaptic()
-                    },
-                    onClearComposing = {
-                        englishComposingWord = ""
-                        performHaptic()
-                    }
-                )
-            }
         } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp),
+                contentAlignment = Alignment.Center
             ) {
-                if (hasSuggestions && showToolbarTools) {
-                    IconButton(
-                        onClick = { showToolbarTools = false },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back to Suggestions",
-                            tint = Color(currentTheme.textHex).copy(alpha = 0.8f),
-                            modifier = Modifier.size(18.dp)
+                if (hasSuggestions && !showToolbarTools) {
+                    if (isAvroActive) {
+                        AvroPhoneticSuggestionStrip(
+                            composingText = avroComposingText,
+                            candidates = avroCandidates,
+                            theme = currentTheme,
+                            onToggleTools = { showToolbarTools = true },
+                            onSelectCandidate = { chosen ->
+                                actionTarget.onCommitText(chosen + " ")
+                                avroComposingText = ""
+                                performHaptic()
+                            },
+                            onClearComposing = {
+                                avroComposingText = ""
+                                performHaptic()
+                            }
+                        )
+                    } else {
+                        EnglishWordSuggestionStrip(
+                            composingWord = englishComposingWord,
+                            candidates = englishCandidates,
+                            theme = currentTheme,
+                            onToggleTools = { showToolbarTools = true },
+                            onSelectCandidate = { chosen ->
+                                for (i in 0 until englishComposingWord.length) {
+                                    actionTarget.onDeleteBackward()
+                                }
+                                val textToInsert = if (chosen.startsWith("⚡ ")) {
+                                    val snippet = matchingShortcuts.firstOrNull { "⚡ ${it.shortcut} ➔ ${it.title}" == chosen }
+                                    snippet?.code ?: chosen
+                                } else {
+                                    chosen + " "
+                                }
+                                actionTarget.onCommitText(textToInsert)
+                                englishComposingWord = ""
+                                performHaptic()
+                            },
+                            onClearComposing = {
+                                englishComposingWord = ""
+                                performHaptic()
+                            }
                         )
                     }
-                }
-                Box(modifier = Modifier.weight(1f)) {
-                    keyboardToolbarComposable(inFloating)
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (hasSuggestions && showToolbarTools) {
+                            IconButton(
+                                onClick = { showToolbarTools = false },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back to Suggestions",
+                                    tint = Color(currentTheme.textHex).copy(alpha = 0.8f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
+                            keyboardToolbarComposable(inFloating)
+                        }
+                    }
                 }
             }
         }
     }
 
     val effectiveContentHeight = if (activePage == ActiveKeyboardPage.EMOJI || activePage == ActiveKeyboardPage.FANCY_FONTS) {
-        standardKeyboardContentHeight + 38.dp
+        standardKeyboardContentHeight + 40.dp
     } else {
         standardKeyboardContentHeight
     }
@@ -2232,7 +2241,7 @@ private fun AvroPhoneticSuggestionStrip(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(38.dp)
+            .height(40.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(surfaceColor.copy(alpha = 0.55f))
             .border(0.6.dp, textColor.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
@@ -2348,7 +2357,7 @@ private fun EnglishWordSuggestionStrip(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(38.dp)
+            .height(40.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(surfaceColor.copy(alpha = 0.55f))
             .border(0.6.dp, textColor.copy(alpha = 0.08f), RoundedCornerShape(10.dp))

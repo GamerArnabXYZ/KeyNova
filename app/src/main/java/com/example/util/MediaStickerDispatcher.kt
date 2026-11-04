@@ -108,19 +108,30 @@ object MediaStickerDispatcher {
         return emojis
     }
 
+    fun decodeHexToEmoji(hex: String): String {
+        return try {
+            val parts = hex.split("-")
+            val codePoints = parts.mapNotNull { it.trim().toIntOrNull(16) }
+            if (codePoints.isEmpty()) return ""
+            val chars = codePoints.flatMap { Character.toChars(it).toList() }.toCharArray()
+            String(chars)
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
     /**
-     * Decodes source emojis from a Google Emoji Kitchen URL if present (e.g. u1f602_u1f525).
+     * Decodes source emojis from a Google Emoji Kitchen URL if present (e.g. u1f602_u1f525 or u2764-fe0f_u1f525).
      */
     fun extractEmojisFromKitchenUrl(url: String): Pair<String, String>? {
-        val regex = Regex("u([0-9a-fA-F]+)_u([0-9a-fA-F]+)")
+        val regex = Regex("u([0-9a-fA-F-]+)_u([0-9a-fA-F-]+)")
         val match = regex.find(url) ?: return null
-        return try {
-            val cp1 = match.groupValues[1].toInt(16)
-            val cp2 = match.groupValues[2].toInt(16)
-            Pair(String(Character.toChars(cp1)), String(Character.toChars(cp2)))
-        } catch (_: Exception) {
-            null
+        val e1 = decodeHexToEmoji(match.groupValues[1])
+        val e2 = decodeHexToEmoji(match.groupValues[2])
+        if (e1.isNotEmpty() && e2.isNotEmpty()) {
+            return Pair(e1, e2)
         }
+        return null
     }
 
     /**
@@ -163,9 +174,18 @@ object MediaStickerDispatcher {
             } catch (_: Exception) {}
         }
 
-        // Determine fallback emojis from explicit args, URL hex codes, or description
+        // Determine fallback emojis from explicit args, description pattern "$slot1+$slot2 ", or URL
         var resolvedE1 = emoji1
         var resolvedE2 = emoji2
+
+        if (resolvedE1.isBlank() || resolvedE2.isBlank()) {
+            val plusIdx = title.indexOf('+')
+            val spaceIdx = title.indexOf(' ')
+            if (plusIdx > 0 && spaceIdx > plusIdx) {
+                resolvedE1 = title.substring(0, plusIdx).trim()
+                resolvedE2 = title.substring(plusIdx + 1, spaceIdx).trim()
+            }
+        }
 
         if (resolvedE1.isBlank() || resolvedE2.isBlank()) {
             val fromUrl = extractEmojisFromKitchenUrl(rawUri)
@@ -269,20 +289,18 @@ object MediaStickerDispatcher {
                     }
                 }
 
-                // If target app doesn't support rich content (e.g. plain search field):
-                // Copy the sticker to system clipboard so user can paste it anywhere!
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                val clip = ClipData.newUri(context.contentResolver, description, contentUri)
-                clipboard.setPrimaryClip(clip)
-                Toast.makeText(context, "Sticker copied! Ready to paste.", Toast.LENGTH_SHORT).show()
-
-                // Insert emoji text representation
-                if (emoji1.isNotBlank() && emoji2.isNotBlank()) {
+                // If target app doesn't support rich content (e.g. plain search field, URL bar, SMS):
+                // Directly auto-paste the media link into the text field without any toast!
+                if (rawUri.isNotBlank()) {
+                    ic?.commitText(rawUri, 1)
+                } else if (emoji1.isNotBlank() && emoji2.isNotBlank()) {
                     ic?.commitText("$emoji1$emoji2", 1)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                if (emoji1.isNotBlank() && emoji2.isNotBlank()) {
+                if (rawUri.isNotBlank()) {
+                    ic?.commitText(rawUri, 1)
+                } else if (emoji1.isNotBlank() && emoji2.isNotBlank()) {
                     ic?.commitText("$emoji1$emoji2", 1)
                 }
             }

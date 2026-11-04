@@ -49,7 +49,7 @@ object EmojiCatalog {
         // Affection & Love
         "🥰", "😍", "🤩", "😘", "😗", "😚", "😙", "🥲", "😋", "😛", "😜", "🤪", "😝", "🤑",
         // Hands on face & thoughtful
-        "🤗", "🫣", "🤭", "🫢", "🫡", "🤫", "🤔", "🫡", "🤐", "🤨", "😐", "😑", "😶", "🫥",
+        "🤗", "🫣", "🤭", "🫢", "🫡", "🤫", "🤔", "🤐", "🤨", "😐", "😑", "😶", "🫥",
         // Neutral & Skeptical
         "😏", "😒", "🙄", "😬", "🤥", "🫨", "😌", "😔", "😪", "🤤", "😴", "😷", "🤒", "🤕",
         // Unwell & Negative
@@ -257,7 +257,7 @@ object EmojiCatalog {
 
     val validatedCategories: List<EmojiCategory> by lazy {
         categories.map { cat ->
-            cat.copy(emojis = cat.emojis.filter { EmojiValidator.isRenderable(it) })
+            cat.copy(emojis = cat.emojis.filter { EmojiValidator.isRenderable(it) }.distinct())
         }
     }
 

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,7 +62,7 @@ object EmojiKitchenCatalog {
         "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "🥲", "🥹", "😊", "😇",
         "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😋", "😛", "😜", "🤪",
         "😝", "🤑", "🤗", "🤭", "🫢", "🫣", "🤫", "🤔", "🫡", "🤐", "🤨", "😐",
-        "😑", "😶", "🫥", "😏", "😒", "🙄", "😬", "🤥", "😌", "😔", "😪", "🤤",
+        "😑", "😶", "🫥", "😏", "😒", "🙄", "😬", "🤥", "😔", "😪", "🤤",
         "😴", "😷", "🤒", "🤕", "🤢", "🤮", "🤧", "🥵", "🥶", "🥴", "😵", "🤯",
         "🤠", "🥳", "🥸", "😎", "🤓", "🧐", "😕", "😟", "🙁", "☹️", "😮", "😯",
         "😲", "😳", "🥺", "😦", "😧", "😨", "😰", "😥", "😢", "😭", "😱", "😖",
@@ -106,7 +107,7 @@ object EmojiKitchenCatalog {
     val funAndGameEmojis = listOf(
         "🎮", "🕹️", "🎲", "🧩", "♟️", "🎯", "🎳", "🎪", "🎭", "🎨", "🎬", "🎤",
         "🎧", "🎼", "🎹", "🥁", "🎷", "🎺", "🎸", "🪕", "🎻", "🏆", "🥇", "🥈",
-        "🥉", "🏅", "🎖️", "⚽", "🏀", "🏈", "⚾", "🥎", "🎾", "🏐", "🏉", "🥏",
+        "🥉", "🏅", "🎖️", "⚽", "🏀", "🏈", "⚾", "🥎", "🎾", "🏐", "🥏",
         "🎱", "🏓", "🏸", "🏒", "🏑", "🥍", "🏏", "🪃", "🥊", "🥋", "⛸️", "🛹"
     )
 
@@ -183,16 +184,20 @@ fun EmojiKitchenView(
     }
 
     val categoryTabs = listOf(
-        "😀 Smileys" to EmojiKitchenCatalog.smileyEmojis,
-        "🐶 Animals" to EmojiKitchenCatalog.animalEmojis,
-        "🍕 Food" to EmojiKitchenCatalog.foodEmojis,
-        "🚀 Travel" to EmojiKitchenCatalog.travelEmojis,
+        "😀 Smileys" to EmojiCatalog.smileys,
+        "🧑 People" to EmojiCatalog.people,
+        "🐶 Animals" to EmojiCatalog.animals,
+        "🍕 Food" to EmojiCatalog.food,
+        "🚀 Travel" to EmojiCatalog.travel,
+        "🎉 Fun" to EmojiCatalog.activities,
+        "💡 Objects" to EmojiCatalog.objects,
         "💖 Hearts" to EmojiKitchenCatalog.heartAndMagicEmojis,
-        "🎉 Fun" to EmojiKitchenCatalog.funAndGameEmojis
+        "🔣 Symbols" to EmojiCatalog.symbols,
+        "🚩 Flags" to EmojiCatalog.flags
     )
 
     val onPickRandom = {
-        val all = EmojiKitchenCatalog.smileyEmojis + EmojiKitchenCatalog.animalEmojis + EmojiKitchenCatalog.foodEmojis
+        val all = EmojiCatalog.smileys + EmojiCatalog.animals + EmojiCatalog.food
         val idx1 = Random.nextInt(all.size)
         var idx2 = Random.nextInt(all.size)
         if (idx2 == idx1) idx2 = (idx2 + 1) % all.size
@@ -647,7 +652,7 @@ fun EmojiKitchenView(
                     .fillMaxWidth(),
                 contentPadding = PaddingValues(bottom = 6.dp)
             ) {
-                items(currentCategoryEmojis, key = { it }) { emoji ->
+                itemsIndexed(currentCategoryEmojis, key = { index, emoji -> "${emoji}_${index}" }) { _, emoji ->
                     val isSlot1 = emoji == slot1
                     val isSlot2 = emoji == slot2
                     Box(

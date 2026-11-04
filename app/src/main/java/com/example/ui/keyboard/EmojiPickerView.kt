@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -610,7 +611,7 @@ fun EmojiPickerView(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(bottom = 8.dp)
                         ) {
-                            items(filteredEmojis, key = { it }) { emoji ->
+                            itemsIndexed(filteredEmojis, key = { index, emoji -> "${emoji}_${index}" }) { _, emoji ->
                                 Box(
                                     modifier = Modifier
                                         .aspectRatio(1f)
@@ -786,7 +787,7 @@ fun EmojiPickerView(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
-                            items(filteredEmoticons, key = { it }) { emoticon ->
+                            itemsIndexed(filteredEmoticons, key = { index, emo -> "${emo}_${index}" }) { _, emoticon ->
                                 Box(
                                     modifier = Modifier
                                         .height(44.dp)
