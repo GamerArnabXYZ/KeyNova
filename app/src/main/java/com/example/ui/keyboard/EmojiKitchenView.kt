@@ -242,180 +242,144 @@ fun EmojiKitchenView(
         modifier = modifier
             .fillMaxSize()
             .background(backgroundColor)
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .padding(horizontal = 4.dp, vertical = 1.dp)
     ) {
-        // TOP DUAL-SLOT MIXER HERO CARD
+        // TOP DUAL-SLOT MIXER HERO CARD (Compact 46dp)
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 2.dp),
-            shape = RoundedCornerShape(14.dp),
+                .padding(vertical = 1.dp),
+            shape = RoundedCornerShape(10.dp),
             color = surfaceColor,
-            border = BorderStroke(1.2.dp, accentColor.copy(alpha = 0.5f)),
+            border = BorderStroke(1.dp, accentColor.copy(alpha = 0.45f)),
             shadowElevation = 1.dp
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = 6.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // Left: Slot 1 + Swap + Slot 2 interactive slots
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     // Slot 1
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (activeSlot == 1) accentColor.copy(alpha = 0.25f) else textColor.copy(alpha = 0.06f))
-                                .border(
-                                    if (activeSlot == 1) 2.dp else 1.dp,
-                                    if (activeSlot == 1) accentColor else textColor.copy(alpha = 0.18f),
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .clickable { activeSlot = 1 },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = slot1, fontSize = 23.sp)
-                        }
-                        Text(
-                            text = if (activeSlot == 1) "● Slot 1" else "Slot 1",
-                            fontSize = 9.sp,
-                            fontWeight = if (activeSlot == 1) FontWeight.Bold else FontWeight.Normal,
-                            color = if (activeSlot == 1) accentColor else textColor.copy(alpha = 0.5f)
-                        )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (activeSlot == 1) accentColor.copy(alpha = 0.25f) else textColor.copy(alpha = 0.05f))
+                            .border(
+                                width = if (activeSlot == 1) 1.8.dp else 0.8.dp,
+                                color = if (activeSlot == 1) accentColor else textColor.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .clickable { activeSlot = 1 },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = slot1, fontSize = 20.sp)
                     }
 
-                    // Swap / Plus button
+                    // Swap Button
                     IconButton(
                         onClick = onSwapSlots,
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.SwapHoriz,
                             contentDescription = "Swap slots",
                             tint = accentColor,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     }
 
                     // Slot 2
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (activeSlot == 2) accentColor.copy(alpha = 0.25f) else textColor.copy(alpha = 0.06f))
-                                .border(
-                                    if (activeSlot == 2) 2.dp else 1.dp,
-                                    if (activeSlot == 2) accentColor else textColor.copy(alpha = 0.18f),
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .clickable { activeSlot = 2 },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = slot2, fontSize = 23.sp)
-                        }
-                        Text(
-                            text = if (activeSlot == 2) "● Slot 2" else "Slot 2",
-                            fontSize = 9.sp,
-                            fontWeight = if (activeSlot == 2) FontWeight.Bold else FontWeight.Normal,
-                            color = if (activeSlot == 2) accentColor else textColor.copy(alpha = 0.5f)
-                        )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (activeSlot == 2) accentColor.copy(alpha = 0.25f) else textColor.copy(alpha = 0.05f))
+                            .border(
+                                width = if (activeSlot == 2) 1.8.dp else 0.8.dp,
+                                color = if (activeSlot == 2) accentColor else textColor.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .clickable { activeSlot = 2 },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = slot2, fontSize = 20.sp)
                     }
 
                     Text(
-                        text = "=",
-                        fontSize = 18.sp,
+                        text = "+",
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = accentColor.copy(alpha = 0.8f)
                     )
                 }
 
-                // Center: Big Mashup Sticker / Graphic Preview Box
+                // Center: Graphic Sticker Preview Box
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = textColor.copy(alpha = 0.04f),
-                    border = BorderStroke(1.2.dp, accentColor.copy(alpha = 0.6f)),
+                    border = BorderStroke(1.2.dp, accentColor),
                     modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .clickable {
                             onMediaSelected(currentKitchenUrl, "image/png", "$slot1+$slot2 $currentTitle")
                         }
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        // SubcomposeAsyncImage with reliable dynamic emoji composite fallback
                         SubcomposeAsyncImage(
                             model = currentKitchenUrl,
                             contentDescription = currentTitle,
                             contentScale = ContentScale.Fit,
                             loading = {
-                                // Dynamic Composite Emoji Badge while loading or fallback
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(text = slot1, fontSize = 20.sp)
-                                        Text(text = slot2, fontSize = 20.sp)
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(text = slot1, fontSize = 14.sp)
+                                        Text(text = slot2, fontSize = 14.sp)
                                     }
                                 }
                             },
                             error = {
-                                // GORGEOUS DYNAMIC COMPOSITE STICKER (Guaranteed to NEVER fail for ANY custom emoji!)
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .background(
                                             Brush.radialGradient(
-                                                colors = listOf(
-                                                    accentColor.copy(alpha = 0.25f),
-                                                    Color.Transparent
-                                                )
+                                                colors = listOf(accentColor.copy(alpha = 0.25f), Color.Transparent)
                                             )
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
-                                        Text(
-                                            text = slot1,
-                                            fontSize = 26.sp,
-                                            modifier = Modifier.offset(x = (-6).dp, y = (-2).dp)
-                                        )
-                                        Text(
-                                            text = slot2,
-                                            fontSize = 24.sp,
-                                            modifier = Modifier.offset(x = 6.dp, y = 4.dp)
-                                        )
+                                        Text(text = slot1, fontSize = 18.sp, modifier = Modifier.offset(x = (-4).dp, y = (-2).dp))
+                                        Text(text = slot2, fontSize = 16.sp, modifier = Modifier.offset(x = 4.dp, y = 3.dp))
                                     }
                                 }
                             },
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(3.dp)
+                                .padding(2.dp)
                         )
                     }
                 }
 
-                // Right: Action Buttons (Send Sticker / Text Emojis / Random)
+                // Right: Action Buttons (Random Dice + Send Sticker)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     // Random Dice
                     IconButton(
                         onClick = onPickRandom,
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(30.dp)
                             .clip(CircleShape)
                             .background(textColor.copy(alpha = 0.07f))
                     ) {
@@ -423,18 +387,18 @@ fun EmojiKitchenView(
                             imageVector = Icons.Default.Casino,
                             contentDescription = "Random Mix",
                             tint = accentColor,
-                            modifier = Modifier.size(17.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                     }
 
-                    // Send Sticker Button (Dispatches actual sticker image!)
+                    // Send Sticker Button
                     Surface(
                         onClick = {
                             onMediaSelected(currentKitchenUrl, "image/png", "$slot1+$slot2 $currentTitle")
                         },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         color = accentColor,
-                        modifier = Modifier.height(34.dp)
+                        modifier = Modifier.height(30.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 8.dp),
@@ -445,7 +409,7 @@ fun EmojiKitchenView(
                                 imageVector = Icons.Default.Send,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(11.dp)
                             )
                             Text(
                                 text = "Send",
@@ -455,100 +419,108 @@ fun EmojiKitchenView(
                             )
                         }
                     }
+                }
+            }
+        }
 
-                    // Optional Plain Text Emojis Button
+        // 2. UNIFIED HORIZONTAL CATEGORY & MODE STRIP (~26dp height)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(28.dp)
+                .padding(vertical = 1.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Scrollable tabs: Top Combos + All Categories
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Tab 0: Top Combos
+                Surface(
+                    onClick = { showPopularList = true },
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (showPopularList) accentColor else surfaceColor,
+                    border = BorderStroke(0.6.dp, if (showPopularList) accentColor else textColor.copy(alpha = 0.15f)),
+                    modifier = Modifier.height(24.dp)
+                ) {
+                    Box(modifier = Modifier.padding(horizontal = 7.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "🔥 Top Combos",
+                            fontSize = 10.5.sp,
+                            fontWeight = if (showPopularList) FontWeight.Bold else FontWeight.Medium,
+                            color = if (showPopularList) Color.White else textColor
+                        )
+                    }
+                }
+
+                // Category tabs for custom emoji mixing
+                categoryTabs.forEachIndexed { idx, pair ->
+                    val isSelected = !showPopularList && idx == selectedCategoryIndex
                     Surface(
                         onClick = {
-                            onEmojiSelected("$slot1$slot2")
+                            showPopularList = false
+                            selectedCategoryIndex = idx
                         },
-                        shape = RoundedCornerShape(8.dp),
-                        color = textColor.copy(alpha = 0.08f),
-                        border = BorderStroke(0.8.dp, textColor.copy(alpha = 0.15f)),
-                        modifier = Modifier.height(34.dp)
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (isSelected) accentColor else surfaceColor,
+                        border = BorderStroke(0.6.dp, if (isSelected) accentColor else textColor.copy(alpha = 0.15f)),
+                        modifier = Modifier.height(24.dp)
                     ) {
-                        Box(
-                            modifier = Modifier.padding(horizontal = 6.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.padding(horizontal = 7.dp), contentAlignment = Alignment.Center) {
                             Text(
-                                text = "Text",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = textColor.copy(alpha = 0.8f)
+                                text = pair.first,
+                                fontSize = 10.5.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Color.White else textColor
                             )
                         }
                     }
                 }
             }
-        }
 
-        // CUSTOM EMOJI QUICK BAR: Paste / Mode selector
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 2.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Mode Chips: "Custom Mixer" vs "🔥 Top 28 Combos"
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip(
-                    selected = !showPopularList,
-                    onClick = { showPopularList = false },
-                    label = {
-                        Text(
-                            text = "🎨 Pick Custom Emoji (${if (activeSlot == 1) "Slot 1" else "Slot 2"})",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = accentColor,
-                        selectedLabelColor = Color.White,
-                        containerColor = surfaceColor,
-                        labelColor = textColor
-                    )
-                )
+            Spacer(modifier = Modifier.width(3.dp))
 
-                FilterChip(
-                    selected = showPopularList,
-                    onClick = { showPopularList = true },
-                    label = {
-                        Text(
-                            text = "🔥 Top Combos",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = accentColor,
-                        selectedLabelColor = Color.White,
-                        containerColor = surfaceColor,
-                        labelColor = textColor
-                    )
-                )
-            }
-
-            // Quick Paste Button to paste clipboard emoji into active slot
-            TextButton(
+            // Quick Paste Clipboard button
+            Surface(
                 onClick = { pasteEmojiToSlot(activeSlot) },
-                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                shape = RoundedCornerShape(6.dp),
+                color = textColor.copy(alpha = 0.08f),
+                border = BorderStroke(0.6.dp, textColor.copy(alpha = 0.15f)),
+                modifier = Modifier.height(24.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.ContentPaste,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(13.dp)
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = "Paste Emoji",
-                    fontSize = 11.sp,
-                    color = accentColor,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentPaste,
+                        contentDescription = "Paste",
+                        tint = accentColor,
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Text(
+                        text = "Paste",
+                        fontSize = 10.sp,
+                        color = accentColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
+
+        // 3. SUBTLE INSTRUCTIONAL HINT
+        Text(
+            text = if (showPopularList) "✨ Tap any popular combo to send" else "✨ Tap any emoji below for Slot $activeSlot",
+            fontSize = 9.5.sp,
+            color = accentColor,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+        )
 
         // FULL CATEGORY EMOJI PALETTE OR POPULAR LIST
         if (showPopularList) {
@@ -568,8 +540,8 @@ fun EmojiKitchenView(
                         border = BorderStroke(0.7.dp, textColor.copy(alpha = 0.12f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(86.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .height(72.dp)
+                            .clip(RoundedCornerShape(8.dp))
                             .clickable {
                                 slot1 = combo.emoji1
                                 slot2 = combo.emoji2
@@ -579,7 +551,7 @@ fun EmojiKitchenView(
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(4.dp),
+                                .padding(3.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
@@ -588,16 +560,16 @@ fun EmojiKitchenView(
                                 contentDescription = combo.title,
                                 contentScale = ContentScale.Fit,
                                 error = {
-                                    Text("${combo.emoji1}${combo.emoji2}", fontSize = 24.sp)
+                                    Text("${combo.emoji1}${combo.emoji2}", fontSize = 20.sp)
                                 },
                                 modifier = Modifier
-                                    .size(46.dp)
-                                    .padding(2.dp)
+                                    .size(38.dp)
+                                    .padding(1.dp)
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(1.dp))
                             Text(
                                 text = "${combo.emoji1}+${combo.emoji2} ${combo.title}",
-                                fontSize = 9.5.sp,
+                                fontSize = 8.5.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = textColor.copy(alpha = 0.85f),
                                 maxLines = 1,
@@ -609,41 +581,7 @@ fun EmojiKitchenView(
                 }
             }
         } else {
-            // Category Tabs Row for Custom Emojis
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(30.dp)
-                    .horizontalScroll(rememberScrollState())
-                    .padding(bottom = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                categoryTabs.forEachIndexed { idx, pair ->
-                    val isSelected = idx == selectedCategoryIndex
-                    Surface(
-                        onClick = { selectedCategoryIndex = idx },
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) accentColor.copy(alpha = 0.2f) else Color.Transparent,
-                        border = if (isSelected) BorderStroke(1.dp, accentColor) else null,
-                        modifier = Modifier.height(26.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = pair.first,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) accentColor else textColor.copy(alpha = 0.7f)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Current Category Emojis Grid (Supports ANY custom selection!)
+            // Current Category Emojis Grid (Full height available!)
             val currentCategoryEmojis = categoryTabs[selectedCategoryIndex].second
             LazyVerticalGrid(
                 columns = GridCells.Fixed(8),

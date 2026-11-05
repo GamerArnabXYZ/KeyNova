@@ -22,11 +22,18 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.DragIndicator
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.outlined.Opacity
 import androidx.compose.material.icons.outlined.PictureInPicture
 import androidx.compose.material.icons.outlined.RestartAlt
@@ -220,6 +227,7 @@ fun KeyNovaKeyboardView(
     }
 
     var englishComposingWord by remember { mutableStateOf("") }
+    var recentKitchenEmojis by remember { mutableStateOf<List<String>>(emptyList()) }
     val matchingShortcuts: List<CodeSnippet> = remember(englishComposingWord) {
         if (englishComposingWord.length >= 2 || englishComposingWord.startsWith("!")) {
             snippetsRepository.getShortcutMatches(englishComposingWord)
@@ -384,6 +392,7 @@ fun KeyNovaKeyboardView(
     val isAvroActive = activePage == ActiveKeyboardPage.LETTERS && currentLayout.id == "bn_avro"
     val isEnglishActive = activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "en" && englishCandidates.isNotEmpty()
     val hasSuggestions = isAvroActive || isEnglishActive
+    val hasKitchenSuggestions = !hasSuggestions && recentKitchenEmojis.isNotEmpty()
 
     val topBarComposable: @Composable (Boolean) -> Unit = { inFloating ->
         if (activePage == ActiveKeyboardPage.EMOJI || activePage == ActiveKeyboardPage.FANCY_FONTS) {
@@ -395,7 +404,7 @@ fun KeyNovaKeyboardView(
                     .height(40.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (hasSuggestions && !showToolbarTools) {
+                if ((hasSuggestions || hasKitchenSuggestions) && !showToolbarTools) {
                     if (isAvroActive) {
                         AvroPhoneticSuggestionStrip(
                             composingText = avroComposingText,
@@ -412,7 +421,7 @@ fun KeyNovaKeyboardView(
                                 performHaptic()
                             }
                         )
-                    } else {
+                    } else if (isEnglishActive) {
                         EnglishWordSuggestionStrip(
                             composingWord = englishComposingWord,
                             candidates = englishCandidates,
@@ -437,13 +446,29 @@ fun KeyNovaKeyboardView(
                                 performHaptic()
                             }
                         )
+                    } else {
+                        // Gboard-style Emoji Kitchen suggestions in top suggestion strip
+                        EmojiKitchenSuggestionStrip(
+                            emojis = recentKitchenEmojis,
+                            theme = currentTheme,
+                            onSelectSticker = { url, mimeType, description ->
+                                repeat(recentKitchenEmojis.size) {
+                                    actionTarget.onDeleteBackward()
+                                }
+                                actionTarget.onCommitMedia(url, mimeType, description)
+                                recentKitchenEmojis = emptyList()
+                                performHaptic()
+                            },
+                            onToggleTools = { showToolbarTools = true },
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 } else {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (hasSuggestions && showToolbarTools) {
+                        if ((hasSuggestions || hasKitchenSuggestions) && showToolbarTools) {
                             IconButton(
                                 onClick = { showToolbarTools = false },
                                 modifier = Modifier.size(36.dp)
@@ -501,14 +526,19 @@ fun KeyNovaKeyboardView(
                                 theme = currentTheme,
                                 onEmojiSelected = { emoji ->
                                     actionTarget.onCommitText(emoji)
+                                    recentKitchenEmojis = (listOf(emoji) + recentKitchenEmojis.filter { it != emoji }).take(2)
                                     performHaptic()
                                 },
                                 onMediaSelected = { mediaUrl, mimeType, description ->
                                     actionTarget.onCommitMedia(mediaUrl, mimeType, description)
+                                    recentKitchenEmojis = emptyList()
                                     performHaptic()
                                 },
                                 onBackspace = {
                                     actionTarget.onDeleteBackward()
+                                    if (recentKitchenEmojis.isNotEmpty()) {
+                                        recentKitchenEmojis = recentKitchenEmojis.drop(1)
+                                    }
                                     performHaptic()
                                 },
                                 onClose = { activePage = ActiveKeyboardPage.LETTERS },
@@ -668,6 +698,8 @@ fun KeyNovaKeyboardView(
                                                     } else {
                                                         if (englishComposingWord.isNotEmpty()) {
                                                             englishComposingWord = englishComposingWord.dropLast(1)
+                                                        } else if (recentKitchenEmojis.isNotEmpty()) {
+                                                            recentKitchenEmojis = recentKitchenEmojis.drop(1)
                                                         }
                                                         actionTarget.onDeleteBackward()
                                                     }
@@ -678,8 +710,54 @@ fun KeyNovaKeyboardView(
                                                         performHaptic()
                                                     } else {
                                                         englishComposingWord = ""
+                                                        recentKitchenEmojis = emptyList()
                                                         actionTarget.onDeleteWordBackward()
                                                     }
+                                                },
+                                                onPerformHaptic = {
+                                                    performHaptic()
+                                                },
+                                                modifier = Modifier.weight(keyDef.weight)
+                                            )
+                                        } else if (keyDef.action == KeyAction.SHIFT) {
+                                            ShiftKeyItem(
+                                                keyDef = keyDef,
+                                                theme = currentTheme,
+                                                height = currentKeyHeight,
+                                                shiftState = shiftState,
+                                                customConfig = customThemeConfig,
+                                                onClick = {
+                                                    if (currentLayout.languageCode == "en") {
+                                                        shiftState = when (shiftState) {
+                                                            ShiftState.OFF -> ShiftState.SHIFTED
+                                                            ShiftState.SHIFTED -> ShiftState.CAPS_LOCKED
+                                                            ShiftState.CAPS_LOCKED -> ShiftState.OFF
+                                                        }
+                                                        isShifted = shiftState != ShiftState.OFF
+                                                    } else {
+                                                        isShifted = !isShifted
+                                                        shiftState = if (isShifted) ShiftState.SHIFTED else ShiftState.OFF
+                                                    }
+                                                },
+                                                onPerformHaptic = {
+                                                    performHaptic()
+                                                },
+                                                modifier = Modifier.weight(keyDef.weight)
+                                            )
+                                        } else if (keyDef.action == KeyAction.ENTER) {
+                                            EnterKeyItem(
+                                                keyDef = keyDef,
+                                                theme = currentTheme,
+                                                height = currentKeyHeight,
+                                                customConfig = customThemeConfig,
+                                                onClick = {
+                                                    englishComposingWord = ""
+                                                    if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
+                                                        val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                        actionTarget.onCommitText(primary)
+                                                        avroComposingText = ""
+                                                    }
+                                                    actionTarget.onEnterAction()
                                                 },
                                                 onPerformHaptic = {
                                                     performHaptic()
@@ -719,6 +797,10 @@ fun KeyNovaKeyboardView(
                                                         avroComposingText = ""
                                                     }
                                                     englishComposingWord = ""
+                                                    val altEmojis = com.example.util.MediaStickerDispatcher.extractEmojis(text)
+                                                    if (altEmojis.isNotEmpty()) {
+                                                        recentKitchenEmojis = (altEmojis + recentKitchenEmojis.filter { !altEmojis.contains(it) }).take(2)
+                                                    }
                                                     actionTarget.onCommitText(text)
                                                     if (shiftState == ShiftState.SHIFTED) {
                                                         shiftState = ShiftState.OFF
@@ -735,6 +817,7 @@ fun KeyNovaKeyboardView(
                                                         KeyAction.CHARACTER -> {
                                                             if (currentLayout.id == "bn_avro" && keyDef.primaryText.length == 1 && keyDef.primaryText[0].isLetter()) {
                                                                 avroComposingText += keyDef.primaryText
+                                                                recentKitchenEmojis = emptyList()
                                                             } else {
                                                                 if (avroComposingText.isNotEmpty()) {
                                                                     val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
@@ -743,8 +826,13 @@ fun KeyNovaKeyboardView(
                                                                 }
                                                                 if (currentLayout.languageCode == "en" && keyDef.primaryText.length == 1 && (keyDef.primaryText[0].isLetter() || keyDef.primaryText == "!")) {
                                                                     englishComposingWord += keyDef.primaryText
+                                                                    recentKitchenEmojis = emptyList()
                                                                 } else {
                                                                     englishComposingWord = ""
+                                                                    val charEmojis = com.example.util.MediaStickerDispatcher.extractEmojis(keyDef.primaryText)
+                                                                    if (charEmojis.isNotEmpty()) {
+                                                                        recentKitchenEmojis = (charEmojis + recentKitchenEmojis.filter { !charEmojis.contains(it) }).take(2)
+                                                                    }
                                                                 }
                                                                 actionTarget.onCommitText(keyDef.primaryText)
                                                             }
@@ -772,6 +860,8 @@ fun KeyNovaKeyboardView(
                                                             } else {
                                                                 if (englishComposingWord.isNotEmpty()) {
                                                                     englishComposingWord = englishComposingWord.dropLast(1)
+                                                                } else if (recentKitchenEmojis.isNotEmpty()) {
+                                                                    recentKitchenEmojis = recentKitchenEmojis.drop(1)
                                                                 }
                                                                 actionTarget.onDeleteBackward()
                                                             }
@@ -836,6 +926,10 @@ fun KeyNovaKeyboardView(
                                                         }
                                                         KeyAction.INSERT_TEXT -> {
                                                             val payload = keyDef.insertPayload ?: keyDef.primaryText
+                                                            val payloadEmojis = com.example.util.MediaStickerDispatcher.extractEmojis(payload)
+                                                            if (payloadEmojis.isNotEmpty()) {
+                                                                recentKitchenEmojis = (payloadEmojis + recentKitchenEmojis.filter { !payloadEmojis.contains(it) }).take(2)
+                                                            }
                                                             actionTarget.onCommitText(payload)
                                                         }
                                                         KeyAction.SETTINGS -> {
@@ -2071,6 +2165,186 @@ private fun OneHandedSidebar(
 }
 
 @Composable
+private fun ShiftKeyItem(
+    keyDef: KeyDef,
+    theme: KeyboardThemeOption,
+    height: androidx.compose.ui.unit.Dp,
+    shiftState: ShiftState,
+    customConfig: CustomThemeConfig? = null,
+    onClick: () -> Unit,
+    onPerformHaptic: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isPressed by remember { mutableStateOf(false) }
+
+    val textColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyTextColor) else Color(theme.textHex)
+    }
+    val accentColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyBackgroundColor) else Color(theme.accentHex)
+    }
+    val surfaceColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyBackgroundColor).copy(alpha = customConfig.funcKeyBrightness) else Color(theme.surfaceHex)
+    }
+
+    val isCaps = shiftState == ShiftState.CAPS_LOCKED
+    val isShifted = shiftState == ShiftState.SHIFTED
+
+    val containerColor = when {
+        isPressed -> accentColor.copy(alpha = 0.4f)
+        isCaps -> accentColor
+        isShifted -> accentColor.copy(alpha = 0.24f)
+        else -> surfaceColor
+    }
+
+    val iconTint = when {
+        isCaps -> Color.White
+        isShifted -> accentColor
+        else -> textColor.copy(alpha = 0.85f)
+    }
+
+    Box(
+        modifier = modifier
+            .height(height)
+            .shadow(if (isPressed) 0.dp else 1.5.dp, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(8.dp))
+            .background(containerColor)
+            .then(
+                when {
+                    isCaps -> Modifier.border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                    isShifted -> Modifier.border(1.2.dp, accentColor, RoundedCornerShape(8.dp))
+                    theme == KeyboardThemeOption.LIGHT -> Modifier.border(0.6.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                    else -> Modifier.border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                }
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    onPerformHaptic()
+                    onClick()
+                }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = if (isCaps || isShifted) Icons.Filled.ArrowUpward else Icons.Outlined.ArrowUpward,
+                contentDescription = when {
+                    isCaps -> "Caps Locked"
+                    isShifted -> "Shift Active"
+                    else -> "Shift Off"
+                },
+                tint = iconTint,
+                modifier = Modifier.size(20.dp)
+            )
+            if (isCaps) {
+                Spacer(modifier = Modifier.height(1.5.dp))
+                Box(
+                    modifier = Modifier
+                        .width(13.dp)
+                        .height(2.5.dp)
+                        .clip(RoundedCornerShape(1.dp))
+                        .background(Color.White)
+                )
+            } else if (isShifted) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Box(
+                    modifier = Modifier
+                        .size(3.5.dp)
+                        .clip(CircleShape)
+                        .background(accentColor)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EnterKeyItem(
+    keyDef: KeyDef,
+    theme: KeyboardThemeOption,
+    height: androidx.compose.ui.unit.Dp,
+    customConfig: CustomThemeConfig? = null,
+    onClick: () -> Unit,
+    onPerformHaptic: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isPressed by remember { mutableStateOf(false) }
+
+    val accentColor = remember(theme, customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyBackgroundColor) else Color(theme.accentHex)
+    }
+    val funcTextColor = remember(customConfig) {
+        if (customConfig != null) Color(customConfig.funcKeyTextColor) else Color.White
+    }
+
+    val gradient = Brush.verticalGradient(
+        colors = if (isPressed) {
+            listOf(accentColor.copy(alpha = 0.8f), accentColor.copy(alpha = 0.65f))
+        } else {
+            listOf(accentColor, accentColor.copy(alpha = 0.86f))
+        }
+    )
+
+    Box(
+        modifier = modifier
+            .height(height)
+            .shadow(if (isPressed) 0.dp else 2.dp, RoundedCornerShape(8.dp), spotColor = accentColor.copy(alpha = 0.5f))
+            .clip(RoundedCornerShape(8.dp))
+            .background(gradient)
+            .border(0.6.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    onPerformHaptic()
+                    onClick()
+                }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        val label = keyDef.primaryText.trim()
+        val isSearch = label.equals("Search", ignoreCase = true) || label == "🔍"
+        val isSend = label.equals("Send", ignoreCase = true)
+
+        if (isSearch) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search",
+                tint = funcTextColor,
+                modifier = Modifier.size(20.dp)
+            )
+        } else if (isSend) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Send",
+                tint = funcTextColor,
+                modifier = Modifier.size(19.dp)
+            )
+        } else if (label.length > 2 && label != "↵") {
+            Text(
+                text = label,
+                color = funcTextColor,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardReturn,
+                contentDescription = "Return",
+                tint = funcTextColor,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun BackspaceKeyItem(
     keyDef: KeyDef,
     theme: KeyboardThemeOption,
@@ -2109,108 +2383,33 @@ private fun BackspaceKeyItem(
                 if (theme == KeyboardThemeOption.LIGHT) Modifier.border(0.5.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
                 else Modifier
             )
-            .pointerInput(keyboardPreferences.deleteHoldMode, keyboardPreferences.deleteInitialDelayMs, keyboardPreferences.deleteRepeatIntervalMs, keyboardPreferences.backspaceSwipeDelete) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    isPressed = true
-                    onPerformHaptic()
-                    onDelete() // Delete 1 character immediately on initial tap
-
-                    val initialDelay = keyboardPreferences.deleteInitialDelayMs.toLong()
-                    val repeatInterval = keyboardPreferences.deleteRepeatIntervalMs.toLong()
-                    val mode = keyboardPreferences.deleteHoldMode
-                    val hapticOnRepeat = keyboardPreferences.deleteHapticOnRepeat
-                    val allowSwipeDelete = keyboardPreferences.backspaceSwipeDelete
-                    val swipeThreshold = with(density) { 26.dp.toPx() }
-                    var lastSwipeX = down.position.x
-                    var didSwipeDelete = false
-
-                    // Wait for initial delay or detect swipe left
-                    val upBeforeTimeout = withTimeoutOrNull(initialDelay) {
-                        var event = awaitPointerEvent()
-                        while (event.changes.any { it.id == down.id && it.pressed }) {
-                            val change = event.changes.first { it.id == down.id }
-                            if (allowSwipeDelete) {
-                                val deltaX = change.position.x - lastSwipeX
-                                if (deltaX <= -swipeThreshold) {
-                                    didSwipeDelete = true
-                                    isHoldingWordDelete = true
-                                    onDeleteWord()
-                                    onPerformHaptic()
-                                    lastSwipeX = change.position.x
-                                }
-                            }
-                            event = awaitPointerEvent()
-                        }
-                        event.changes.firstOrNull { it.id == down.id && !it.pressed }
-                    }
-
-                    if (upBeforeTimeout != null) {
-                        // Quick tap release
-                        isPressed = false
-                        isHoldingWordDelete = false
-                    } else if (!didSwipeDelete) {
-                        // Hold timed out without swipe -> Continuous auto-removal begins!
-                        if (mode == DeleteHoldMode.WORD_BY_WORD) {
-                            isHoldingWordDelete = true
-                        }
-
-                        while (true) {
-                            if (mode == DeleteHoldMode.WORD_BY_WORD) {
-                                onDeleteWord()
-                            } else {
-                                onDelete()
-                            }
-                            if (hapticOnRepeat) {
-                                onPerformHaptic()
-                            }
-
-                            val upDuringInterval = withTimeoutOrNull(repeatInterval) {
-                                var event = awaitPointerEvent()
-                                while (event.changes.any { it.id == down.id && it.pressed }) {
-                                    event = awaitPointerEvent()
-                                }
-                                true
-                            }
-
-                            if (upDuringInterval == true) {
-                                isPressed = false
-                                isHoldingWordDelete = false
-                                break
-                            }
-                        }
+            .universalBackspacePressAndHold(
+                onDelete = {
+                    if (keyboardPreferences.deleteHoldMode == DeleteHoldMode.WORD_BY_WORD && isHoldingWordDelete) {
+                        onDeleteWord()
                     } else {
-                        // Swipe delete was triggered, continue tracking swipe left until finger lifts
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            if (!change.pressed) {
-                                isPressed = false
-                                isHoldingWordDelete = false
-                                break
-                            }
-                            val deltaX = change.position.x - lastSwipeX
-                            if (deltaX <= -swipeThreshold) {
-                                onDeleteWord()
-                                onPerformHaptic()
-                                lastSwipeX = change.position.x
-                            }
-                        }
+                        onDelete()
                     }
-                }
-            },
+                },
+                onDeleteWord = onDeleteWord,
+                initialDelayMs = keyboardPreferences.deleteInitialDelayMs.toLong(),
+                repeatIntervalMs = keyboardPreferences.deleteRepeatIntervalMs.toLong(),
+                allowSwipeDelete = keyboardPreferences.backspaceSwipeDelete,
+                onPerformHaptic = onPerformHaptic,
+                onPressedChange = { isPressed = it },
+                onWordModeChange = { isHoldingWordDelete = it }
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = keyDef.primaryText,
-                color = textColor.copy(alpha = 0.95f),
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Backspace,
+                contentDescription = "Backspace",
+                tint = textColor.copy(alpha = 0.95f),
+                modifier = Modifier.size(20.dp)
             )
             if (isHoldingWordDelete) {
                 Text(

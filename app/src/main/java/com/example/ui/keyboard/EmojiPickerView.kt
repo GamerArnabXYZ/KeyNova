@@ -5,6 +5,7 @@ import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -53,7 +54,6 @@ enum class EmojiSubMode {
     EMOJI,
     GIF,
     STICKER,
-    KITCHEN,
     EMOTICON
 }
 
@@ -67,11 +67,13 @@ fun EmojiPickerView(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     var subMode by remember { mutableStateOf(EmojiSubMode.EMOJI) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var showSearchKeyboard by remember { mutableStateOf(true) }
     var isNumericSearchKeyboard by remember { mutableStateOf(false) }
+    var recentKitchenEmojis by remember { mutableStateOf<List<String>>(emptyList()) }
 
     // NOTE: NEVER call BackHandler here directly! In an InputMethodService window,
     // LocalOnBackPressedDispatcherOwner is NULL which causes an instant crash in other apps.
@@ -106,6 +108,7 @@ fun EmojiPickerView(
         val updated = (listOf(emoji) + recentEmojis.filter { it != emoji }).take(30)
         recentEmojis = updated
         prefs.edit().putString("recents", updated.joinToString(",")).apply()
+        recentKitchenEmojis = (listOf(emoji) + recentKitchenEmojis.filter { it != emoji }).take(2)
     }
 
     val onSelectRecentEmoticon: (String) -> Unit = { emo ->
@@ -304,7 +307,6 @@ fun EmojiPickerView(
                                     EmojiSubMode.EMOJI -> "Search emojis (e.g. fire, smile)..."
                                     EmojiSubMode.GIF -> "Search live GIFs online..."
                                     EmojiSubMode.STICKER -> "Search live stickers online..."
-                                    EmojiSubMode.KITCHEN -> "Mix emojis in kitchen..."
                                     EmojiSubMode.EMOTICON -> "Search emoticons..."
                                 },
                                 color = textColor.copy(alpha = 0.45f),
@@ -560,10 +562,6 @@ fun EmojiPickerView(
                             }
                         }
                     }
-
-                    EmojiSubMode.KITCHEN -> {
-                        // Kitchen handles its own mixing controls internally
-                    }
                 }
             }
         }
@@ -583,10 +581,25 @@ fun EmojiPickerView(
             )
         }
 
+        // Gboard-style Emoji Kitchen live mixed emoji suggestions strip
+        if (subMode == EmojiSubMode.EMOJI) {
+            EmojiKitchenSuggestionStrip(
+                emojis = recentKitchenEmojis,
+                theme = theme,
+                onSelectSticker = { url, mimeType, description ->
+                    repeat(recentKitchenEmojis.size) { onBackspace() }
+                    onMediaSelected(url, mimeType, description)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 1.dp)
+            )
+        }
+
         Divider(
             color = textColor.copy(alpha = 0.08f),
             thickness = 0.8.dp,
-            modifier = Modifier.padding(vertical = 2.dp)
+            modifier = Modifier.padding(vertical = 1.dp)
         )
 
         // MAIN CONTENT AREA (Grid of items or Empty State)
@@ -810,15 +823,6 @@ fun EmojiPickerView(
                         }
                     }
                 }
-
-                EmojiSubMode.KITCHEN -> {
-                    EmojiKitchenView(
-                        theme = theme,
-                        onEmojiSelected = onEmojiSelected,
-                        onMediaSelected = onMediaSelected,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
             }
         }
 
@@ -974,37 +978,6 @@ fun EmojiPickerView(
                     }
                 }
 
-                // Emoji Kitchen / Mix Tab
-                Column(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            subMode = EmojiSubMode.KITCHEN
-                            isSearchActive = false
-                        }
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = "Emoji Kitchen Mixer",
-                        tint = if (subMode == EmojiSubMode.KITCHEN) indicatorColor else textColor.copy(alpha = 0.45f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    if (subMode == EmojiSubMode.KITCHEN) {
-                        Box(
-                            modifier = Modifier
-                                .width(16.dp)
-                                .height(2.dp)
-                                .clip(RoundedCornerShape(1.dp))
-                                .background(indicatorColor)
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(2.dp))
-                    }
-                }
-
                 // Emoticon / Kaomoji Tab
                 Column(
                     modifier = Modifier
@@ -1037,23 +1010,24 @@ fun EmojiPickerView(
                 }
             }
 
-            // Right: Backspace button
-            Box(
+            // Right: Backspace button with Universal Hold-to-Repeat Delete
+            UniversalBackspaceKey(
                 modifier = Modifier
                     .width(48.dp)
-                    .height(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(surfaceColor)
-                    .clickable { onBackspace() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Backspace,
-                    contentDescription = "Backspace",
-                    tint = textColor,
-                    modifier = Modifier.size(19.dp)
-                )
-            }
+                    .height(36.dp),
+                backgroundColor = surfaceColor,
+                iconColor = textColor,
+                accentColor = accentColor,
+                border = BorderStroke(0.6.dp, textColor.copy(alpha = 0.12f)),
+                shape = RoundedCornerShape(8.dp),
+                iconSize = 20.dp,
+                onDelete = onBackspace,
+                onPerformHaptic = {
+                    try {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    } catch (_: Exception) {}
+                }
+            )
         }
     }
 }
@@ -1132,6 +1106,7 @@ internal fun SearchSoftKeyboard(
     onToggleNumeric: () -> Unit,
     onDone: () -> Unit
 ) {
+    val view = LocalView.current
     var isShifted by remember { mutableStateOf(false) }
 
     val row1 = if (isNumeric) listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
@@ -1280,22 +1255,25 @@ internal fun SearchSoftKeyboard(
                 }
             }
 
-            // Backspace Key
-            SearchKeyCap(
-                modifier = Modifier.weight(1.35f),
+            // Backspace Key with Universal Hold-to-Repeat Delete
+            UniversalBackspaceKey(
+                modifier = Modifier
+                    .weight(1.35f)
+                    .height(39.dp),
                 backgroundColor = surfaceColor,
-                contentColor = textColor,
+                iconColor = textColor,
+                accentColor = accentColor,
                 border = funcKeyBorder,
                 elevation = 1.dp,
-                onClick = onBackspace
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Backspace,
-                    contentDescription = "Backspace",
-                    tint = textColor,
-                    modifier = Modifier.size(19.dp)
-                )
-            }
+                shape = RoundedCornerShape(7.dp),
+                iconSize = 19.dp,
+                onDelete = onBackspace,
+                onPerformHaptic = {
+                    try {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    } catch (_: Exception) {}
+                }
+            )
         }
 
         // ROW 4 (?123 / ABC, comma, Space, dot, Search action)

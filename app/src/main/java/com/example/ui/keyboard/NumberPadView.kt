@@ -184,26 +184,26 @@ fun NumberPadView(
                 vibrate()
                 actionTarget.onCommitText(activeDigits[9])
             }
-            Box(
+            UniversalBackspaceKey(
                 modifier = Modifier
                     .weight(1.1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(keyColor)
-                    .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                    .clickable {
-                        vibrate()
-                        actionTarget.onDeleteBackward()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Backspace,
-                    contentDescription = "Backspace",
-                    tint = textColor,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+                    .fillMaxHeight(),
+                backgroundColor = keyColor,
+                iconColor = textColor,
+                accentColor = accentColor,
+                border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
+                shape = RoundedCornerShape(8.dp),
+                iconSize = 22.dp,
+                onDelete = {
+                    vibrate()
+                    actionTarget.onDeleteBackward()
+                },
+                onDeleteWord = {
+                    vibrate()
+                    actionTarget.onDeleteWordBackward()
+                },
+                onPerformHaptic = { vibrate() }
+            )
         }
 
         // Row 5: Switch Language/Letters ("অকখ" or "ABC") | . | 0 | ␣ | 🔍/↵

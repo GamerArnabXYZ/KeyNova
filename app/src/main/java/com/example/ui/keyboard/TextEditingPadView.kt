@@ -309,27 +309,27 @@ fun TextEditingPadView(
                 )
             }
 
-            // Backspace ⌫
-            Box(
+            // Backspace ⌫ with Universal Hold-to-Repeat Delete
+            UniversalBackspaceKey(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(keyColor)
-                    .border(1.dp, borderColor, RoundedCornerShape(10.dp))
-                    .clickable {
-                        vibrate()
-                        actionTarget.onDeleteBackward()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Backspace,
-                    contentDescription = "Backspace",
-                    tint = textColor,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+                    .fillMaxHeight(),
+                backgroundColor = keyColor,
+                iconColor = textColor,
+                accentColor = accentColor,
+                border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
+                shape = RoundedCornerShape(10.dp),
+                iconSize = 24.dp,
+                onDelete = {
+                    vibrate()
+                    actionTarget.onDeleteBackward()
+                },
+                onDeleteWord = {
+                    vibrate()
+                    actionTarget.onDeleteWordBackward()
+                },
+                onPerformHaptic = { vibrate() }
+            )
         }
     }
 }
