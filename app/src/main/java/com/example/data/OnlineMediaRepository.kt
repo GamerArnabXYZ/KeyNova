@@ -23,6 +23,12 @@ object OnlineMediaRepository {
     private val gifCache = mutableMapOf<String, List<GifItem>>()
     private val stickerCache = mutableMapOf<String, List<StickerItem>>()
 
+    init {
+        // Pre-warm cache with instant offline-ready trending catalogs
+        gifCache["__trending__"] = MediaCatalog.trendingGifs
+        stickerCache["__trending_stickers__"] = MediaCatalog.trendingStickers
+    }
+
     suspend fun fetchGifs(query: String? = null, limit: Int = 28): List<GifItem> = withContext(Dispatchers.IO) {
         val cacheKey = query?.trim()?.lowercase() ?: "__trending__"
         gifCache[cacheKey]?.let { return@withContext it }

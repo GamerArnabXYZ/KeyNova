@@ -22,6 +22,10 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableLongStateOf
+import com.example.data.ActiveKeyboardPage
 import com.example.MainActivity
 import com.example.data.ClipboardRepository
 import com.example.data.KeyboardPreferences
@@ -61,6 +65,8 @@ class KeyNovaInputMethodService : InputMethodService(),
 
     private var composeView: ComposeView? = null
     private var floatingCardBounds: android.graphics.Rect? = null
+    private var currentActivePage = ActiveKeyboardPage.LETTERS
+    private var backPressEventCounter by mutableLongStateOf(0L)
     private val prefChangeListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == "key_is_floating_mode" || key == "key_theme" || key == "key_is_custom_theme" || key == "key_custom_theme_config") {
             updateWindowAppearance()
@@ -204,6 +210,10 @@ class KeyNovaInputMethodService : InputMethodService(),
                     snippetsRepository = snippetsRepo,
                     actionTarget = this@KeyNovaInputMethodService,
                     isImeService = true,
+                    backPressEventCounter = backPressEventCounter,
+                    onActivePageChanged = { page ->
+                        currentActivePage = page
+                    },
                     onOpenSettings = {
                         val intent = Intent(this@KeyNovaInputMethodService, MainActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -478,5 +488,15 @@ class KeyNovaInputMethodService : InputMethodService(),
         } else {
             ic.commitText(". ", 1)
         }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK && event?.action == KeyEvent.ACTION_DOWN) {
+            if (currentActivePage != ActiveKeyboardPage.LETTERS) {
+                backPressEventCounter++
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
     }
 }

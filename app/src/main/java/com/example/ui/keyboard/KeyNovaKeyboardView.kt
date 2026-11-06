@@ -145,6 +145,8 @@ fun KeyNovaKeyboardView(
     onOpenSettings: () -> Unit,
     onOpenToolbarSettings: () -> Unit = onOpenSettings,
     onFloatingBoundsChanged: (android.graphics.Rect?) -> Unit = {},
+    backPressEventCounter: Long = 0L,
+    onActivePageChanged: (ActiveKeyboardPage) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -161,8 +163,23 @@ fun KeyNovaKeyboardView(
         mutableStateOf(keyboardPreferences.getActiveLayout(context))
     }
     var currentLanguage by remember(currentLayout) { mutableStateOf(currentLayout.keyboardLanguage) }
-    var shiftState by remember { mutableStateOf(ShiftState.OFF) }
-    var isShifted by remember { mutableStateOf(false) }
+
+    val initialShift = if (keyboardPreferences.autoCapitalization && currentLayout.languageCode == "en") ShiftState.SHIFTED else ShiftState.OFF
+    var shiftState by remember { mutableStateOf(initialShift) }
+    var isShifted by remember { mutableStateOf(initialShift != ShiftState.OFF) }
+    var lastShiftTapTime by remember { mutableLongStateOf(0L) }
+    var lastCommittedChar by remember { mutableStateOf<Char?>(null) }
+    var wasLastSpaceAutoAppended by remember { mutableStateOf(false) }
+
+    LaunchedEffect(backPressEventCounter) {
+        if (backPressEventCounter > 0L && activePage != ActiveKeyboardPage.LETTERS) {
+            activePage = ActiveKeyboardPage.LETTERS
+        }
+    }
+
+    LaunchedEffect(activePage) {
+        onActivePageChanged(activePage)
+    }
     var currentTheme by remember(keyboardPreferences.theme, prefRev) {
         mutableStateOf(keyboardPreferences.theme)
     }
@@ -438,6 +455,8 @@ fun KeyNovaKeyboardView(
                                     chosen + " "
                                 }
                                 actionTarget.onCommitText(textToInsert)
+                                wasLastSpaceAutoAppended = textToInsert.endsWith(" ")
+                                lastCommittedChar = ' '
                                 englishComposingWord = ""
                                 performHaptic()
                             },
@@ -490,17 +509,16 @@ fun KeyNovaKeyboardView(
         }
     }
 
-    val effectiveContentHeight = if (activePage == ActiveKeyboardPage.EMOJI || activePage == ActiveKeyboardPage.FANCY_FONTS) {
-        standardKeyboardContentHeight + 40.dp
-    } else {
+    val totalKeyboardHeight = standardKeyboardContentHeight + 40.dp
+    val effectiveContentHeight = if (activePage == ActiveKeyboardPage.LETTERS) {
         standardKeyboardContentHeight
+    } else {
+        totalKeyboardHeight
     }
 
     val keyboardPagesContent: @Composable () -> Unit = {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(effectiveContentHeight)
+            modifier = Modifier.fillMaxSize()
         ) {
             when (activePage) {
                         ActiveKeyboardPage.TEXT_EDITING -> {
@@ -665,6 +683,8 @@ fun KeyNovaKeyboardView(
                                                         val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
                                                         actionTarget.onCommitText(primary + " ")
                                                         avroComposingText = ""
+                                                        lastCommittedChar = ' '
+                                                        wasLastSpaceAutoAppended = false
                                                     } else {
                                                         englishComposingWord = ""
                                                         val now = System.currentTimeMillis()
@@ -672,6 +692,8 @@ fun KeyNovaKeyboardView(
                                                         if (isDoubleSpace) {
                                                             actionTarget.onDoubleSpacePeriod()
                                                             lastSpaceTapTime = 0L
+                                                            lastCommittedChar = ' '
+                                                            wasLastSpaceAutoAppended = false
                                                             if (keyboardPreferences.autoCapitalization && currentLayout.languageCode == "en") {
                                                                 shiftState = ShiftState.SHIFTED
                                                                 isShifted = true
@@ -679,6 +701,13 @@ fun KeyNovaKeyboardView(
                                                         } else {
                                                             actionTarget.onCommitText(" ")
                                                             lastSpaceTapTime = now
+                                                            if (keyboardPreferences.autoCapitalization && currentLayout.languageCode == "en" &&
+                                                                (lastCommittedChar == '.' || lastCommittedChar == '?' || lastCommittedChar == '!')) {
+                                                                shiftState = ShiftState.SHIFTED
+                                                                isShifted = true
+                                                            }
+                                                            lastCommittedChar = ' '
+                                                            wasLastSpaceAutoAppended = false
                                                         }
                                                     }
                                                 },
@@ -727,13 +756,22 @@ fun KeyNovaKeyboardView(
                                                 shiftState = shiftState,
                                                 customConfig = customThemeConfig,
                                                 onClick = {
+                                                    val now = System.currentTimeMillis()
                                                     if (currentLayout.languageCode == "en") {
-                                                        shiftState = when (shiftState) {
-                                                            ShiftState.OFF -> ShiftState.SHIFTED
-                                                            ShiftState.SHIFTED -> ShiftState.CAPS_LOCKED
-                                                            ShiftState.CAPS_LOCKED -> ShiftState.OFF
+                                                        val isQuickDoubleTap = (now - lastShiftTapTime < 380L) && lastShiftTapTime != 0L
+                                                        if (isQuickDoubleTap) {
+                                                            shiftState = ShiftState.CAPS_LOCKED
+                                                            isShifted = true
+                                                            lastShiftTapTime = 0L
+                                                        } else {
+                                                            lastShiftTapTime = now
+                                                            shiftState = when (shiftState) {
+                                                                ShiftState.OFF -> ShiftState.SHIFTED
+                                                                ShiftState.SHIFTED -> ShiftState.OFF
+                                                                ShiftState.CAPS_LOCKED -> ShiftState.OFF
+                                                            }
+                                                            isShifted = shiftState != ShiftState.OFF
                                                         }
-                                                        isShifted = shiftState != ShiftState.OFF
                                                     } else {
                                                         isShifted = !isShifted
                                                         shiftState = if (isShifted) ShiftState.SHIFTED else ShiftState.OFF
@@ -758,6 +796,12 @@ fun KeyNovaKeyboardView(
                                                         avroComposingText = ""
                                                     }
                                                     actionTarget.onEnterAction()
+                                                    lastCommittedChar = '\n'
+                                                    wasLastSpaceAutoAppended = false
+                                                    if (keyboardPreferences.autoCapitalization && currentLayout.languageCode == "en") {
+                                                        shiftState = ShiftState.SHIFTED
+                                                        isShifted = true
+                                                    }
                                                 },
                                                 onPerformHaptic = {
                                                     performHaptic()
@@ -802,6 +846,8 @@ fun KeyNovaKeyboardView(
                                                         recentKitchenEmojis = (altEmojis + recentKitchenEmojis.filter { !altEmojis.contains(it) }).take(2)
                                                     }
                                                     actionTarget.onCommitText(text)
+                                                    lastCommittedChar = text.lastOrNull()
+                                                    wasLastSpaceAutoAppended = false
                                                     if (shiftState == ShiftState.SHIFTED) {
                                                         shiftState = ShiftState.OFF
                                                         isShifted = false
@@ -815,8 +861,16 @@ fun KeyNovaKeyboardView(
                                                     performHaptic()
                                                     when (keyDef.action) {
                                                         KeyAction.CHARACTER -> {
-                                                            if (currentLayout.id == "bn_avro" && keyDef.primaryText.length == 1 && keyDef.primaryText[0].isLetter()) {
-                                                                avroComposingText += keyDef.primaryText
+                                                            val charText = keyDef.primaryText
+                                                            // Auto-collapse space before punctuation if candidate appended trailing space
+                                                            val isPunctuation = charText.length == 1 && charText[0] in ".,!?;:"
+                                                            if (wasLastSpaceAutoAppended && isPunctuation) {
+                                                                actionTarget.onDeleteBackward()
+                                                            }
+                                                            wasLastSpaceAutoAppended = false
+
+                                                            if (currentLayout.id == "bn_avro" && charText.length == 1 && charText[0].isLetter()) {
+                                                                avroComposingText += charText
                                                                 recentKitchenEmojis = emptyList()
                                                             } else {
                                                                 if (avroComposingText.isNotEmpty()) {
@@ -824,18 +878,20 @@ fun KeyNovaKeyboardView(
                                                                     actionTarget.onCommitText(primary)
                                                                     avroComposingText = ""
                                                                 }
-                                                                if (currentLayout.languageCode == "en" && keyDef.primaryText.length == 1 && (keyDef.primaryText[0].isLetter() || keyDef.primaryText == "!")) {
-                                                                    englishComposingWord += keyDef.primaryText
+                                                                if (currentLayout.languageCode == "en" && charText.length == 1 && (charText[0].isLetter() || charText == "!")) {
+                                                                    englishComposingWord += charText
                                                                     recentKitchenEmojis = emptyList()
                                                                 } else {
                                                                     englishComposingWord = ""
-                                                                    val charEmojis = com.example.util.MediaStickerDispatcher.extractEmojis(keyDef.primaryText)
+                                                                    val charEmojis = com.example.util.MediaStickerDispatcher.extractEmojis(charText)
                                                                     if (charEmojis.isNotEmpty()) {
                                                                         recentKitchenEmojis = (charEmojis + recentKitchenEmojis.filter { !charEmojis.contains(it) }).take(2)
                                                                     }
                                                                 }
-                                                                actionTarget.onCommitText(keyDef.primaryText)
+                                                                actionTarget.onCommitText(charText)
                                                             }
+                                                            lastCommittedChar = charText.lastOrNull()
+
                                                             if (shiftState == ShiftState.SHIFTED) {
                                                                 shiftState = ShiftState.OFF
                                                                 isShifted = false
@@ -1141,11 +1197,16 @@ fun KeyNovaKeyboardView(
                         .padding(horizontal = 4.dp, vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Unified Top Bar (Toolbar or Suggestions)
-                    topBarComposable(true)
-
-                    // Main keyboard pages
-                    keyboardPagesContent()
+                    if (activePage == ActiveKeyboardPage.LETTERS) {
+                        topBarComposable(true)
+                        Box(modifier = Modifier.fillMaxWidth().height(standardKeyboardContentHeight)) {
+                            keyboardPagesContent()
+                        }
+                    } else {
+                        Box(modifier = Modifier.fillMaxWidth().height(totalKeyboardHeight)) {
+                            keyboardPagesContent()
+                        }
+                    }
 
                     // Bottom Floating Control & Drag Bar
                     FloatingControlBar(
@@ -1401,11 +1462,19 @@ fun KeyNovaKeyboardView(
                 Column(
                     modifier = Modifier
                         .weight(1f)
+                        .height(totalKeyboardHeight)
                         .padding(horizontal = 2.dp, vertical = 2.dp)
                 ) {
-                    // Unified Top Bar (Toolbar or Suggestions)
-                    topBarComposable(false)
-                    keyboardPagesContent()
+                    if (activePage == ActiveKeyboardPage.LETTERS) {
+                        topBarComposable(false)
+                        Box(modifier = Modifier.fillMaxWidth().height(standardKeyboardContentHeight)) {
+                            keyboardPagesContent()
+                        }
+                    } else {
+                        Box(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
+                            keyboardPagesContent()
+                        }
+                    }
                 }
 
                 // One-handed Right spacer/controls
