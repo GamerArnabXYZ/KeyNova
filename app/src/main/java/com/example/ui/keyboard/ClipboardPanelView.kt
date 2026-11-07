@@ -170,19 +170,22 @@ fun ClipboardPanelView(
             }
         }
 
-        // Quick Paste Banner (if system clipboard has text ready to paste)
+        // Quick Paste & Smart Action Banner (if system clipboard has text ready to paste)
         if (!systemClipText.isNullOrBlank()) {
             val clipSnippet = systemClipText!!.replace("\n", " ").trim()
             val displayText = if (clipSnippet.length > 36) clipSnippet.take(34) + "…" else clipSnippet
+            val smartAction = remember(systemClipText) {
+                com.example.data.SmartClipboardAnalyzer.analyze(systemClipText!!)
+            }
 
             Surface(
                 onClick = {
                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     onPasteText(systemClipText!!)
                 },
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = accentColor.copy(alpha = 0.15f),
-                border = BorderStroke(1.dp, accentColor.copy(alpha = 0.5f)),
+                border = BorderStroke(1.dp, accentColor.copy(alpha = 0.45f)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 3.dp)
@@ -215,13 +218,44 @@ fun ClipboardPanelView(
                         )
                     }
 
-                    Text(
-                        text = "Tap to paste",
-                        color = accentColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 6.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        smartAction?.let { action ->
+                            Surface(
+                                onClick = {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    com.example.data.SmartClipboardAnalyzer.executeAction(context, action)
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                color = accentColor,
+                                modifier = Modifier.height(26.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(action.iconEmoji, fontSize = 11.sp)
+                                    Text(
+                                        text = action.label,
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        Text(
+                            text = "Tap to paste",
+                            color = accentColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 2.dp)
+                        )
+                    }
                 }
             }
         }

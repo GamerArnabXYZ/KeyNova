@@ -253,7 +253,7 @@ fun KeyNovaKeyboardView(
         }
     }
     val englishCandidates: List<String> = remember(englishComposingWord, matchingShortcuts) {
-        val base = EnglishWordPredictor.predict(englishComposingWord.removePrefix("!"))
+        val base = EnglishWordPredictor.predict(englishComposingWord.removePrefix("!"), context = context)
         if (matchingShortcuts.isNotEmpty()) {
             val shortcutChips = matchingShortcuts.map { "⚡ ${it.shortcut} ➔ ${it.title}" }
             shortcutChips + base
@@ -290,9 +290,16 @@ fun KeyNovaKeyboardView(
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager }
     val soundEnabled = remember(keyboardPreferences.soundFeedback, prefRev) { keyboardPreferences.soundFeedback }
 
+    val hapticIntensity = remember(keyboardPreferences.hapticIntensity, prefRev) { keyboardPreferences.hapticIntensity }
+
     fun performKeyFeedback(fx: Int = android.media.AudioManager.FX_KEYPRESS_STANDARD) {
         if (hapticEnabled) {
-            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            val feedbackConstant = when (hapticIntensity) {
+                1 -> HapticFeedbackConstants.CLOCK_TICK
+                3 -> HapticFeedbackConstants.LONG_PRESS
+                else -> HapticFeedbackConstants.KEYBOARD_TAP
+            }
+            view.performHapticFeedback(feedbackConstant)
         }
         if (soundEnabled) {
             audioManager?.playSoundEffect(fx)
@@ -406,8 +413,9 @@ fun KeyNovaKeyboardView(
         )
     }
 
-    val isAvroActive = activePage == ActiveKeyboardPage.LETTERS && currentLayout.id == "bn_avro"
-    val isEnglishActive = activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "en" && englishCandidates.isNotEmpty()
+    val isPrivateMode = remember(keyboardPreferences.privateTypingMode, prefRev) { keyboardPreferences.privateTypingMode }
+    val isAvroActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.id == "bn_avro"
+    val isEnglishActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "en" && englishCandidates.isNotEmpty()
     val hasSuggestions = isAvroActive || isEnglishActive
     val hasKitchenSuggestions = !hasSuggestions && recentKitchenEmojis.isNotEmpty()
 
@@ -1463,7 +1471,7 @@ fun KeyNovaKeyboardView(
                     modifier = Modifier
                         .weight(1f)
                         .height(totalKeyboardHeight)
-                        .padding(horizontal = 2.dp, vertical = 2.dp)
+                        .padding(horizontal = 3.dp, vertical = 2.dp)
                 ) {
                     if (activePage == ActiveKeyboardPage.LETTERS) {
                         topBarComposable(false)
@@ -1811,13 +1819,13 @@ private fun KeyItem(
     Box(
         modifier = modifier
             .height(height)
-            .shadow(if (isPressed) 0.dp else 1.5.dp, RoundedCornerShape(8.dp))
-            .clip(RoundedCornerShape(8.dp))
+            .shadow(if (isPressed) 0.dp else 1.dp, RoundedCornerShape(10.dp), clip = false)
+            .clip(RoundedCornerShape(10.dp))
             .background(containerColor)
             .then(
-                if (isWasdKey) Modifier.border(1.5.dp, accentColor, RoundedCornerShape(8.dp))
-                else if (theme == KeyboardThemeOption.LIGHT) Modifier.border(0.6.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                else Modifier.border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                if (isWasdKey) Modifier.border(1.5.dp, accentColor, RoundedCornerShape(10.dp))
+                else if (theme == KeyboardThemeOption.LIGHT) Modifier.border(0.5.dp, Color(0xFFD0D7DE), RoundedCornerShape(10.dp))
+                else Modifier.border(0.5.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
             )
             .onGloballyPositioned { coords ->
                 keyCoordinatesRef[0] = coords
@@ -2008,12 +2016,12 @@ private fun SpaceKeyItem(
     Box(
         modifier = modifier
             .height(height)
-            .shadow(if (isPressed) 0.dp else 1.5.dp, RoundedCornerShape(8.dp))
-            .clip(RoundedCornerShape(8.dp))
+            .shadow(if (isPressed) 0.dp else 1.dp, RoundedCornerShape(12.dp), clip = false)
+            .clip(RoundedCornerShape(12.dp))
             .background(containerColor)
             .then(
-                if (theme == KeyboardThemeOption.LIGHT) Modifier.border(0.5.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                else Modifier
+                if (theme == KeyboardThemeOption.LIGHT) Modifier.border(0.5.dp, Color(0xFFD0D7DE), RoundedCornerShape(12.dp))
+                else Modifier.border(0.5.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
             )
             .onGloballyPositioned { coords ->
                 spaceCoordinatesRef[0] = coords
@@ -2275,15 +2283,15 @@ private fun ShiftKeyItem(
     Box(
         modifier = modifier
             .height(height)
-            .shadow(if (isPressed) 0.dp else 1.5.dp, RoundedCornerShape(8.dp))
-            .clip(RoundedCornerShape(8.dp))
+            .shadow(if (isPressed) 0.dp else 1.dp, RoundedCornerShape(10.dp), clip = false)
+            .clip(RoundedCornerShape(10.dp))
             .background(containerColor)
             .then(
                 when {
-                    isCaps -> Modifier.border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                    isShifted -> Modifier.border(1.2.dp, accentColor, RoundedCornerShape(8.dp))
-                    theme == KeyboardThemeOption.LIGHT -> Modifier.border(0.6.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                    else -> Modifier.border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                    isCaps -> Modifier.border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                    isShifted -> Modifier.border(1.2.dp, accentColor, RoundedCornerShape(10.dp))
+                    theme == KeyboardThemeOption.LIGHT -> Modifier.border(0.5.dp, Color(0xFFD0D7DE), RoundedCornerShape(10.dp))
+                    else -> Modifier.border(0.5.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
                 }
             )
             .clickable(
@@ -2353,19 +2361,19 @@ private fun EnterKeyItem(
 
     val gradient = Brush.verticalGradient(
         colors = if (isPressed) {
-            listOf(accentColor.copy(alpha = 0.8f), accentColor.copy(alpha = 0.65f))
+            listOf(accentColor.copy(alpha = 0.85f), accentColor.copy(alpha = 0.70f))
         } else {
-            listOf(accentColor, accentColor.copy(alpha = 0.86f))
+            listOf(accentColor, accentColor.copy(alpha = 0.90f))
         }
     )
 
     Box(
         modifier = modifier
             .height(height)
-            .shadow(if (isPressed) 0.dp else 2.dp, RoundedCornerShape(8.dp), spotColor = accentColor.copy(alpha = 0.5f))
-            .clip(RoundedCornerShape(8.dp))
+            .shadow(if (isPressed) 0.dp else 1.5.dp, RoundedCornerShape(12.dp), spotColor = accentColor.copy(alpha = 0.35f), clip = false)
+            .clip(RoundedCornerShape(12.dp))
             .background(gradient)
-            .border(0.6.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+            .border(0.5.dp, Color.White.copy(alpha = 0.30f), RoundedCornerShape(12.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -2445,12 +2453,12 @@ private fun BackspaceKeyItem(
     Box(
         modifier = modifier
             .height(height)
-            .shadow(if (isPressed) 0.dp else 1.5.dp, RoundedCornerShape(8.dp))
-            .clip(RoundedCornerShape(8.dp))
+            .shadow(if (isPressed) 0.dp else 1.dp, RoundedCornerShape(10.dp), clip = false)
+            .clip(RoundedCornerShape(10.dp))
             .background(containerColor)
             .then(
-                if (theme == KeyboardThemeOption.LIGHT) Modifier.border(0.5.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                else Modifier
+                if (theme == KeyboardThemeOption.LIGHT) Modifier.border(0.5.dp, Color(0xFFD0D7DE), RoundedCornerShape(10.dp))
+                else Modifier.border(0.5.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
             )
             .universalBackspacePressAndHold(
                 onDelete = {
@@ -2510,25 +2518,28 @@ private fun AvroPhoneticSuggestionStrip(
         modifier = Modifier
             .fillMaxWidth()
             .height(40.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(surfaceColor.copy(alpha = 0.55f))
-            .border(0.6.dp, textColor.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(surfaceColor.copy(alpha = 0.40f))
+            .border(0.5.dp, textColor.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
             onClick = onToggleTools,
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(accentColor.copy(alpha = 0.12f))
         ) {
             Icon(
                 imageVector = Icons.Outlined.GridView,
                 contentDescription = "Toolbar Tools",
-                tint = textColor.copy(alpha = 0.8f),
-                modifier = Modifier.size(18.dp)
+                tint = accentColor,
+                modifier = Modifier.size(17.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(3.dp))
+        Spacer(modifier = Modifier.width(4.dp))
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -2575,19 +2586,19 @@ private fun AvroPhoneticSuggestionStrip(
                     val isFirst = index == 0
                     Surface(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .clickable { onSelectCandidate(candidate) },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isFirst) accentColor.copy(alpha = 0.22f) else surfaceColor.copy(alpha = 0.75f),
-                        border = if (isFirst) BorderStroke(1.dp, accentColor.copy(alpha = 0.65f))
-                                 else BorderStroke(0.6.dp, textColor.copy(alpha = 0.12f))
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isFirst) accentColor.copy(alpha = 0.18f) else surfaceColor.copy(alpha = 0.65f),
+                        border = if (isFirst) BorderStroke(1.dp, accentColor.copy(alpha = 0.60f))
+                                 else BorderStroke(0.5.dp, textColor.copy(alpha = 0.08f))
                     ) {
                         Text(
                             text = candidate,
                             color = if (isFirst) (if (theme == KeyboardThemeOption.LIGHT) accentColor else Color.White) else textColor.copy(alpha = 0.9f),
                             fontSize = 13.5.sp,
                             fontWeight = if (isFirst) FontWeight.Bold else FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.5.dp)
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
                         )
                     }
                 }
@@ -2626,26 +2637,29 @@ private fun EnglishWordSuggestionStrip(
         modifier = Modifier
             .fillMaxWidth()
             .height(40.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(surfaceColor.copy(alpha = 0.55f))
-            .border(0.6.dp, textColor.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(surfaceColor.copy(alpha = 0.40f))
+            .border(0.5.dp, textColor.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Toggle to Toolbar button
         IconButton(
             onClick = onToggleTools,
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(accentColor.copy(alpha = 0.12f))
         ) {
             Icon(
                 imageVector = Icons.Outlined.GridView,
                 contentDescription = "Toolbar Tools",
-                tint = textColor.copy(alpha = 0.8f),
-                modifier = Modifier.size(18.dp)
+                tint = accentColor,
+                modifier = Modifier.size(17.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(3.dp))
+        Spacer(modifier = Modifier.width(4.dp))
 
         Row(
             modifier = Modifier
@@ -2658,21 +2672,34 @@ private fun EnglishWordSuggestionStrip(
                 val isPrimary = index == 0 && composingWord.isNotEmpty()
                 Surface(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .clickable { onSelectCandidate(candidate) },
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isPrimary) accentColor.copy(alpha = 0.22f) else surfaceColor.copy(alpha = 0.75f),
-                    border = if (isPrimary) BorderStroke(1.dp, accentColor.copy(alpha = 0.65f))
-                             else BorderStroke(0.6.dp, textColor.copy(alpha = 0.12f))
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isPrimary) accentColor.copy(alpha = 0.18f) else surfaceColor.copy(alpha = 0.65f),
+                    border = if (isPrimary) BorderStroke(1.dp, accentColor.copy(alpha = 0.60f))
+                             else BorderStroke(0.5.dp, textColor.copy(alpha = 0.08f))
                 ) {
                     Text(
                         text = candidate,
                         color = if (isPrimary) (if (theme == KeyboardThemeOption.LIGHT) accentColor else Color.White) else textColor.copy(alpha = 0.9f),
                         fontSize = 13.5.sp,
                         fontWeight = if (isPrimary) FontWeight.Bold else FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.5.dp)
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
                     )
                 }
+            }
+        }
+
+        if (composingWord.length >= 2) {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            IconButton(
+                onClick = {
+                    com.example.data.PersonalDictionaryManager.getInstance(context).addWord(composingWord)
+                    android.widget.Toast.makeText(context, "Added \"$composingWord\" to dictionary", android.widget.Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.size(26.dp)
+            ) {
+                Text("+", color = accentColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
         }
 

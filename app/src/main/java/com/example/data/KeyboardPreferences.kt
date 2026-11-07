@@ -16,42 +16,42 @@ enum class KeyboardThemeOption(
     LIGHT(
         id = "light",
         displayName = "Light (Default)",
-        backgroundHex = 0xFFECEFF1,
-        surfaceHex = 0xFFFFFFFF,
+        backgroundHex = 0xFFF1F3F5,
+        surfaceHex = 0xFFE2E6EA,
         keyHex = 0xFFFFFFFF,
-        textHex = 0xFF1E293B,
-        accentHex = 0xFF2563EB,
-        secondaryTextHex = 0xFF64748B
+        textHex = 0xFF191C1E,
+        accentHex = 0xFF1A73E8,
+        secondaryTextHex = 0xFF5F6368
     ),
     DARK(
         id = "dark",
-        displayName = "Dark",
-        backgroundHex = 0xFF121212,
-        surfaceHex = 0xFF1E1E1E,
-        keyHex = 0xFF2C2C2C,
-        textHex = 0xFFF8FAFC,
-        accentHex = 0xFF3B82F6,
-        secondaryTextHex = 0xFF94A3B8
+        displayName = "Dark (AMOLED)",
+        backgroundHex = 0xFF1A1C1E,
+        surfaceHex = 0xFF2D3033,
+        keyHex = 0xFF282A2D,
+        textHex = 0xFFE2E2E6,
+        accentHex = 0xFF8AB4F8,
+        secondaryTextHex = 0xFF8E9196
     ),
     BLUE(
         id = "blue",
-        displayName = "Blue",
-        backgroundHex = 0xFF0F172A,
-        surfaceHex = 0xFF1E293B,
-        keyHex = 0xFF1D4ED8,
-        textHex = 0xFFFFFFFF,
+        displayName = "Deep Navy",
+        backgroundHex = 0xFF0D1424,
+        surfaceHex = 0xFF1A2640,
+        keyHex = 0xFF152238,
+        textHex = 0xFFEDF2F7,
         accentHex = 0xFF38BDF8,
-        secondaryTextHex = 0xFF93C5FD
+        secondaryTextHex = 0xFF7E97C2
     ),
     GREEN(
         id = "green",
-        displayName = "Green",
-        backgroundHex = 0xFF064E3B,
-        surfaceHex = 0xFF065F46,
-        keyHex = 0xFF047857,
-        textHex = 0xFFFFFFFF,
+        displayName = "Nordic Forest",
+        backgroundHex = 0xFF0B1713,
+        surfaceHex = 0xFF172B23,
+        keyHex = 0xFF12221B,
+        textHex = 0xFFEAF5EF,
         accentHex = 0xFF34D399,
-        secondaryTextHex = 0xFFA7F3D0
+        secondaryTextHex = 0xFF76A893
     ),
     PURPLE(
         id = "purple",
@@ -404,6 +404,14 @@ class KeyboardPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_HAPTIC, true)
         set(value) = prefs.edit().putBoolean(KEY_HAPTIC, value).apply()
 
+    var hapticIntensity: Int
+        get() = prefs.getInt(KEY_HAPTIC_INTENSITY, 2) // 1: Subtle, 2: Medium, 3: Heavy
+        set(value) = prefs.edit().putInt(KEY_HAPTIC_INTENSITY, value.coerceIn(1, 3)).apply()
+
+    var privateTypingMode: Boolean
+        get() = prefs.getBoolean(KEY_PRIVATE_TYPING_MODE, false)
+        set(value) = prefs.edit().putBoolean(KEY_PRIVATE_TYPING_MODE, value).apply()
+
     var soundFeedback: Boolean
         get() = prefs.getBoolean(KEY_SOUND, false)
         set(value) = prefs.edit().putBoolean(KEY_SOUND, value).apply()
@@ -679,5 +687,7 @@ class KeyboardPreferences(context: Context) {
         private const val KEY_SPACEBAR_CURSOR_CONTROL = "key_spacebar_cursor_control"
         private const val KEY_BACKSPACE_SWIPE_DELETE = "key_backspace_swipe_delete"
         private const val KEY_POPUP_ON_KEYPRESS = "key_popup_on_keypress"
+        private const val KEY_HAPTIC_INTENSITY = "key_haptic_intensity"
+        private const val KEY_PRIVATE_TYPING_MODE = "key_private_typing_mode"
     }
 }

@@ -375,10 +375,10 @@ private fun ModernToolbarPill(
 
     Box(
         modifier = Modifier
-            .size(width = 38.dp, height = 34.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .size(width = 40.dp, height = 32.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(animatedBg)
-            .border(1.dp, animatedBorder, RoundedCornerShape(10.dp))
+            .border(1.dp, animatedBorder, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .testTag(testTag),
         contentAlignment = Alignment.Center
@@ -387,7 +387,7 @@ private fun ModernToolbarPill(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = animatedIconColor,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(19.dp)
         )
     }
 }

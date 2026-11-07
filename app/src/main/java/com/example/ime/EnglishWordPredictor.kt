@@ -29,25 +29,32 @@ object EnglishWordPredictor {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<String>>?): Boolean = size > 256
     }
 
-    fun predict(prefix: String, limit: Int = 3): List<String> {
+    fun predict(prefix: String, limit: Int = 3, context: android.content.Context? = null): List<String> {
         val trimmed = prefix.trim()
         if (trimmed.length < 2) return emptyList()
 
+        val personalMatches = if (context != null) {
+            com.example.data.PersonalDictionaryManager.getInstance(context).findMatches(trimmed, limit)
+        } else emptyList()
+
         val cacheKey = "$trimmed|$limit"
         synchronized(predictionCache) {
-            predictionCache[cacheKey]?.let { return it }
+            if (personalMatches.isEmpty()) {
+                predictionCache[cacheKey]?.let { return it }
+            }
         }
 
         val lower = trimmed.lowercase()
         val matches = dictionary.filter { it.startsWith(lower) && it != lower }
             .take(limit)
 
-        if (matches.isEmpty()) return emptyList()
+        val combinedRaw = (personalMatches + matches).distinct().take(limit)
+        if (combinedRaw.isEmpty()) return emptyList()
 
         val isAllUpper = trimmed.all { it.isUpperCase() }
         val isCapitalized = trimmed[0].isUpperCase()
 
-        val result = matches.map { word ->
+        val result = combinedRaw.map { word ->
             when {
                 isAllUpper -> word.uppercase()
                 isCapitalized -> word.replaceFirstChar { it.uppercase() }
@@ -55,8 +62,10 @@ object EnglishWordPredictor {
             }
         }
 
-        synchronized(predictionCache) {
-            predictionCache[cacheKey] = result
+        if (personalMatches.isEmpty()) {
+            synchronized(predictionCache) {
+                predictionCache[cacheKey] = result
+            }
         }
         return result
     }

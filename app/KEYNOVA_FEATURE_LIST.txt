@@ -1,0 +1,159 @@
+# ==============================================================================
+# KEYNOVA KEYBOARD - MASTER FEATURE LIST & ARCHITECTURE BLUEPRINT (HINGLISH)
+# ==============================================================================
+# Tech Stack: Android (Pure Kotlin + Jetpack Compose Material 3)
+# Core Service: Native InputMethodService (KeyNovaInputMethodService)
+# Benchmark: Gboard / SwiftKey level performance aur visual polish
+# ==============================================================================
+
+--------------------------------------------------------------------------------
+CATEGORY 1: CORE TYPING ENGINE & INTELLIGENT TEXT MECHANICS
+--------------------------------------------------------------------------------
+
+1. Multi-Lingual Layout Engine:
+   - English (US / QWERTY): Standard typing layout jisme har key par secondary symbols mapped hain.
+   - Bangla Avro (Phonetic Engine): English me type karo aur real-time Bengali script banegi 
+     (jaise "ami" -> "আমি", "kemon" -> "কেমন"). Isme smart candidate prediction aur yuktakshar support hai.
+   - Bangla National / Jatiya Layout: Official traditional layout accurate Bangla typing ke liye.
+   - Hindi (Devanagari): Swar, vyanjan, matras aur sanyuktakshar ke sath full layout.
+   - Layout Switcher: Spacebar ko swipe/hold karke ya dedicated Globe key (🌐) dabakar instant switch hota hai.
+
+2. Auto-Capitalization & Sentence Intelligence:
+   - Keyboard open hote hi pehla character automatically Capital (ShiftState.SHIFTED) rehta hai.
+   - Sentence terminators (". ", "? ", "! ") ke baad Space ya Enter press hote hi agla word automatically Capital ho jata hai.
+   - Shift states: OFF (small letters), SHIFTED (1 letter capital), CAPS_LOCKED (permanent capital).
+
+3. Smart Double-Tap Caps Lock:
+   - Single tap: Normal Shift toggle (OFF <-> SHIFTED).
+   - Fast double tap (<380ms threshold): Hardware keyboard ki tarah CAPS_LOCKED ho jata hai with active bottom indicator pill.
+   - Wapas tap karne par instantly OFF ho jata hai.
+
+4. Punctuation Spacing Auto-Collapse:
+   - Suggestion bar se word select karne par naturally ek space add hoti hai ("word ").
+   - Agar user space ke turant baad koi punctuation mark dabata hai (., ?, !, ,, ;, :), toh keyboard pichli automatic space ko delete karke naturally "word." bana deta hai (na ki "word .").
+
+5. Double-Space Period:
+   - Spacebar ko do baar fast tap karne par automatically ". " commit ho jata hai aur agla letter capital hone ke liye ready rehta hai.
+
+6. Universal Hold-to-Repeat Backspace Engine:
+   - Har ek screen (Letters keyboard, Emoji search, NumPad, Editing pad) par exact same logic:
+     * Quick tap: 1 character delete.
+     * 400ms se zyada hold: Fast continuous deletion (50ms interval).
+     * Extended continuous hold: Automatically full WORD-BY-WORD deletion me switch ho jata hai with active "WORD" badge.
+
+7. Character Key Long-Press Alternate Popups:
+   - Har key par secondary symbol mapped hai (jaise 'A' par '@', 'S' par '#').
+   - Long press (>240ms) karne par floating bubble aati hai jisme base key aur secondary symbol dono aate hain. User swipe karke select kar sakta hai.
+
+8. Spacebar Cursor Control:
+   - Spacebar par left/right ungli swipe karne se text cursor fluidly move hota hai, text ke beech exact point par navigate karna super easy ho jata hai.
+
+
+--------------------------------------------------------------------------------
+CATEGORY 2: UI/UX & MATERIAL 3 VISUAL POLISH
+--------------------------------------------------------------------------------
+
+9. Anti-AI-Slop Modern Geometry & Tactility:
+   - Alphabet keys ko modern 10.dp corner radius aur Spacebar/Enter ko 12.dp rounded pills me design kiya gaya hai.
+   - Hairline 0.5.dp border outlines aur soft elevation drop-shadows jo real hardware mechanical keyboard jaisi tactile depth deti hain bina cluttered lage.
+   - Key press karne par Gboard-style floating magnifier bubble aati hai.
+
+10. Professional Theme System & AMOLED Dark Mode:
+    - Light Theme: Google Pixel / Material You inspired soft off-white canvas (0xFFF1F3F5), pure white keys (0xFFFFFFFF), aur Google Blue accent (0xFF1A73E8).
+    - Dark Theme: High-contrast AMOLED-ready dark charcoal (0xFF1A1C1E) with elevated key surfaces (0xFF282A2D) aur pastel blue accent (0xFF8AB4F8).
+    - Preset Accents: Deep Navy, Nordic Forest, Royal Purple, Crimson Red.
+    - Custom Theme Studio: Gallery se koi bhi photo lagao, brightness, blur, key opacity aur custom font colors adjust karo.
+
+11. Zero-Flicker Window Height Stability:
+    - Fixed total height locking: totalKeyboardHeight = standardKeyboardContentHeight + 40.dp.
+    - Isse Android ka InputMethodManagerService bar-bar window re-measure nahi karta, aur tools switch karte waqt 1 second ka black screen / close-reopen blink permanently khatam ho gaya hai.
+
+12. Physical / System Back Button Navigation:
+    - Android service level pe KEYCODE_BACK intercept kiya gaya hai.
+    - Agar user Emoji, Clipboard, Translate ya kisi bhi sub-screen pe hai, toh phone ka back button keyboard close nahi karega, balki seedha LETTERS view par return karega.
+
+
+--------------------------------------------------------------------------------
+CATEGORY 3: BUILT-IN POWER TOOLS & TOOLBAR ECOSYSTEM
+--------------------------------------------------------------------------------
+
+13. Dynamic Customizable Toolbar:
+    - Top row me scrollable modern pills (40.dp x 32.dp, 16.dp radius) jisme user apne favorite tools add, remove ya reorder kar sakta hai (up to 7 tools).
+    - Settings aur layout customization ka 1-tap direct access.
+
+14. Floating Keyboard with 1D & 2D Freeform Resizing:
+    - Docked mode se floating mode me instant switch.
+    - 4 Corner Handles: 2D proportional scaling with live percentage badges (jaise "↔ 85% ↕ 85%").
+    - 4 Edge Handles: Independent width-only ya height-only stretching.
+    - Opacity cycles (60%, 78%, 92%, 100%) aur 1-tap docking button.
+
+15. One-Handed Mode:
+    - Left-handed aur Right-handed docked layouts.
+    - Quick side-switcher button aur 1-tap full-width restore.
+
+16. Dedicated Number Pad (NumPad View):
+    - ATM/Calculator-style large 3x4 grid for fast numeric data entry, phone numbers aur financial calculations.
+
+17. Text Editing Pad (Precision Cursor & Clipboard Controls):
+    - 4-way D-pad arrows (Up, Down, Left, Right).
+    - Jump to Start of Line / End of Line.
+    - 1-tap Select All, Cut, Copy, Paste, Clear All.
+    - Cycle Case tool: Selected text ka case change karta hai (lowercase -> Title Case -> UPPERCASE).
+
+18. Fancy Fonts & Unicode Text Magic:
+    - Typed text ko real-time stylish unicode fonts me convert karta hai:
+      * 𝕭𝖔𝖑𝖉, 𝒞𝓊𝓇𝓈𝒾𝓋ℯ, ℂ𝕠𝕕𝕖, 𝔉𝔯𝔞𝔨𝔱𝔲𝔯, Sᴍᴀʟʟ Cᴀᴘs, Bubble, Inverted.
+    - Instagram, WhatsApp, Bio aur Gaming IDs me 1-tap direct paste.
+
+19. Developer & Coding Snippets Engine:
+    - Code shortcut expansion engine (jaise "!react", "!fun", "!log", "!sql").
+    - Dedicated Coding layout with fast access to brackets: {} [] () <> = ; : " ' / \ |
+
+20. Gaming Keyboard Mode:
+    - Specially highlighted W-A-S-D keys, rapid-fire spacebar, compact landscape layout for mobile gamers.
+
+21. Real-Time Translation Panel:
+    - Keyboard ke andar hi direct translation input panel (message send karne se pehle translate karo).
+
+
+--------------------------------------------------------------------------------
+CATEGORY 4: MEDIA, EMOJI & EXPRESSIVE FEATURES
+--------------------------------------------------------------------------------
+
+22. Inline Gboard-Style Emoji Kitchen:
+    - Alag se tool kholne ki zaroorat nahi: Jaise hi user keyboard pe 2 emojis type karta hai (jaise 😊 + 🔥 ya 🐱 + 🚀), top suggestion bar automatically dynamic mashup stickers show karta hai.
+    - 1-tap me hybrid sticker send hota hai.
+
+23. Rich Content Insertion (CommitContentCompat):
+    - WhatsApp, Telegram, Discord, Messages, Instagram me directly image/GIF/sticker payload push hota hai.
+    - Smart Fallback: Agar koi app direct image commit allow nahi karti, toh app crash ya silent fail hone ke bajaye keyboard automatically smart fallback link ya clipboard copy provide karta hai.
+
+24. Zero-Latency Pre-Warmed Media Catalog:
+    - Trending GIFs aur animated stickers memory me pehle se cache rehte hain, jisse media tab 0ms me khulta hai bina kisi loading delay ke.
+
+25. Kaomoji & Classic Emoticons:
+    - Japanese Kaomoji library (¯\_(ツ)_/¯, (づ｡◕‿‿◕｡)づ, (╯°□°）╯︵ ┻━┻) emotions ke according categorized.
+
+
+--------------------------------------------------------------------------------
+CATEGORY 5: PRODUCTIVITY & CLIPBOARD ARCHITECTURE
+--------------------------------------------------------------------------------
+
+26. Smart Clipboard Manager:
+    - Android system clipboard ke sath real-time background auto-sync.
+    - Pinning System: Important addresses, phone numbers, UPI IDs aur links ko hamesha ke liye top pe pin karke rakhne ki suvidha.
+    - Search aur 1-tap delete controls.
+
+27. Voice Typing Integration:
+    - Dedicated microphone button jo Android system ke speech-to-text recognizer se instantly connect hota hai.
+
+
+================================================================================
+CHATGPT KE LIYE READY-TO-USE PROMPT (DIRECT COPY-PASTE):
+================================================================================
+"Bhai, ye hamare Android custom IME keyboard app 'KeyNova' ka complete feature list aur technical blueprint hai (Kotlin + Jetpack Compose Material 3 me bana hai). Isme Gboard level ki typing mechanics, inline Emoji Kitchen, Bangla Avro phonetics, clipboard pinning, fancy unicode fonts, aur 2D floating resize already implemented hain.
+
+Is current feature list ke basis par:
+1. Hume 10 naye, innovative, aur super-useful feature ideas do jo is keyboard ko Gboard aur SwiftKey se bhi aage nikal sakein (jaise On-Device AI text tools, Smart Clipboard actions, Privacy modes, Creative haptic gestures, ya Pro shortcuts).
+2. Har feature ka practical use-case aur short explanation do jo Android Compose IME architecture ke sath fit baith sake."
+================================================================================
