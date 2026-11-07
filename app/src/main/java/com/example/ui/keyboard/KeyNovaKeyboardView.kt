@@ -142,6 +142,7 @@ fun KeyNovaKeyboardView(
     snippetsRepository: SnippetsRepository,
     actionTarget: KeyboardActionTarget,
     isImeService: Boolean = false,
+    isIncognitoOrSensitive: Boolean = false,
     onOpenSettings: () -> Unit,
     onOpenToolbarSettings: () -> Unit = onOpenSettings,
     onFloatingBoundsChanged: (android.graphics.Rect?) -> Unit = {},
@@ -240,7 +241,18 @@ fun KeyNovaKeyboardView(
 
     var avroComposingText by remember { mutableStateOf("") }
     val avroCandidates = remember(avroComposingText) {
-        if (avroComposingText.isNotEmpty()) AvroPhoneticParser.getCandidates(avroComposingText) else emptyList()
+        if (avroComposingText.isNotEmpty()) {
+            val parserCandidates = AvroPhoneticParser.getCandidates(avroComposingText)
+            val personalMatches = try {
+                val p1 = com.example.data.PersonalDictionaryManager.getInstance(context).findMatches(avroComposingText, 2)
+                val parsed = AvroPhoneticParser.parse(avroComposingText)
+                val p2 = if (parsed.isNotEmpty()) com.example.data.PersonalDictionaryManager.getInstance(context).findMatches(parsed, 2) else emptyList()
+                (p1 + p2).distinct()
+            } catch (_: Exception) {
+                emptyList()
+            }
+            (personalMatches + parserCandidates).distinct()
+        } else emptyList()
     }
 
     var englishComposingWord by remember { mutableStateOf("") }
@@ -413,7 +425,9 @@ fun KeyNovaKeyboardView(
         )
     }
 
-    val isPrivateMode = remember(keyboardPreferences.privateTypingMode, prefRev) { keyboardPreferences.privateTypingMode }
+    val isPrivateMode = remember(keyboardPreferences.privateTypingMode, isIncognitoOrSensitive, prefRev) {
+        keyboardPreferences.privateTypingMode || isIncognitoOrSensitive
+    }
     val isAvroActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.id == "bn_avro"
     val isEnglishActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "en" && englishCandidates.isNotEmpty()
     val hasSuggestions = isAvroActive || isEnglishActive
@@ -2601,6 +2615,21 @@ private fun AvroPhoneticSuggestionStrip(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
                         )
                     }
+                }
+            }
+            if (composingText.length >= 2) {
+                val currentCtx = androidx.compose.ui.platform.LocalContext.current
+                IconButton(
+                    onClick = {
+                        val toSave = candidates.firstOrNull() ?: AvroPhoneticParser.parse(composingText)
+                        if (toSave.isNotEmpty()) {
+                            com.example.data.PersonalDictionaryManager.getInstance(currentCtx).addWord(toSave)
+                            android.widget.Toast.makeText(currentCtx, "Added \"$toSave\" to dictionary", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier.size(26.dp)
+                ) {
+                    Text("+", color = accentColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
             if (composingText.isNotEmpty()) {

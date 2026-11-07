@@ -31,7 +31,7 @@ object SmartClipboardAnalyzer {
         Pattern.CASE_INSENSITIVE
     )
     private val PHONE_PATTERN = Pattern.compile(
-        "(?:\\+?\\d{1,3}[- ]?)?\\(?\\d{3,4}\\)?[- ]?\\d{3,4}[- ]?\\d{3,4}"
+        "(?:\\+?\\d{1,3}[- ]?)?(?:\\(?\\d{2,5}\\)?[- ]?)(?:\\d[- ]?){5,12}\\d"
     )
     private val OTP_PATTERN = Pattern.compile(
         "(?:otp|code|pin|verification)\\s*(?:is|:|-)?\\s*(\\d{4,8})",
@@ -85,10 +85,10 @@ object SmartClipboardAnalyzer {
 
         // 4. Check Phone number
         val phoneMatcher = PHONE_PATTERN.matcher(trimmed)
-        if (phoneMatcher.find() && trimmed.length in 7..20) {
-            val phone = phoneMatcher.group(0) ?: ""
+        if (phoneMatcher.find() && trimmed.length < 120) {
+            val phone = phoneMatcher.group(0)?.trim() ?: ""
             val digits = phone.filter { it.isDigit() }
-            if (digits.length >= 7) {
+            if (digits.length in 7..15) {
                 return SmartClipAction(
                     type = SmartActionType.DIAL_PHONE,
                     label = "Call $phone",

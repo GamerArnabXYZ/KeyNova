@@ -25,6 +25,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import com.example.data.ActiveKeyboardPage
 import com.example.MainActivity
 import com.example.data.ClipboardRepository
@@ -67,6 +68,7 @@ class KeyNovaInputMethodService : InputMethodService(),
     private var floatingCardBounds: android.graphics.Rect? = null
     private var currentActivePage = ActiveKeyboardPage.LETTERS
     private var backPressEventCounter by mutableLongStateOf(0L)
+    private var isIncognitoOrSensitiveField by mutableStateOf(false)
     private val prefChangeListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == "key_is_floating_mode" || key == "key_theme" || key == "key_is_custom_theme" || key == "key_custom_theme_config") {
             updateWindowAppearance()
@@ -210,6 +212,7 @@ class KeyNovaInputMethodService : InputMethodService(),
                     snippetsRepository = snippetsRepo,
                     actionTarget = this@KeyNovaInputMethodService,
                     isImeService = true,
+                    isIncognitoOrSensitive = isIncognitoOrSensitiveField,
                     backPressEventCounter = backPressEventCounter,
                     onActivePageChanged = { page ->
                         currentActivePage = page
@@ -250,6 +253,7 @@ class KeyNovaInputMethodService : InputMethodService(),
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        isIncognitoOrSensitiveField = com.example.util.EditorInfoHelper.isPrivateOrSensitive(info)
 
         if (restarting) {
             // Typing in active input, cursor position update, or autocomplete:
