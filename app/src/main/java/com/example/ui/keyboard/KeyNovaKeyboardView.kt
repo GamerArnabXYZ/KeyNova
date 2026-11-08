@@ -25,8 +25,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.ArrowUpward
@@ -239,18 +241,14 @@ fun KeyNovaKeyboardView(
         (currentKeyHeight * rowCount) + (currentKeySpacing * (rowCount - 1)) + 4.dp
     }
 
+    val personalDict = remember { com.example.data.PersonalDictionaryManager.getInstance(context) }
+    val dictRev = personalDict.revision.intValue
+
     var avroComposingText by remember { mutableStateOf("") }
-    val avroCandidates = remember(avroComposingText) {
+    val avroCandidates = remember(avroComposingText, dictRev) {
         if (avroComposingText.isNotEmpty()) {
             val parserCandidates = AvroPhoneticParser.getCandidates(avroComposingText)
-            val personalMatches = try {
-                val p1 = com.example.data.PersonalDictionaryManager.getInstance(context).findMatches(avroComposingText, 2)
-                val parsed = AvroPhoneticParser.parse(avroComposingText)
-                val p2 = if (parsed.isNotEmpty()) com.example.data.PersonalDictionaryManager.getInstance(context).findMatches(parsed, 2) else emptyList()
-                (p1 + p2).distinct()
-            } catch (_: Exception) {
-                emptyList()
-            }
+            val personalMatches = personalDict.findAvroMatches(avroComposingText, 3)
             (personalMatches + parserCandidates).distinct()
         } else emptyList()
     }
@@ -264,7 +262,7 @@ fun KeyNovaKeyboardView(
             emptyList()
         }
     }
-    val englishCandidates: List<String> = remember(englishComposingWord, matchingShortcuts) {
+    val englishCandidates: List<String> = remember(englishComposingWord, matchingShortcuts, dictRev) {
         val base = EnglishWordPredictor.predict(englishComposingWord.removePrefix("!"), context = context)
         if (matchingShortcuts.isNotEmpty()) {
             val shortcutChips = matchingShortcuts.map { "⚡ ${it.shortcut} ➔ ${it.title}" }
@@ -429,7 +427,7 @@ fun KeyNovaKeyboardView(
         keyboardPreferences.privateTypingMode || isIncognitoOrSensitive
     }
     val isAvroActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.id == "bn_avro"
-    val isEnglishActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "en" && englishCandidates.isNotEmpty()
+    val isEnglishActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "en"
     val hasSuggestions = isAvroActive || isEnglishActive
     val hasKitchenSuggestions = !hasSuggestions && recentKitchenEmojis.isNotEmpty()
 
@@ -894,6 +892,7 @@ fun KeyNovaKeyboardView(
                                                             if (currentLayout.id == "bn_avro" && charText.length == 1 && charText[0].isLetter()) {
                                                                 avroComposingText += charText
                                                                 recentKitchenEmojis = emptyList()
+                                                                showToolbarTools = false
                                                             } else {
                                                                 if (avroComposingText.isNotEmpty()) {
                                                                     val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
@@ -903,6 +902,7 @@ fun KeyNovaKeyboardView(
                                                                 if (currentLayout.languageCode == "en" && charText.length == 1 && (charText[0].isLetter() || charText == "!")) {
                                                                     englishComposingWord += charText
                                                                     recentKitchenEmojis = emptyList()
+                                                                    showToolbarTools = false
                                                                 } else {
                                                                     englishComposingWord = ""
                                                                     val charEmojis = com.example.util.MediaStickerDispatcher.extractEmojis(charText)
@@ -2580,7 +2580,22 @@ private fun AvroPhoneticSuggestionStrip(
             )
         }
 
-        if (candidates.isEmpty()) {
+        val context = LocalContext.current
+        val dictManager = remember { com.example.data.PersonalDictionaryManager.getInstance(context) }
+        val dictRev = dictManager.revision.intValue
+
+        val primaryBangla = candidates.firstOrNull() ?: if (composingText.isNotEmpty()) AvroPhoneticParser.parse(composingText) else ""
+        val isKnownAvro = remember(composingText, primaryBangla, dictRev) {
+            if (composingText.length < 2 || primaryBangla.isEmpty()) true
+            else dictManager.containsPhoneticMapping(composingText) || dictManager.containsWord(primaryBangla)
+        }
+        val showAvroAddButton = composingText.length >= 2 && primaryBangla.isNotEmpty() && !isKnownAvro
+
+        val displayedCandidates = if (candidates.isEmpty() && composingText.isNotEmpty() && primaryBangla.isNotEmpty()) {
+            listOf(primaryBangla)
+        } else candidates
+
+        if (displayedCandidates.isEmpty()) {
             Text(
                 text = "English to Bangla (e.g. ami ➔ আমি)",
                 color = textColor.copy(alpha = 0.5f),
@@ -2596,7 +2611,7 @@ private fun AvroPhoneticSuggestionStrip(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                candidates.forEachIndexed { index, candidate ->
+                displayedCandidates.forEachIndexed { index, candidate ->
                     val isFirst = index == 0
                     Surface(
                         modifier = Modifier
@@ -2617,28 +2632,42 @@ private fun AvroPhoneticSuggestionStrip(
                     }
                 }
             }
-            if (composingText.length >= 2) {
-                val currentCtx = androidx.compose.ui.platform.LocalContext.current
-                IconButton(
-                    onClick = {
-                        val toSave = candidates.firstOrNull() ?: AvroPhoneticParser.parse(composingText)
-                        if (toSave.isNotEmpty()) {
-                            com.example.data.PersonalDictionaryManager.getInstance(currentCtx).addWord(toSave)
-                            android.widget.Toast.makeText(currentCtx, "Added \"$toSave\" to dictionary", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    modifier = Modifier.size(26.dp)
-                ) {
-                    Text("+", color = accentColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
+        }
+
+        if (showAvroAddButton) {
+            IconButton(
+                onClick = {
+                    val added = dictManager.addAvroPhoneticWord(composingText, primaryBangla)
+                    if (added) {
+                        android.widget.Toast.makeText(context, "Added \"$primaryBangla\" to dictionary", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = 0.16f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add to dictionary",
+                    tint = accentColor,
+                    modifier = Modifier.size(17.dp)
+                )
             }
-            if (composingText.isNotEmpty()) {
-                IconButton(
-                    onClick = onClearComposing,
-                    modifier = Modifier.size(26.dp)
-                ) {
-                    Text("✕", color = textColor.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
+            Spacer(modifier = Modifier.width(2.dp))
+        }
+
+        if (composingText.isNotEmpty()) {
+            IconButton(
+                onClick = onClearComposing,
+                modifier = Modifier.size(26.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Clear",
+                    tint = textColor.copy(alpha = 0.6f),
+                    modifier = Modifier.size(15.dp)
+                )
             }
         }
     }
@@ -2653,9 +2682,20 @@ private fun EnglishWordSuggestionStrip(
     onSelectCandidate: (String) -> Unit,
     onClearComposing: () -> Unit
 ) {
+    val context = LocalContext.current
     val accentColor = Color(theme.accentHex)
     val textColor = Color(theme.textHex)
     val surfaceColor = Color(theme.surfaceHex)
+
+    val dictManager = remember { com.example.data.PersonalDictionaryManager.getInstance(context) }
+    val dictRev = dictManager.revision.intValue
+
+    val isKnownWord = remember(composingWord, dictRev) {
+        if (composingWord.length < 2) true
+        else EnglishWordPredictor.isStaticWord(composingWord) || dictManager.containsWord(composingWord)
+    }
+    val isEligibleForDict = composingWord.length >= 2 && composingWord.all { it.isLetter() || it == '\'' || it == '-' }
+    val showAddButton = isEligibleForDict && !isKnownWord
 
     val displayedCandidates = if (candidates.isEmpty()) {
         if (composingWord.isEmpty()) listOf("I", "The", "KeyNova", "Hello")
@@ -2719,17 +2759,27 @@ private fun EnglishWordSuggestionStrip(
             }
         }
 
-        if (composingWord.length >= 2) {
-            val context = androidx.compose.ui.platform.LocalContext.current
+        if (showAddButton) {
             IconButton(
                 onClick = {
-                    com.example.data.PersonalDictionaryManager.getInstance(context).addWord(composingWord)
-                    android.widget.Toast.makeText(context, "Added \"$composingWord\" to dictionary", android.widget.Toast.LENGTH_SHORT).show()
+                    val added = dictManager.addWord(composingWord)
+                    if (added) {
+                        android.widget.Toast.makeText(context, "Added \"$composingWord\" to dictionary", android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 },
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = 0.16f))
             ) {
-                Text("+", color = accentColor, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add to dictionary",
+                    tint = accentColor,
+                    modifier = Modifier.size(17.dp)
+                )
             }
+            Spacer(modifier = Modifier.width(2.dp))
         }
 
         if (composingWord.isNotEmpty()) {
@@ -2737,7 +2787,12 @@ private fun EnglishWordSuggestionStrip(
                 onClick = onClearComposing,
                 modifier = Modifier.size(26.dp)
             ) {
-                Text("✕", color = textColor.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Clear",
+                    tint = textColor.copy(alpha = 0.6f),
+                    modifier = Modifier.size(15.dp)
+                )
             }
         }
     }

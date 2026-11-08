@@ -29,6 +29,17 @@ object EnglishWordPredictor {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<String>>?): Boolean = size > 256
     }
 
+    fun isStaticWord(word: String): Boolean {
+        val lower = word.trim().lowercase()
+        return dictionary.contains(lower)
+    }
+
+    fun clearCache() {
+        synchronized(predictionCache) {
+            predictionCache.clear()
+        }
+    }
+
     fun predict(prefix: String, limit: Int = 3, context: android.content.Context? = null): List<String> {
         val trimmed = prefix.trim()
         if (trimmed.length < 2) return emptyList()

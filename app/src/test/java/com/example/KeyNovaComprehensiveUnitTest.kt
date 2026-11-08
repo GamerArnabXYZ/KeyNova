@@ -2,6 +2,7 @@ package com.example
 
 import android.text.InputType
 import android.view.inputmethod.EditorInfo
+import com.example.data.PersonalDictionaryManager
 import com.example.data.SmartActionType
 import com.example.data.SmartClipboardAnalyzer
 import com.example.data.ToolbarTool
@@ -362,5 +363,235 @@ class KeyNovaComprehensiveUnitTest {
         assertEquals(1, clamp(-5))
         assertEquals(3, clamp(4))
         assertEquals(3, clamp(99))
+    }
+
+    // ==========================================
+    // 8. PERSONAL DICTIONARY & '+' BUTTON FLOW TESTS
+    // ==========================================
+
+    private class FakeSharedPreferences : android.content.SharedPreferences {
+        val map = mutableMapOf<String, Any>()
+
+        override fun getAll(): MutableMap<String, *> = map.toMutableMap()
+        override fun getString(key: String?, defValue: String?): String? = map[key] as? String ?: defValue
+        override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? {
+            @Suppress("UNCHECKED_CAST")
+            val set = map[key] as? Set<String>
+            return set?.toMutableSet() ?: defValues
+        }
+        override fun getInt(key: String?, defValue: Int): Int = map[key] as? Int ?: defValue
+        override fun getLong(key: String?, defValue: Long): Long = map[key] as? Long ?: defValue
+        override fun getFloat(key: String?, defValue: Float): Float = map[key] as? Float ?: defValue
+        override fun getBoolean(key: String?, defValue: Boolean): Boolean = map[key] as? Boolean ?: defValue
+        override fun contains(key: String?): Boolean = map.containsKey(key)
+        override fun edit(): android.content.SharedPreferences.Editor = FakeEditor()
+        override fun registerOnSharedPreferenceChangeListener(listener: android.content.SharedPreferences.OnSharedPreferenceChangeListener?) {}
+        override fun unregisterOnSharedPreferenceChangeListener(listener: android.content.SharedPreferences.OnSharedPreferenceChangeListener?) {}
+
+        inner class FakeEditor : android.content.SharedPreferences.Editor {
+            private val temp = mutableMapOf<String, Any?>()
+
+            override fun putString(key: String?, value: String?): android.content.SharedPreferences.Editor {
+                if (key != null) temp[key] = value
+                return this
+            }
+            override fun putStringSet(key: String?, values: MutableSet<String>?): android.content.SharedPreferences.Editor {
+                if (key != null) temp[key] = values?.let { HashSet(it) }
+                return this
+            }
+            override fun putInt(key: String?, value: Int): android.content.SharedPreferences.Editor {
+                if (key != null) temp[key] = value
+                return this
+            }
+            override fun putLong(key: String?, value: Long): android.content.SharedPreferences.Editor {
+                if (key != null) temp[key] = value
+                return this
+            }
+            override fun putFloat(key: String?, value: Float): android.content.SharedPreferences.Editor {
+                if (key != null) temp[key] = value
+                return this
+            }
+            override fun putBoolean(key: String?, value: Boolean): android.content.SharedPreferences.Editor {
+                if (key != null) temp[key] = value
+                return this
+            }
+            override fun remove(key: String?): android.content.SharedPreferences.Editor {
+                if (key != null) temp[key] = null
+                return this
+            }
+            override fun clear(): android.content.SharedPreferences.Editor {
+                map.clear()
+                temp.clear()
+                return this
+            }
+            override fun commit(): Boolean {
+                apply()
+                return true
+            }
+            override fun apply() {
+                temp.forEach { (k, v) ->
+                    if (v == null) map.remove(k) else map[k] = v
+                }
+                temp.clear()
+            }
+        }
+    }
+
+    @Test
+    fun testPersonalDictionary_newEnglishWordShowsPlusAndPersists() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        val newWord = "Zenthor"
+
+        // 1. Check if word is known in static dictionary
+        assertFalse("New custom word must NOT be in static dictionary",
+            EnglishWordPredictor.isStaticWord(newWord))
+
+        // 2. Check if word is known in personal dictionary before add
+        assertFalse("Must NOT be in personal dictionary yet",
+            dict.containsWord(newWord))
+
+        // 3. Visibility condition for '+' button:
+        // isEligibleForDict && !isKnownWord
+        val isKnownWordBefore = EnglishWordPredictor.isStaticWord(newWord) || dict.containsWord(newWord)
+        val showAddButtonBefore = newWord.length >= 2 && !isKnownWordBefore
+        assertTrue("'+' button MUST be visible for new un-saved English word", showAddButtonBefore)
+
+        // 4. Click '+' -> save word
+        val added = dict.addWord(newWord)
+        assertTrue("addWord must return true for new valid word", added)
+
+        // 5. After save: containsWord must be true and '+' button must disappear
+        assertTrue("containsWord must be true after add", dict.containsWord(newWord))
+        val isKnownWordAfter = EnglishWordPredictor.isStaticWord(newWord) || dict.containsWord(newWord)
+        val showAddButtonAfter = newWord.length >= 2 && !isKnownWordAfter
+        assertFalse("'+' button MUST disappear after word is saved", showAddButtonAfter)
+
+        // 6. Future suggestion check: typing prefix "Zen" must retrieve "Zenthor"
+        val matches = dict.findMatches("Zen", limit = 3)
+        assertTrue("Prefix 'Zen' must suggest saved word 'Zenthor'", matches.contains("Zenthor"))
+    }
+
+    @Test
+    fun testPersonalDictionary_existingDictionaryWordSuppressesPlusButton() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        val existingWord = "hello"
+
+        // 1. 'hello' is in static dictionary
+        assertTrue("Static word 'hello' must be recognized",
+            EnglishWordPredictor.isStaticWord(existingWord))
+
+        // 2. Visibility condition: isKnownWord is true -> showAddButton is false
+        val isKnownWord = EnglishWordPredictor.isStaticWord(existingWord) || dict.containsWord(existingWord)
+        val showAddButton = existingWord.length >= 2 && !isKnownWord
+        assertFalse("'+' button must NOT appear for existing dictionary words", showAddButton)
+    }
+
+    @Test
+    fun testPersonalDictionary_duplicateWordHandling() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        assertTrue("First add must succeed", dict.addWord("CustomBrand"))
+        assertFalse("Exact duplicate add must be rejected", dict.addWord("CustomBrand"))
+        assertFalse("Case-insensitive duplicate add must be rejected", dict.addWord("custombrand"))
+        assertFalse("Uppercase duplicate add must be rejected", dict.addWord("CUSTOMBRAND"))
+
+        assertEquals("Personal dictionary must contain exactly 1 entry without duplicates",
+            1, dict.getAllWords().size)
+    }
+
+    @Test
+    fun testPersonalDictionary_avroPhoneticWordAdditionAndMatches() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        val phonetic = "arnix"
+        val bangla = "আর্নিক্স"
+
+        // 1. Before add
+        assertFalse("Phonetic mapping must not exist yet", dict.containsPhoneticMapping(phonetic))
+        assertFalse("Bangla word must not exist yet", dict.containsWord(bangla))
+
+        val isKnownAvroBefore = dict.containsPhoneticMapping(phonetic) || dict.containsWord(bangla)
+        val showAvroAddButtonBefore = phonetic.length >= 2 && bangla.isNotEmpty() && !isKnownAvroBefore
+        assertTrue("'+' button must be visible for new Avro word", showAvroAddButtonBefore)
+
+        // 2. Click '+' -> save Avro phonetic word
+        val added = dict.addAvroPhoneticWord(phonetic, bangla)
+        assertTrue("addAvroPhoneticWord must return true", added)
+
+        // 3. After save
+        assertTrue(dict.containsPhoneticMapping(phonetic))
+        assertTrue(dict.containsWord(bangla))
+
+        val isKnownAvroAfter = dict.containsPhoneticMapping(phonetic) || dict.containsWord(bangla)
+        val showAvroAddButtonAfter = phonetic.length >= 2 && bangla.isNotEmpty() && !isKnownAvroAfter
+        assertFalse("'+' button must disappear after Avro word is saved", showAvroAddButtonAfter)
+
+        // 4. Future suggestion retrieval:
+        // Typing prefix "arn" or "arnix" must suggest "আর্নিক্স"
+        val matchesShort = dict.findAvroMatches("arn", limit = 3)
+        assertTrue("Phonetic prefix 'arn' must return 'আর্নিক্স'", matchesShort.contains(bangla))
+
+        val matchesFull = dict.findAvroMatches("arnix", limit = 3)
+        assertTrue("Full phonetic 'arnix' must return 'আর্নিক্স'", matchesFull.contains(bangla))
+    }
+
+    @Test
+    fun testPersonalDictionary_simulatedAppRestartPersistence() {
+        val fakePrefs = FakeSharedPreferences()
+
+        // Session 1: User adds words
+        val dictSession1 = PersonalDictionaryManager(fakePrefs)
+        dictSession1.addWord("Zenthor")
+        dictSession1.addWord("CodeSnippet")
+        dictSession1.addAvroPhoneticWord("shuvokamona", "শুভকামনা")
+
+        assertEquals(3, dictSession1.getAllWords().size)
+
+        // Session 2: App killed and restarted, new PersonalDictionaryManager initialized with same SharedPreferences
+        val dictSession2 = PersonalDictionaryManager(fakePrefs)
+
+        assertTrue("Saved English word 'Zenthor' must persist after app restart",
+            dictSession2.containsWord("Zenthor"))
+        assertTrue("Saved English word 'CodeSnippet' must persist after app restart",
+            dictSession2.containsWord("CodeSnippet"))
+        assertTrue("Saved Avro phonetic mapping must persist after app restart",
+            dictSession2.containsPhoneticMapping("shuvokamona"))
+        assertTrue("Saved Bangla word must persist after app restart",
+            dictSession2.containsWord("শুভকামনা"))
+
+        val avroSuggestions = dictSession2.findAvroMatches("shuvo", limit = 3)
+        assertTrue("Avro suggestions must retrieve 'শুভকামনা' after restart",
+            avroSuggestions.contains("শুভকামনা"))
+    }
+
+    @Test
+    fun testPersonalDictionary_invalidAndShortWordsRejected() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        assertFalse("Single letter word must be rejected", dict.addWord("a"))
+        assertFalse("Empty string must be rejected", dict.addWord(""))
+        assertFalse("Whitespace must be rejected", dict.addWord("   "))
+        assertEquals(0, dict.getAllWords().size)
+    }
+
+    @Test
+    fun testPersonalDictionary_wordRemoval() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        dict.addWord("TempWord")
+        assertTrue(dict.containsWord("TempWord"))
+
+        val removed = dict.removeWord("TempWord")
+        assertTrue("removeWord must return true", removed)
+        assertFalse("Word must no longer be in dictionary", dict.containsWord("TempWord"))
+        assertTrue(dict.findMatches("Temp").isEmpty())
     }
 }
