@@ -412,6 +412,13 @@ class KeyboardPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_PRIVATE_TYPING_MODE, false)
         set(value) = prefs.edit().putBoolean(KEY_PRIVATE_TYPING_MODE, value).apply()
 
+    var autoLearnPersonalDict: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_LEARN_PERSONAL_DICT, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_AUTO_LEARN_PERSONAL_DICT, value).apply()
+            notifyPreferencesChanged()
+        }
+
     var soundFeedback: Boolean
         get() = prefs.getBoolean(KEY_SOUND, false)
         set(value) = prefs.edit().putBoolean(KEY_SOUND, value).apply()
@@ -689,5 +696,6 @@ class KeyboardPreferences(context: Context) {
         private const val KEY_POPUP_ON_KEYPRESS = "key_popup_on_keypress"
         private const val KEY_HAPTIC_INTENSITY = "key_haptic_intensity"
         private const val KEY_PRIVATE_TYPING_MODE = "key_private_typing_mode"
+        private const val KEY_AUTO_LEARN_PERSONAL_DICT = "key_auto_learn_personal_dict"
     }
 }

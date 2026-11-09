@@ -69,6 +69,8 @@ class KeyNovaInputMethodService : InputMethodService(),
     private var currentActivePage = ActiveKeyboardPage.LETTERS
     private var backPressEventCounter by mutableLongStateOf(0L)
     private var isIncognitoOrSensitiveField by mutableStateOf(false)
+    private var isEmailInputField by mutableStateOf(false)
+    private var isUriInputField by mutableStateOf(false)
     private val prefChangeListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == "key_is_floating_mode" || key == "key_theme" || key == "key_is_custom_theme" || key == "key_custom_theme_config") {
             updateWindowAppearance()
@@ -213,6 +215,8 @@ class KeyNovaInputMethodService : InputMethodService(),
                     actionTarget = this@KeyNovaInputMethodService,
                     isImeService = true,
                     isIncognitoOrSensitive = isIncognitoOrSensitiveField,
+                    isEmailField = isEmailInputField,
+                    isUriField = isUriInputField,
                     backPressEventCounter = backPressEventCounter,
                     onActivePageChanged = { page ->
                         currentActivePage = page
@@ -254,6 +258,8 @@ class KeyNovaInputMethodService : InputMethodService(),
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         isIncognitoOrSensitiveField = com.example.util.EditorInfoHelper.isPrivateOrSensitive(info)
+        isEmailInputField = com.example.util.EditorInfoHelper.isEmailField(info)
+        isUriInputField = com.example.util.EditorInfoHelper.isUriField(info)
 
         if (restarting) {
             // Typing in active input, cursor position update, or autocomplete:

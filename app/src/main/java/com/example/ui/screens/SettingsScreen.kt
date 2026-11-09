@@ -40,6 +40,7 @@ enum class SettingsDestination {
     TOOLBAR,
     LAYOUT,
     CLIPBOARD,
+    DICTIONARY,
     GAMING_CODING,
     PRIVACY,
     ABOUT
@@ -285,6 +286,21 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_nav_clipboard_subtitle),
                     badge = "Offline",
                     onClick = { onNavigateTo(SettingsDestination.CLIPBOARD) }
+                )
+            }
+
+            item {
+                val dictCount = remember {
+                    com.example.data.PersonalDictionaryManager.getInstance(context).getTotalEntryCount()
+                }
+                SettingsCardItem(
+                    icon = Icons.Outlined.Book,
+                    iconTint = Color(0xFF6366F1),
+                    iconBg = Color(0xFFEEF2FF),
+                    title = "Personal Dictionary",
+                    subtitle = "Manage learned words, emails, URLs & alphanumeric shortcuts",
+                    badge = "$dictCount items",
+                    onClick = { onNavigateTo(SettingsDestination.DICTIONARY) }
                 )
             }
 

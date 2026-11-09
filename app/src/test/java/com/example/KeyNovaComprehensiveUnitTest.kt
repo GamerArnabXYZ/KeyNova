@@ -2,6 +2,7 @@ package com.example
 
 import android.text.InputType
 import android.view.inputmethod.EditorInfo
+import com.example.data.PersonalDictEntryType
 import com.example.data.PersonalDictionaryManager
 import com.example.data.SmartActionType
 import com.example.data.SmartClipboardAnalyzer
@@ -438,160 +439,420 @@ class KeyNovaComprehensiveUnitTest {
     }
 
     @Test
-    fun testPersonalDictionary_newEnglishWordShowsPlusAndPersists() {
+    fun testPersonalDictionary_automaticLearningEnglishAndFrequencyRanking() {
         val fakePrefs = FakeSharedPreferences()
         val dict = PersonalDictionaryManager(fakePrefs)
 
-        val newWord = "Zenthor"
+        // 1. Initial state: word unknown
+        assertFalse(dict.containsWord("Zenthor", "en"))
 
-        // 1. Check if word is known in static dictionary
-        assertFalse("New custom word must NOT be in static dictionary",
-            EnglishWordPredictor.isStaticWord(newWord))
+        // 2. User types "Zenthor" once (automatic learning on space/complete)
+        val learnedOnce = dict.learnWord("Zenthor", "en", isPrivateMode = false)
+        assertTrue("learnWord must succeed for valid word", learnedOnce)
+        assertTrue("containsWord must now be true", dict.containsWord("Zenthor", "en"))
 
-        // 2. Check if word is known in personal dictionary before add
-        assertFalse("Must NOT be in personal dictionary yet",
-            dict.containsWord(newWord))
+        // 3. User types "Zenthor" multiple times -> frequency increments
+        dict.learnWord("Zenthor", "en", isPrivateMode = false)
+        dict.learnWord("Zenthor", "en", isPrivateMode = false)
 
-        // 3. Visibility condition for '+' button:
-        // isEligibleForDict && !isKnownWord
-        val isKnownWordBefore = EnglishWordPredictor.isStaticWord(newWord) || dict.containsWord(newWord)
-        val showAddButtonBefore = newWord.length >= 2 && !isKnownWordBefore
-        assertTrue("'+' button MUST be visible for new un-saved English word", showAddButtonBefore)
+        // User types another word once
+        dict.learnWord("Zenithia", "en", isPrivateMode = false)
 
-        // 4. Click '+' -> save word
-        val added = dict.addWord(newWord)
-        assertTrue("addWord must return true for new valid word", added)
-
-        // 5. After save: containsWord must be true and '+' button must disappear
-        assertTrue("containsWord must be true after add", dict.containsWord(newWord))
-        val isKnownWordAfter = EnglishWordPredictor.isStaticWord(newWord) || dict.containsWord(newWord)
-        val showAddButtonAfter = newWord.length >= 2 && !isKnownWordAfter
-        assertFalse("'+' button MUST disappear after word is saved", showAddButtonAfter)
-
-        // 6. Future suggestion check: typing prefix "Zen" must retrieve "Zenthor"
-        val matches = dict.findMatches("Zen", limit = 3)
-        assertTrue("Prefix 'Zen' must suggest saved word 'Zenthor'", matches.contains("Zenthor"))
+        // 4. Query suggestions for prefix "Zen": "Zenthor" (freq 3) must rank higher than "Zenithia" (freq 1)
+        val suggestions = dict.findEnglishMatches("Zen", limit = 5)
+        assertEquals(2, suggestions.size)
+        assertEquals("Zenthor", suggestions[0])
+        assertEquals("Zenithia", suggestions[1])
     }
 
     @Test
-    fun testPersonalDictionary_existingDictionaryWordSuppressesPlusButton() {
+    fun testPersonalDictionary_banglaNativeAutomaticLearning() {
         val fakePrefs = FakeSharedPreferences()
         val dict = PersonalDictionaryManager(fakePrefs)
 
-        val existingWord = "hello"
+        val nativeWord = "বাংলাদেশ"
+        assertFalse(dict.containsWord(nativeWord, "bn"))
 
-        // 1. 'hello' is in static dictionary
-        assertTrue("Static word 'hello' must be recognized",
-            EnglishWordPredictor.isStaticWord(existingWord))
+        // Automatic learning from Native Jatiya typing
+        val learned = dict.learnWord(nativeWord, "bn", isPrivateMode = false)
+        assertTrue("Bangla native word learning must succeed", learned)
+        assertTrue(dict.containsWord(nativeWord, "bn"))
 
-        // 2. Visibility condition: isKnownWord is true -> showAddButton is false
-        val isKnownWord = EnglishWordPredictor.isStaticWord(existingWord) || dict.containsWord(existingWord)
-        val showAddButton = existingWord.length >= 2 && !isKnownWord
-        assertFalse("'+' button must NOT appear for existing dictionary words", showAddButton)
+        // Prefix match
+        val matches = dict.findBanglaMatches("বাংলা", limit = 3)
+        assertTrue("Prefix 'বাংলা' must retrieve 'বাংলাদেশ'", matches.contains(nativeWord))
     }
 
     @Test
-    fun testPersonalDictionary_duplicateWordHandling() {
+    fun testPersonalDictionary_hindiDevanagariAutomaticLearning() {
         val fakePrefs = FakeSharedPreferences()
         val dict = PersonalDictionaryManager(fakePrefs)
 
-        assertTrue("First add must succeed", dict.addWord("CustomBrand"))
-        assertFalse("Exact duplicate add must be rejected", dict.addWord("CustomBrand"))
-        assertFalse("Case-insensitive duplicate add must be rejected", dict.addWord("custombrand"))
-        assertFalse("Uppercase duplicate add must be rejected", dict.addWord("CUSTOMBRAND"))
+        val hindiWord = "नमस्ते"
+        assertFalse(dict.containsWord(hindiWord, "hi"))
 
-        assertEquals("Personal dictionary must contain exactly 1 entry without duplicates",
-            1, dict.getAllWords().size)
+        // Automatic learning from Devanagari typing
+        val learned = dict.learnWord(hindiWord, "hi", isPrivateMode = false)
+        assertTrue("Hindi word learning must succeed", learned)
+        assertTrue(dict.containsWord(hindiWord, "hi"))
+
+        // Prefix match
+        val matches = dict.findHindiMatches("नम", limit = 3)
+        assertTrue("Prefix 'नम' must retrieve 'नमस्ते'", matches.contains(hindiWord))
     }
 
     @Test
-    fun testPersonalDictionary_avroPhoneticWordAdditionAndMatches() {
+    fun testPersonalDictionary_avroPhoneticAutomaticLearning() {
         val fakePrefs = FakeSharedPreferences()
         val dict = PersonalDictionaryManager(fakePrefs)
 
         val phonetic = "arnix"
         val bangla = "আর্নিক্স"
 
-        // 1. Before add
-        assertFalse("Phonetic mapping must not exist yet", dict.containsPhoneticMapping(phonetic))
-        assertFalse("Bangla word must not exist yet", dict.containsWord(bangla))
+        assertFalse(dict.containsPhoneticMapping(phonetic))
+        assertFalse(dict.containsWord(bangla, "bn"))
 
-        val isKnownAvroBefore = dict.containsPhoneticMapping(phonetic) || dict.containsWord(bangla)
-        val showAvroAddButtonBefore = phonetic.length >= 2 && bangla.isNotEmpty() && !isKnownAvroBefore
-        assertTrue("'+' button must be visible for new Avro word", showAvroAddButtonBefore)
-
-        // 2. Click '+' -> save Avro phonetic word
-        val added = dict.addAvroPhoneticWord(phonetic, bangla)
-        assertTrue("addAvroPhoneticWord must return true", added)
-
-        // 3. After save
+        // Automatic learning of Avro pair
+        val learned = dict.learnAvroPhonetic(phonetic, bangla, isPrivateMode = false)
+        assertTrue("learnAvroPhonetic must succeed", learned)
         assertTrue(dict.containsPhoneticMapping(phonetic))
-        assertTrue(dict.containsWord(bangla))
+        assertTrue(dict.containsWord(bangla, "bn"))
 
-        val isKnownAvroAfter = dict.containsPhoneticMapping(phonetic) || dict.containsWord(bangla)
-        val showAvroAddButtonAfter = phonetic.length >= 2 && bangla.isNotEmpty() && !isKnownAvroAfter
-        assertFalse("'+' button must disappear after Avro word is saved", showAvroAddButtonAfter)
+        // Suggestions retrieval
+        val prefixMatches = dict.findAvroMatches("arn", limit = 3)
+        assertTrue("Phonetic prefix 'arn' must return 'আর্নিক্স'", prefixMatches.contains(bangla))
+    }
 
-        // 4. Future suggestion retrieval:
-        // Typing prefix "arn" or "arnix" must suggest "আর্নিক্স"
-        val matchesShort = dict.findAvroMatches("arn", limit = 3)
-        assertTrue("Phonetic prefix 'arn' must return 'আর্নিক্স'", matchesShort.contains(bangla))
+    @Test
+    fun testPersonalDictionary_strictPrivateModeBlocking() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
 
-        val matchesFull = dict.findAvroMatches("arnix", limit = 3)
-        assertTrue("Full phonetic 'arnix' must return 'আর্নিক্স'", matchesFull.contains(bangla))
+        // When isPrivateMode is true, NO words or mappings may be learned
+        assertFalse("Private mode must strictly reject English learning",
+            dict.learnWord("SecretVault", "en", isPrivateMode = true))
+        assertFalse(dict.containsWord("SecretVault", "en"))
+
+        assertFalse("Private mode must strictly reject Bangla learning",
+            dict.learnWord("গোপনতথ্য", "bn", isPrivateMode = true))
+        assertFalse(dict.containsWord("গোপনতথ্য", "bn"))
+
+        assertFalse("Private mode must strictly reject Hindi learning",
+            dict.learnWord("गुप्तपासवर्ड", "hi", isPrivateMode = true))
+        assertFalse(dict.containsWord("गुप्तपासवर्ड", "hi"))
+
+        assertFalse("Private mode must strictly reject Avro learning",
+            dict.learnAvroPhonetic("secretkey", "চাবি", isPrivateMode = true))
+        assertFalse(dict.containsPhoneticMapping("secretkey"))
+    }
+
+    @Test
+    fun testPersonalDictionary_securityAndSanitizationFilters() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        // Strict rejection of pure numbers / OTPs / PINs (security protection)
+        assertFalse("Pure numbers must be rejected", dict.learnWord("482910", "en", false))
+        assertFalse("Pure 4-digit PIN must be rejected", dict.learnWord("1234", "en", false))
+        assertFalse("Bengali pure digits must be rejected", dict.learnWord("১২৩৪৫", "bn", false))
+        assertFalse("Devanagari pure digits must be rejected", dict.learnWord("१२३४५", "hi", false))
+
+        // Rejection of strings containing spaces/whitespace
+        assertFalse("Multi-word strings with spaces must not be auto-learned", dict.learnWord("hello world", "en", false))
+
+        // Rejection of pure symbols (no letters, no digits)
+        assertFalse("Pure symbols must be rejected", dict.learnWord("###", "en", false))
+        assertFalse("Pure punctuation must be rejected", dict.learnWord("...", "en", false))
+
+        // Short words (< 2 chars) rejected
+        assertFalse("Single letter rejected", dict.learnWord("a", "en", false))
+        assertFalse("Empty string rejected", dict.learnWord("", "en", false))
+    }
+
+    @Test
+    fun testPersonalDictionary_expandedEntryTypesDetectionAndLearning() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        // 1. Alphanumeric combinations (Arnix90, Craft2026, Gamer123)
+        assertEquals(PersonalDictEntryType.ALPHANUMERIC, dict.detectEntryType("Arnix90"))
+        assertEquals(PersonalDictEntryType.ALPHANUMERIC, dict.detectEntryType("Craft2026"))
+        assertTrue("Alphanumeric entry Arnix90 must be learned", dict.learnWord("Arnix90", "en", false))
+        assertTrue(dict.containsWord("Arnix90", "en"))
+
+        // 2. Special-character combinations (Arnix@67, Code_Arnix, My-Project)
+        assertEquals(PersonalDictEntryType.CUSTOM, dict.detectEntryType("Arnix@67"))
+        assertEquals(PersonalDictEntryType.CUSTOM, dict.detectEntryType("Code_Arnix"))
+        assertTrue("Special character entry Arnix@67 must be learned", dict.learnWord("Arnix@67", "en", false))
+        assertTrue(dict.containsWord("Arnix@67", "en"))
+
+        // 3. Email addresses (arnix@example.com)
+        assertEquals(PersonalDictEntryType.EMAIL, dict.detectEntryType("arnix@example.com"))
+        assertTrue("Email address must be learned", dict.learnWord("arnix@example.com", "en", false))
+        assertTrue(dict.containsWord("arnix@example.com", "en"))
+
+        // 4. URLs and website addresses (https://example.com, craftsprint.io)
+        assertEquals(PersonalDictEntryType.URL, dict.detectEntryType("https://example.com"))
+        assertEquals(PersonalDictEntryType.URL, dict.detectEntryType("craftsprint.io"))
+        assertTrue("URL must be learned", dict.learnWord("https://example.com", "en", false))
+        assertTrue(dict.containsWord("https://example.com", "en"))
+
+        // 5. Normal words (Arnix, আমার, नमस्ते)
+        assertEquals(PersonalDictEntryType.WORD, dict.detectEntryType("Arnix"))
+        assertEquals(PersonalDictEntryType.WORD, dict.detectEntryType("আমার"))
+        assertEquals(PersonalDictEntryType.WORD, dict.detectEntryType("नमस्ते"))
+
+        // 6. Original text casing and characters must be perfectly preserved
+        val retrievedEmail = dict.getAllEntries().firstOrNull { it.text == "arnix@example.com" }
+        assertNotNull(retrievedEmail)
+        assertEquals("arnix@example.com", retrievedEmail?.text)
+        assertEquals(PersonalDictEntryType.EMAIL, retrievedEmail?.type)
+
+        val retrievedSpecial = dict.getAllEntries().firstOrNull { it.text == "Arnix@67" }
+        assertNotNull(retrievedSpecial)
+        assertEquals("Arnix@67", retrievedSpecial?.text)
+        assertEquals(PersonalDictEntryType.CUSTOM, retrievedSpecial?.type)
+    }
+
+    @Test
+    fun testPersonalDictionary_contextualSuggestions() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        // Populate multiple entry types starting with "arn"
+        dict.learnWord("arnix@gmail.com", "en", false)
+        dict.learnWord("https://arnix.io", "en", false)
+        dict.learnWord("Arnix90", "en", false)
+        dict.learnWord("ArnixWord", "en", false)
+
+        // Case 1: In Email Input Field -> Email entries must be prioritized first
+        val emailSuggestions = dict.getContextualSuggestions(
+            prefix = "arn",
+            isEmailField = true,
+            isUriField = false,
+            languageCode = "en",
+            limit = 5
+        )
+        assertTrue(emailSuggestions.isNotEmpty())
+        assertEquals("In email field, email addresses must be prioritized first",
+            "arnix@gmail.com", emailSuggestions[0])
+
+        // Case 2: In URL/URI Input Field -> URL entries must be prioritized first
+        val uriSuggestions = dict.getContextualSuggestions(
+            prefix = "arn",
+            isEmailField = false,
+            isUriField = true,
+            languageCode = "en",
+            limit = 5
+        )
+        assertTrue(uriSuggestions.isNotEmpty())
+        assertEquals("In URI field, URL entries must be prioritized first",
+            "https://arnix.io", uriSuggestions[0])
+
+        // Case 3: In Normal Text Field -> All matching entries suggested
+        val normalSuggestions = dict.getContextualSuggestions(
+            prefix = "Arn",
+            isEmailField = false,
+            isUriField = false,
+            languageCode = "en",
+            limit = 10
+        )
+        assertTrue(normalSuggestions.contains("Arnix90"))
+        assertTrue(normalSuggestions.contains("ArnixWord"))
+    }
+
+    @Test
+    fun testPersonalDictionary_fullCrudOperations() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        // 1. Manual Add
+        val added1 = dict.addCustomEntry("CraftSprint.IO", PersonalDictEntryType.URL, "en")
+        assertTrue("Manual add must succeed", added1)
+        val added2 = dict.addCustomEntry("support@craftsprint.io", PersonalDictEntryType.EMAIL, "en")
+        assertTrue(added2)
+        val added3 = dict.addCustomEntry("DevNova_2026", PersonalDictEntryType.ALPHANUMERIC, "en")
+        assertTrue(added3)
+        assertEquals(3, dict.getTotalEntryCount())
+
+        // 2. Category filtering
+        val emailEntries = dict.getEntriesFiltered(PersonalDictEntryType.EMAIL, "")
+        assertEquals(1, emailEntries.size)
+        assertEquals("support@craftsprint.io", emailEntries[0].text)
+
+        val urlEntries = dict.getEntriesFiltered(PersonalDictEntryType.URL, "")
+        assertEquals(1, urlEntries.size)
+        assertEquals("CraftSprint.IO", urlEntries[0].text)
+
+        // 3. Search query filtering
+        val searchResults = dict.getEntriesFiltered(null, "craft")
+        assertEquals(2, searchResults.size)
+
+        // 4. Edit / Update Entry
+        val updateSuccess = dict.updateEntry("craftsprint.io", "https://craftsprint.io/docs", PersonalDictEntryType.URL)
+        assertTrue("Update must succeed", updateSuccess)
+        assertFalse(dict.containsWord("CraftSprint.IO", "en"))
+        assertTrue(dict.containsWord("https://craftsprint.io/docs", "en"))
+
+        // 5. Single Delete
+        val deleteSuccess = dict.deleteEntry("support@craftsprint.io")
+        assertTrue("Single delete must succeed", deleteSuccess)
+        assertEquals(2, dict.getTotalEntryCount())
+
+        // 6. Bulk Delete
+        val remainingIds = setOf("https://craftsprint.io/docs", "devnova_2026")
+        dict.deleteEntries(remainingIds)
+        assertEquals(0, dict.getTotalEntryCount())
+
+        // 7. Clear All
+        dict.addCustomEntry("TokenA", PersonalDictEntryType.WORD, "en")
+        dict.addCustomEntry("TokenB", PersonalDictEntryType.WORD, "en")
+        assertEquals(2, dict.getTotalEntryCount())
+        dict.clearAll()
+        assertEquals(0, dict.getTotalEntryCount())
+    }
+
+    @Test
+    fun testPersonalDictionary_autoLearningToggle() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        // When isPrivateMode / learningBlocked is true (e.g. autoLearn = false or private mode = true)
+        val blockedResult = dict.learnWord("DoNotSaveMe", "en", isPrivateMode = true)
+        assertFalse("Blocked learning must return false", blockedResult)
+        assertFalse(dict.containsWord("DoNotSaveMe", "en"))
+        assertEquals(0, dict.getTotalEntryCount())
+
+        // When unblocked, learning succeeds
+        val allowedResult = dict.learnWord("DoSaveMe", "en", isPrivateMode = false)
+        assertTrue("Unblocked learning must return true", allowedResult)
+        assertTrue(dict.containsWord("DoSaveMe", "en"))
+        assertEquals(1, dict.getTotalEntryCount())
+    }
+
+    @Test
+    fun testPersonalDictionary_restartPersistenceExpandedTypes() {
+        val fakePrefs = FakeSharedPreferences()
+
+        // Session 1: Learn expanded entries
+        val session1 = PersonalDictionaryManager(fakePrefs)
+        session1.learnWord("Arnix90", "en", false)
+        session1.learnWord("Arnix@67", "en", false)
+        session1.learnWord("contact@arnix.dev", "en", false)
+        session1.learnWord("https://arnix.dev", "en", false)
+        session1.learnWord("বাংলাশব্দ", "bn", false)
+        session1.learnWord("हिन्दीशब्द", "hi", false)
+        session1.learnAvroPhonetic("ami", "আমি", false)
+
+        // Session 2: App process restarts, reloads from SharedPreferences
+        val session2 = PersonalDictionaryManager(fakePrefs)
+
+        assertTrue("Alphanumeric Arnix90 must persist after restart", session2.containsWord("Arnix90", "en"))
+        assertTrue("Special Arnix@67 must persist after restart", session2.containsWord("Arnix@67", "en"))
+        assertTrue("Email contact@arnix.dev must persist after restart", session2.containsWord("contact@arnix.dev", "en"))
+        assertTrue("URL https://arnix.dev must persist after restart", session2.containsWord("https://arnix.dev", "en"))
+        assertTrue("Bangla word must persist after restart", session2.containsWord("বাংলাশব্দ", "bn"))
+        assertTrue("Hindi word must persist after restart", session2.containsWord("हिन्दीशब्द", "hi"))
+        assertTrue("Avro mapping must persist after restart", session2.containsPhoneticMapping("ami"))
+
+        val entries = session2.getAllEntries()
+        val emailEntry = entries.firstOrNull { it.text == "contact@arnix.dev" }
+        assertEquals(PersonalDictEntryType.EMAIL, emailEntry?.type)
+
+        val urlEntry = entries.firstOrNull { it.text == "https://arnix.dev" }
+        assertEquals(PersonalDictEntryType.URL, urlEntry?.type)
+
+        val alphaEntry = entries.firstOrNull { it.text == "Arnix90" }
+        assertEquals(PersonalDictEntryType.ALPHANUMERIC, alphaEntry?.type)
+    }
+
+    @Test
+    fun testPersonalDictionary_languageIsolation() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        dict.learnWord("HelloWorld", "en", false)
+        dict.learnWord("বাংলাভাষা", "bn", false)
+        dict.learnWord("हिन्दीभाषा", "hi", false)
+
+        // Cross-script rejection during learning
+        assertFalse("Bengali word cannot be learned as English", dict.learnWord("বাংলা", "en", false))
+        assertFalse("Hindi word cannot be learned as English", dict.learnWord("हिन्दी", "en", false))
+        assertFalse("English word cannot be learned as Bangla", dict.learnWord("English", "bn", false))
+        assertFalse("English word cannot be learned as Hindi", dict.learnWord("English", "hi", false))
+
+        // Queries must be isolated
+        assertTrue(dict.findEnglishMatches("Hello").contains("HelloWorld"))
+        assertTrue(dict.findBanglaMatches("বাংলা").contains("বাংলাভাষা"))
+        assertTrue(dict.findHindiMatches("हिन्दी").contains("हिन्दीभाषा"))
+
+        // Cross-query emptiness
+        assertFalse(dict.findEnglishMatches("বাংলা").contains("বাংলাভাষা"))
+        assertFalse(dict.findBanglaMatches("Hello").contains("HelloWorld"))
+        assertFalse(dict.findHindiMatches("Hello").contains("HelloWorld"))
     }
 
     @Test
     fun testPersonalDictionary_simulatedAppRestartPersistence() {
         val fakePrefs = FakeSharedPreferences()
 
-        // Session 1: User adds words
-        val dictSession1 = PersonalDictionaryManager(fakePrefs)
-        dictSession1.addWord("Zenthor")
-        dictSession1.addWord("CodeSnippet")
-        dictSession1.addAvroPhoneticWord("shuvokamona", "শুভকামনা")
+        // Session 1: Learn words across languages
+        val session1 = PersonalDictionaryManager(fakePrefs)
+        session1.learnWord("NovaApp", "en", false)
+        session1.learnWord("NovaApp", "en", false) // freq 2
+        session1.learnWord("সোনারদেশ", "bn", false)
+        session1.learnWord("शुभकामना", "hi", false)
+        session1.learnAvroPhonetic("dhonnobad", "ধন্যবাদ", false)
 
-        assertEquals(3, dictSession1.getAllWords().size)
+        // Session 2: App process killed and restarted with same SharedPreferences
+        val session2 = PersonalDictionaryManager(fakePrefs)
 
-        // Session 2: App killed and restarted, new PersonalDictionaryManager initialized with same SharedPreferences
-        val dictSession2 = PersonalDictionaryManager(fakePrefs)
+        assertTrue(session2.containsWord("NovaApp", "en"))
+        assertTrue(session2.containsWord("সোনারদেশ", "bn"))
+        assertTrue(session2.containsWord("शुभकामना", "hi"))
+        assertTrue(session2.containsPhoneticMapping("dhonnobad"))
 
-        assertTrue("Saved English word 'Zenthor' must persist after app restart",
-            dictSession2.containsWord("Zenthor"))
-        assertTrue("Saved English word 'CodeSnippet' must persist after app restart",
-            dictSession2.containsWord("CodeSnippet"))
-        assertTrue("Saved Avro phonetic mapping must persist after app restart",
-            dictSession2.containsPhoneticMapping("shuvokamona"))
-        assertTrue("Saved Bangla word must persist after app restart",
-            dictSession2.containsWord("শুভকামনা"))
+        val enMatches = session2.findEnglishMatches("Nova")
+        assertEquals(1, enMatches.size)
+        assertEquals("NovaApp", enMatches[0])
 
-        val avroSuggestions = dictSession2.findAvroMatches("shuvo", limit = 3)
-        assertTrue("Avro suggestions must retrieve 'শুভকামনা' after restart",
-            avroSuggestions.contains("শুভকামনা"))
+        val bnMatches = session2.findBanglaMatches("সোনার")
+        assertEquals("সোনারদেশ", bnMatches[0])
+
+        val hiMatches = session2.findHindiMatches("शुभ")
+        assertEquals("शुभकामना", hiMatches[0])
+
+        val avroMatches = session2.findAvroMatches("dhonno")
+        assertTrue(avroMatches.contains("ধন্যবাদ"))
     }
 
     @Test
-    fun testPersonalDictionary_invalidAndShortWordsRejected() {
+    fun testPersonalDictionary_managementAndClearing() {
         val fakePrefs = FakeSharedPreferences()
         val dict = PersonalDictionaryManager(fakePrefs)
 
-        assertFalse("Single letter word must be rejected", dict.addWord("a"))
-        assertFalse("Empty string must be rejected", dict.addWord(""))
-        assertFalse("Whitespace must be rejected", dict.addWord("   "))
-        assertEquals(0, dict.getAllWords().size)
-    }
+        dict.learnWord("WordOne", "en", false)
+        dict.learnWord("WordTwo", "en", false)
+        dict.learnWord("এক", "bn", false)
+        dict.learnWord("एक", "hi", false)
 
-    @Test
-    fun testPersonalDictionary_wordRemoval() {
-        val fakePrefs = FakeSharedPreferences()
-        val dict = PersonalDictionaryManager(fakePrefs)
+        assertEquals(2, dict.getWordCount("en"))
+        assertEquals(1, dict.getWordCount("bn"))
+        assertEquals(1, dict.getWordCount("hi"))
 
-        dict.addWord("TempWord")
-        assertTrue(dict.containsWord("TempWord"))
+        // Remove single word
+        assertTrue(dict.removeWord("WordOne", "en"))
+        assertFalse(dict.containsWord("WordOne", "en"))
+        assertEquals(1, dict.getWordCount("en"))
 
-        val removed = dict.removeWord("TempWord")
-        assertTrue("removeWord must return true", removed)
-        assertFalse("Word must no longer be in dictionary", dict.containsWord("TempWord"))
-        assertTrue(dict.findMatches("Temp").isEmpty())
+        // Clear single language
+        dict.clearLanguage("bn")
+        assertEquals(0, dict.getWordCount("bn"))
+        assertEquals(1, dict.getWordCount("en"))
+
+        // Clear all
+        dict.clearAll()
+        assertEquals(0, dict.getWordCount("en"))
+        assertEquals(0, dict.getWordCount("hi"))
     }
 }

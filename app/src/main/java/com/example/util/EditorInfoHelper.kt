@@ -33,4 +33,21 @@ object EditorInfoHelper {
     fun isPrivateOrSensitive(info: EditorInfo?): Boolean {
         return isNoLearningRequested(info) || isPasswordField(info)
     }
+
+    fun isEmailField(info: EditorInfo?): Boolean {
+        if (info == null) return false
+        val clazz = info.inputType and InputType.TYPE_MASK_CLASS
+        val variation = info.inputType and InputType.TYPE_MASK_VARIATION
+        return clazz == InputType.TYPE_CLASS_TEXT && (
+            variation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
+            variation == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS
+        )
+    }
+
+    fun isUriField(info: EditorInfo?): Boolean {
+        if (info == null) return false
+        val clazz = info.inputType and InputType.TYPE_MASK_CLASS
+        val variation = info.inputType and InputType.TYPE_MASK_VARIATION
+        return clazz == InputType.TYPE_CLASS_TEXT && variation == InputType.TYPE_TEXT_VARIATION_URI
+    }
 }

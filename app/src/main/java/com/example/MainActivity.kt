@@ -30,6 +30,7 @@ enum class AppNavigationScreen {
     SETTINGS_TOOLBAR,
     SETTINGS_LAYOUT,
     SETTINGS_CLIPBOARD,
+    SETTINGS_DICTIONARY,
     SETTINGS_GAMING_CODING,
     SETTINGS_PRIVACY,
     SETTINGS_ABOUT
@@ -125,6 +126,7 @@ fun KeyNovaApp(
                             SettingsDestination.TOOLBAR -> AppNavigationScreen.SETTINGS_TOOLBAR
                             SettingsDestination.LAYOUT -> AppNavigationScreen.SETTINGS_LAYOUT
                             SettingsDestination.CLIPBOARD -> AppNavigationScreen.SETTINGS_CLIPBOARD
+                            SettingsDestination.DICTIONARY -> AppNavigationScreen.SETTINGS_DICTIONARY
                             SettingsDestination.GAMING_CODING -> AppNavigationScreen.SETTINGS_GAMING_CODING
                             SettingsDestination.PRIVACY -> AppNavigationScreen.SETTINGS_PRIVACY
                             SettingsDestination.ABOUT -> AppNavigationScreen.SETTINGS_ABOUT
@@ -151,6 +153,7 @@ fun KeyNovaApp(
                             SettingsDestination.TOOLBAR -> AppNavigationScreen.SETTINGS_TOOLBAR
                             SettingsDestination.LAYOUT -> AppNavigationScreen.SETTINGS_LAYOUT
                             SettingsDestination.CLIPBOARD -> AppNavigationScreen.SETTINGS_CLIPBOARD
+                            SettingsDestination.DICTIONARY -> AppNavigationScreen.SETTINGS_DICTIONARY
                             SettingsDestination.GAMING_CODING -> AppNavigationScreen.SETTINGS_GAMING_CODING
                             SettingsDestination.PRIVACY -> AppNavigationScreen.SETTINGS_PRIVACY
                             SettingsDestination.ABOUT -> AppNavigationScreen.SETTINGS_ABOUT
@@ -231,6 +234,18 @@ fun KeyNovaApp(
                 }
                 ClipboardScreen(
                     clipboardRepository = clipboardRepo,
+                    onNavigateBack = {
+                        currentScreen = AppNavigationScreen.SETTINGS_MAIN
+                    }
+                )
+            }
+
+            AppNavigationScreen.SETTINGS_DICTIONARY -> {
+                BackHandler {
+                    currentScreen = AppNavigationScreen.SETTINGS_MAIN
+                }
+                PersonalDictionaryScreen(
+                    keyboardPreferences = preferences,
                     onNavigateBack = {
                         currentScreen = AppNavigationScreen.SETTINGS_MAIN
                     }

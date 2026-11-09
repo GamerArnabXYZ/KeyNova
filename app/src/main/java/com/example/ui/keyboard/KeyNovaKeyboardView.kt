@@ -145,6 +145,8 @@ fun KeyNovaKeyboardView(
     actionTarget: KeyboardActionTarget,
     isImeService: Boolean = false,
     isIncognitoOrSensitive: Boolean = false,
+    isEmailField: Boolean = false,
+    isUriField: Boolean = false,
     onOpenSettings: () -> Unit,
     onOpenToolbarSettings: () -> Unit = onOpenSettings,
     onFloatingBoundsChanged: (android.graphics.Rect?) -> Unit = {},
@@ -254,6 +256,20 @@ fun KeyNovaKeyboardView(
     }
 
     var englishComposingWord by remember { mutableStateOf("") }
+    var banglaNativeComposingWord by remember { mutableStateOf("") }
+    val banglaNativeCandidates = remember(banglaNativeComposingWord, dictRev) {
+        if (banglaNativeComposingWord.length >= 2) {
+            personalDict.findBanglaMatches(banglaNativeComposingWord, 5)
+        } else emptyList()
+    }
+
+    var hindiComposingWord by remember { mutableStateOf("") }
+    val hindiCandidates = remember(hindiComposingWord, dictRev) {
+        if (hindiComposingWord.length >= 2) {
+            personalDict.findHindiMatches(hindiComposingWord, 5)
+        } else emptyList()
+    }
+
     var recentKitchenEmojis by remember { mutableStateOf<List<String>>(emptyList()) }
     val matchingShortcuts: List<CodeSnippet> = remember(englishComposingWord) {
         if (englishComposingWord.length >= 2 || englishComposingWord.startsWith("!")) {
@@ -262,13 +278,24 @@ fun KeyNovaKeyboardView(
             emptyList()
         }
     }
-    val englishCandidates: List<String> = remember(englishComposingWord, matchingShortcuts, dictRev) {
-        val base = EnglishWordPredictor.predict(englishComposingWord.removePrefix("!"), context = context)
+    val englishCandidates: List<String> = remember(englishComposingWord, matchingShortcuts, dictRev, isEmailField, isUriField) {
+        val cleanWord = englishComposingWord.removePrefix("!")
+        val contextualDictMatches = if (cleanWord.length >= 2 || isEmailField || isUriField) {
+            personalDict.getContextualSuggestions(
+                prefix = cleanWord,
+                isEmailField = isEmailField,
+                isUriField = isUriField,
+                languageCode = "en",
+                limit = 6
+            )
+        } else emptyList()
+        val base = EnglishWordPredictor.predict(cleanWord, context = context)
+        val combined = (contextualDictMatches + base).distinct()
         if (matchingShortcuts.isNotEmpty()) {
             val shortcutChips = matchingShortcuts.map { "⚡ ${it.shortcut} ➔ ${it.title}" }
-            shortcutChips + base
+            shortcutChips + combined
         } else {
-            base
+            combined
         }
     }
     var showToolbarTools by remember { mutableStateOf(false) }
@@ -426,9 +453,15 @@ fun KeyNovaKeyboardView(
     val isPrivateMode = remember(keyboardPreferences.privateTypingMode, isIncognitoOrSensitive, prefRev) {
         keyboardPreferences.privateTypingMode || isIncognitoOrSensitive
     }
+    val isAutoLearningEnabled = remember(keyboardPreferences.autoLearnPersonalDict, prefRev) {
+        keyboardPreferences.autoLearnPersonalDict
+    }
+    val isLearningBlocked = isPrivateMode || !isAutoLearningEnabled
     val isAvroActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.id == "bn_avro"
+    val isBanglaNativeActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "bn" && currentLayout.id != "bn_avro"
+    val isHindiActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "hi"
     val isEnglishActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "en"
-    val hasSuggestions = isAvroActive || isEnglishActive
+    val hasSuggestions = isAvroActive || isEnglishActive || isBanglaNativeActive || isHindiActive
     val hasKitchenSuggestions = !hasSuggestions && recentKitchenEmojis.isNotEmpty()
 
     val topBarComposable: @Composable (Boolean) -> Unit = { inFloating ->
@@ -449,6 +482,9 @@ fun KeyNovaKeyboardView(
                             theme = currentTheme,
                             onToggleTools = { showToolbarTools = true },
                             onSelectCandidate = { chosen ->
+                                if (avroComposingText.isNotEmpty()) {
+                                    personalDict.learnAvroPhonetic(avroComposingText, chosen, isLearningBlocked)
+                                }
                                 actionTarget.onCommitText(chosen + " ")
                                 avroComposingText = ""
                                 performHaptic()
@@ -472,6 +508,7 @@ fun KeyNovaKeyboardView(
                                     val snippet = matchingShortcuts.firstOrNull { "⚡ ${it.shortcut} ➔ ${it.title}" == chosen }
                                     snippet?.code ?: chosen
                                 } else {
+                                    personalDict.learnWord(chosen, "en", isLearningBlocked)
                                     chosen + " "
                                 }
                                 actionTarget.onCommitText(textToInsert)
@@ -482,6 +519,52 @@ fun KeyNovaKeyboardView(
                             },
                             onClearComposing = {
                                 englishComposingWord = ""
+                                performHaptic()
+                            }
+                        )
+                    } else if (isBanglaNativeActive) {
+                        IndicWordSuggestionStrip(
+                            languageName = "বাংলা",
+                            composingWord = banglaNativeComposingWord,
+                            candidates = banglaNativeCandidates,
+                            theme = currentTheme,
+                            onToggleTools = { showToolbarTools = true },
+                            onSelectCandidate = { chosen ->
+                                for (i in 0 until banglaNativeComposingWord.length) {
+                                    actionTarget.onDeleteBackward()
+                                }
+                                personalDict.learnWord(chosen, "bn", isLearningBlocked)
+                                actionTarget.onCommitText(chosen + " ")
+                                wasLastSpaceAutoAppended = true
+                                lastCommittedChar = ' '
+                                banglaNativeComposingWord = ""
+                                performHaptic()
+                            },
+                            onClearComposing = {
+                                banglaNativeComposingWord = ""
+                                performHaptic()
+                            }
+                        )
+                    } else if (isHindiActive) {
+                        IndicWordSuggestionStrip(
+                            languageName = "हिन्दी",
+                            composingWord = hindiComposingWord,
+                            candidates = hindiCandidates,
+                            theme = currentTheme,
+                            onToggleTools = { showToolbarTools = true },
+                            onSelectCandidate = { chosen ->
+                                for (i in 0 until hindiComposingWord.length) {
+                                    actionTarget.onDeleteBackward()
+                                }
+                                personalDict.learnWord(chosen, "hi", isLearningBlocked)
+                                actionTarget.onCommitText(chosen + " ")
+                                wasLastSpaceAutoAppended = true
+                                lastCommittedChar = ' '
+                                hindiComposingWord = ""
+                                performHaptic()
+                            },
+                            onClearComposing = {
+                                hindiComposingWord = ""
                                 performHaptic()
                             }
                         )
@@ -687,10 +770,28 @@ fun KeyNovaKeyboardView(
                                                 onSelectLayout = { chosen ->
                                                     if (avroComposingText.isNotEmpty()) {
                                                         val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                        if (primary.isNotEmpty()) {
+                                                            personalDict.learnAvroPhonetic(avroComposingText, primary, isLearningBlocked)
+                                                        }
                                                         actionTarget.onCommitText(primary)
                                                         avroComposingText = ""
                                                     }
+                                                    if (englishComposingWord.length >= 2) {
+                                                        val clean = englishComposingWord.trimEnd('.', ',', '!', '?', ';', ':')
+                                                        if (clean.length >= 2) {
+                                                            personalDict.learnWord(clean, "en", isLearningBlocked)
+                                                        }
+                                                    }
                                                     englishComposingWord = ""
+                                                    if (banglaNativeComposingWord.length >= 2) {
+                                                        personalDict.learnWord(banglaNativeComposingWord, "bn", isLearningBlocked)
+                                                    }
+                                                    banglaNativeComposingWord = ""
+                                                    if (hindiComposingWord.length >= 2) {
+                                                        personalDict.learnWord(hindiComposingWord, "hi", isLearningBlocked)
+                                                    }
+                                                    hindiComposingWord = ""
+
                                                     currentLayout = chosen
                                                     currentLanguage = chosen.keyboardLanguage
                                                     keyboardPreferences.activeLayoutId = chosen.id
@@ -701,12 +802,29 @@ fun KeyNovaKeyboardView(
                                                     performKeyFeedback(android.media.AudioManager.FX_KEYPRESS_SPACEBAR)
                                                     if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
                                                         val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                        if (primary.isNotEmpty()) {
+                                                            personalDict.learnAvroPhonetic(avroComposingText, primary, isLearningBlocked)
+                                                        }
                                                         actionTarget.onCommitText(primary + " ")
                                                         avroComposingText = ""
                                                         lastCommittedChar = ' '
                                                         wasLastSpaceAutoAppended = false
                                                     } else {
+                                                        if (currentLayout.languageCode == "en" && englishComposingWord.length >= 2) {
+                                                            val clean = englishComposingWord.trimEnd('.', ',', '!', '?', ';', ':')
+                                                            if (clean.length >= 2) {
+                                                                personalDict.learnWord(clean, "en", isLearningBlocked)
+                                                            }
+                                                        }
                                                         englishComposingWord = ""
+                                                        if (currentLayout.languageCode == "bn" && banglaNativeComposingWord.length >= 2) {
+                                                            personalDict.learnWord(banglaNativeComposingWord, "bn", isLearningBlocked)
+                                                        }
+                                                        banglaNativeComposingWord = ""
+                                                        if (currentLayout.languageCode == "hi" && hindiComposingWord.length >= 2) {
+                                                            personalDict.learnWord(hindiComposingWord, "hi", isLearningBlocked)
+                                                        }
+                                                        hindiComposingWord = ""
                                                         val now = System.currentTimeMillis()
                                                         val isDoubleSpace = keyboardPreferences.doubleSpacePeriod && (now - lastSpaceTapTime < 450L) && lastSpaceTapTime != 0L
                                                         if (isDoubleSpace) {
@@ -747,6 +865,10 @@ fun KeyNovaKeyboardView(
                                                     } else {
                                                         if (englishComposingWord.isNotEmpty()) {
                                                             englishComposingWord = englishComposingWord.dropLast(1)
+                                                        } else if (banglaNativeComposingWord.isNotEmpty()) {
+                                                            banglaNativeComposingWord = banglaNativeComposingWord.dropLast(1)
+                                                        } else if (hindiComposingWord.isNotEmpty()) {
+                                                            hindiComposingWord = hindiComposingWord.dropLast(1)
                                                         } else if (recentKitchenEmojis.isNotEmpty()) {
                                                             recentKitchenEmojis = recentKitchenEmojis.drop(1)
                                                         }
@@ -759,6 +881,8 @@ fun KeyNovaKeyboardView(
                                                         performHaptic()
                                                     } else {
                                                         englishComposingWord = ""
+                                                        banglaNativeComposingWord = ""
+                                                        hindiComposingWord = ""
                                                         recentKitchenEmojis = emptyList()
                                                         actionTarget.onDeleteWordBackward()
                                                     }
@@ -809,9 +933,27 @@ fun KeyNovaKeyboardView(
                                                 height = currentKeyHeight,
                                                 customConfig = customThemeConfig,
                                                 onClick = {
+                                                    if (currentLayout.languageCode == "en" && englishComposingWord.length >= 2) {
+                                                        val clean = englishComposingWord.trimEnd('.', ',', '!', '?', ';', ':')
+                                                        if (clean.length >= 2) {
+                                                            personalDict.learnWord(clean, "en", isLearningBlocked)
+                                                        }
+                                                    }
                                                     englishComposingWord = ""
+                                                    if (currentLayout.languageCode == "bn" && banglaNativeComposingWord.length >= 2) {
+                                                        personalDict.learnWord(banglaNativeComposingWord, "bn", isLearningBlocked)
+                                                    }
+                                                    banglaNativeComposingWord = ""
+                                                    if (currentLayout.languageCode == "hi" && hindiComposingWord.length >= 2) {
+                                                        personalDict.learnWord(hindiComposingWord, "hi", isLearningBlocked)
+                                                    }
+                                                    hindiComposingWord = ""
+
                                                     if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
                                                         val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                        if (primary.isNotEmpty()) {
+                                                            personalDict.learnAvroPhonetic(avroComposingText, primary, isLearningBlocked)
+                                                        }
                                                         actionTarget.onCommitText(primary)
                                                         avroComposingText = ""
                                                     }
@@ -883,11 +1025,27 @@ fun KeyNovaKeyboardView(
                                                         KeyAction.CHARACTER -> {
                                                             val charText = keyDef.primaryText
                                                             // Auto-collapse space before punctuation if candidate appended trailing space
-                                                            val isPunctuation = charText.length == 1 && charText[0] in ".,!?;:"
-                                                            if (wasLastSpaceAutoAppended && isPunctuation) {
+                                                            val isSentencePunctuation = charText.length == 1 && (charText[0] in ",!?;:।")
+                                                            if (wasLastSpaceAutoAppended && (isSentencePunctuation || charText == ".")) {
                                                                 actionTarget.onDeleteBackward()
                                                             }
                                                             wasLastSpaceAutoAppended = false
+
+                                                            if (isSentencePunctuation) {
+                                                                if (currentLayout.languageCode == "en" && englishComposingWord.length >= 2) {
+                                                                    val clean = englishComposingWord.trimEnd('.', ',', '!', '?', ';', ':')
+                                                                    if (clean.length >= 2) {
+                                                                        personalDict.learnWord(clean, "en", isLearningBlocked)
+                                                                    }
+                                                                    englishComposingWord = ""
+                                                                } else if (currentLayout.languageCode == "bn" && currentLayout.id != "bn_avro" && banglaNativeComposingWord.length >= 2) {
+                                                                    personalDict.learnWord(banglaNativeComposingWord, "bn", isLearningBlocked)
+                                                                    banglaNativeComposingWord = ""
+                                                                } else if (currentLayout.languageCode == "hi" && hindiComposingWord.length >= 2) {
+                                                                    personalDict.learnWord(hindiComposingWord, "hi", isLearningBlocked)
+                                                                    hindiComposingWord = ""
+                                                                }
+                                                            }
 
                                                             if (currentLayout.id == "bn_avro" && charText.length == 1 && charText[0].isLetter()) {
                                                                 avroComposingText += charText
@@ -896,21 +1054,62 @@ fun KeyNovaKeyboardView(
                                                             } else {
                                                                 if (avroComposingText.isNotEmpty()) {
                                                                     val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                                    if (primary.isNotEmpty()) {
+                                                                        personalDict.learnAvroPhonetic(avroComposingText, primary, isLearningBlocked)
+                                                                    }
                                                                     actionTarget.onCommitText(primary)
                                                                     avroComposingText = ""
                                                                 }
-                                                                if (currentLayout.languageCode == "en" && charText.length == 1 && (charText[0].isLetter() || charText == "!")) {
-                                                                    englishComposingWord += charText
-                                                                    recentKitchenEmojis = emptyList()
-                                                                    showToolbarTools = false
+                                                                if (currentLayout.languageCode == "en") {
+                                                                    val isEnglishTokenChar = charText.length == 1 && (charText[0].isLetterOrDigit() || charText[0] in "@_-.:/'" || charText == "!")
+                                                                    if (isEnglishTokenChar) {
+                                                                        englishComposingWord += charText
+                                                                        recentKitchenEmojis = emptyList()
+                                                                        showToolbarTools = false
+                                                                    } else {
+                                                                        if (englishComposingWord.length >= 2) {
+                                                                            val clean = englishComposingWord.trimEnd('.', ',', '!', '?', ';', ':')
+                                                                            if (clean.length >= 2) {
+                                                                                personalDict.learnWord(clean, "en", isLearningBlocked)
+                                                                            }
+                                                                        }
+                                                                        englishComposingWord = ""
+                                                                        val charEmojis = com.example.util.MediaStickerDispatcher.extractEmojis(charText)
+                                                                        if (charEmojis.isNotEmpty()) {
+                                                                            recentKitchenEmojis = (charEmojis + recentKitchenEmojis.filter { !charEmojis.contains(it) }).take(2)
+                                                                        }
+                                                                    }
+                                                                    actionTarget.onCommitText(charText)
+                                                                } else if (currentLayout.languageCode == "bn") {
+                                                                    val isBanglaChar = charText.any { it in '\u0980'..'\u09FF' && it != '।' }
+                                                                    if (isBanglaChar) {
+                                                                        banglaNativeComposingWord += charText
+                                                                        showToolbarTools = false
+                                                                    } else {
+                                                                        if (banglaNativeComposingWord.length >= 2) {
+                                                                            personalDict.learnWord(banglaNativeComposingWord, "bn", isLearningBlocked)
+                                                                        }
+                                                                        banglaNativeComposingWord = ""
+                                                                    }
+                                                                    actionTarget.onCommitText(charText)
+                                                                } else if (currentLayout.languageCode == "hi") {
+                                                                    val isHindiChar = charText.any { it in '\u0900'..'\u097F' && it != '।' }
+                                                                    if (isHindiChar) {
+                                                                        hindiComposingWord += charText
+                                                                        showToolbarTools = false
+                                                                    } else {
+                                                                        if (hindiComposingWord.length >= 2) {
+                                                                            personalDict.learnWord(hindiComposingWord, "hi", isLearningBlocked)
+                                                                        }
+                                                                        hindiComposingWord = ""
+                                                                    }
+                                                                    actionTarget.onCommitText(charText)
                                                                 } else {
                                                                     englishComposingWord = ""
-                                                                    val charEmojis = com.example.util.MediaStickerDispatcher.extractEmojis(charText)
-                                                                    if (charEmojis.isNotEmpty()) {
-                                                                        recentKitchenEmojis = (charEmojis + recentKitchenEmojis.filter { !charEmojis.contains(it) }).take(2)
-                                                                    }
+                                                                    banglaNativeComposingWord = ""
+                                                                    hindiComposingWord = ""
+                                                                    actionTarget.onCommitText(charText)
                                                                 }
-                                                                actionTarget.onCommitText(charText)
                                                             }
                                                             lastCommittedChar = charText.lastOrNull()
 
@@ -923,12 +1122,29 @@ fun KeyNovaKeyboardView(
                                                             }
                                                         }
                                                         KeyAction.SPACE -> {
-                                                            englishComposingWord = ""
                                                             if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
                                                                 val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                                if (primary.isNotEmpty()) {
+                                                                    personalDict.learnAvroPhonetic(avroComposingText, primary, isLearningBlocked)
+                                                                }
                                                                 actionTarget.onCommitText(primary + " ")
                                                                 avroComposingText = ""
                                                             } else {
+                                                                if (currentLayout.languageCode == "en" && englishComposingWord.length >= 2) {
+                                                                    val clean = englishComposingWord.trimEnd('.', ',', '!', '?', ';', ':')
+                                                                    if (clean.length >= 2) {
+                                                                        personalDict.learnWord(clean, "en", isLearningBlocked)
+                                                                    }
+                                                                }
+                                                                englishComposingWord = ""
+                                                                if (currentLayout.languageCode == "bn" && banglaNativeComposingWord.length >= 2) {
+                                                                    personalDict.learnWord(banglaNativeComposingWord, "bn", isLearningBlocked)
+                                                                }
+                                                                banglaNativeComposingWord = ""
+                                                                if (currentLayout.languageCode == "hi" && hindiComposingWord.length >= 2) {
+                                                                    personalDict.learnWord(hindiComposingWord, "hi", isLearningBlocked)
+                                                                }
+                                                                hindiComposingWord = ""
                                                                 actionTarget.onCommitText(" ")
                                                             }
                                                         }
@@ -938,6 +1154,10 @@ fun KeyNovaKeyboardView(
                                                             } else {
                                                                 if (englishComposingWord.isNotEmpty()) {
                                                                     englishComposingWord = englishComposingWord.dropLast(1)
+                                                                } else if (banglaNativeComposingWord.isNotEmpty()) {
+                                                                    banglaNativeComposingWord = banglaNativeComposingWord.dropLast(1)
+                                                                } else if (hindiComposingWord.isNotEmpty()) {
+                                                                    hindiComposingWord = hindiComposingWord.dropLast(1)
                                                                 } else if (recentKitchenEmojis.isNotEmpty()) {
                                                                     recentKitchenEmojis = recentKitchenEmojis.drop(1)
                                                                 }
@@ -945,10 +1165,28 @@ fun KeyNovaKeyboardView(
                                                             }
                                                         }
                                                         KeyAction.ENTER -> {
+                                                            if (currentLayout.languageCode == "en" && englishComposingWord.length >= 2) {
+                                                                val clean = englishComposingWord.trimEnd('.', ',', '!', '?', ';', ':')
+                                                                if (clean.length >= 2) {
+                                                                    personalDict.learnWord(clean, "en", isLearningBlocked)
+                                                                }
+                                                            }
                                                             englishComposingWord = ""
+                                                            if (currentLayout.languageCode == "bn" && banglaNativeComposingWord.length >= 2) {
+                                                                personalDict.learnWord(banglaNativeComposingWord, "bn", isLearningBlocked)
+                                                            }
+                                                            banglaNativeComposingWord = ""
+                                                            if (currentLayout.languageCode == "hi" && hindiComposingWord.length >= 2) {
+                                                                personalDict.learnWord(hindiComposingWord, "hi", isLearningBlocked)
+                                                            }
+                                                            hindiComposingWord = ""
+
                                                             performKeyFeedback(android.media.AudioManager.FX_KEYPRESS_RETURN)
                                                             if (currentLayout.id == "bn_avro" && avroComposingText.isNotEmpty()) {
                                                                 val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                                if (primary.isNotEmpty()) {
+                                                                    personalDict.learnAvroPhonetic(avroComposingText, primary, isLearningBlocked)
+                                                                }
                                                                 actionTarget.onCommitText(primary)
                                                                 avroComposingText = ""
                                                             }
@@ -980,9 +1218,27 @@ fun KeyNovaKeyboardView(
                                                             }
                                                         }
                                                         KeyAction.LANGUAGE_SWITCH -> {
+                                                            if (currentLayout.languageCode == "en" && englishComposingWord.length >= 2) {
+                                                                val clean = englishComposingWord.trimEnd('.', ',', '!', '?', ';', ':')
+                                                                if (clean.length >= 2) {
+                                                                    personalDict.learnWord(clean, "en", isLearningBlocked)
+                                                                }
+                                                            }
                                                             englishComposingWord = ""
+                                                            if (currentLayout.languageCode == "bn" && banglaNativeComposingWord.length >= 2) {
+                                                                personalDict.learnWord(banglaNativeComposingWord, "bn", isLearningBlocked)
+                                                            }
+                                                            banglaNativeComposingWord = ""
+                                                            if (currentLayout.languageCode == "hi" && hindiComposingWord.length >= 2) {
+                                                                personalDict.learnWord(hindiComposingWord, "hi", isLearningBlocked)
+                                                            }
+                                                            hindiComposingWord = ""
+
                                                             if (avroComposingText.isNotEmpty()) {
                                                                 val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                                if (primary.isNotEmpty()) {
+                                                                    personalDict.learnAvroPhonetic(avroComposingText, primary, isLearningBlocked)
+                                                                }
                                                                 actionTarget.onCommitText(primary)
                                                                 avroComposingText = ""
                                                             }
@@ -2580,17 +2836,7 @@ private fun AvroPhoneticSuggestionStrip(
             )
         }
 
-        val context = LocalContext.current
-        val dictManager = remember { com.example.data.PersonalDictionaryManager.getInstance(context) }
-        val dictRev = dictManager.revision.intValue
-
         val primaryBangla = candidates.firstOrNull() ?: if (composingText.isNotEmpty()) AvroPhoneticParser.parse(composingText) else ""
-        val isKnownAvro = remember(composingText, primaryBangla, dictRev) {
-            if (composingText.length < 2 || primaryBangla.isEmpty()) true
-            else dictManager.containsPhoneticMapping(composingText) || dictManager.containsWord(primaryBangla)
-        }
-        val showAvroAddButton = composingText.length >= 2 && primaryBangla.isNotEmpty() && !isKnownAvro
-
         val displayedCandidates = if (candidates.isEmpty() && composingText.isNotEmpty() && primaryBangla.isNotEmpty()) {
             listOf(primaryBangla)
         } else candidates
@@ -2634,29 +2880,6 @@ private fun AvroPhoneticSuggestionStrip(
             }
         }
 
-        if (showAvroAddButton) {
-            IconButton(
-                onClick = {
-                    val added = dictManager.addAvroPhoneticWord(composingText, primaryBangla)
-                    if (added) {
-                        android.widget.Toast.makeText(context, "Added \"$primaryBangla\" to dictionary", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                },
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(CircleShape)
-                    .background(accentColor.copy(alpha = 0.16f))
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add to dictionary",
-                    tint = accentColor,
-                    modifier = Modifier.size(17.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(2.dp))
-        }
-
         if (composingText.isNotEmpty()) {
             IconButton(
                 onClick = onClearComposing,
@@ -2682,20 +2905,9 @@ private fun EnglishWordSuggestionStrip(
     onSelectCandidate: (String) -> Unit,
     onClearComposing: () -> Unit
 ) {
-    val context = LocalContext.current
     val accentColor = Color(theme.accentHex)
     val textColor = Color(theme.textHex)
     val surfaceColor = Color(theme.surfaceHex)
-
-    val dictManager = remember { com.example.data.PersonalDictionaryManager.getInstance(context) }
-    val dictRev = dictManager.revision.intValue
-
-    val isKnownWord = remember(composingWord, dictRev) {
-        if (composingWord.length < 2) true
-        else EnglishWordPredictor.isStaticWord(composingWord) || dictManager.containsWord(composingWord)
-    }
-    val isEligibleForDict = composingWord.length >= 2 && composingWord.all { it.isLetter() || it == '\'' || it == '-' }
-    val showAddButton = isEligibleForDict && !isKnownWord
 
     val displayedCandidates = if (candidates.isEmpty()) {
         if (composingWord.isEmpty()) listOf("I", "The", "KeyNova", "Hello")
@@ -2759,27 +2971,105 @@ private fun EnglishWordSuggestionStrip(
             }
         }
 
-        if (showAddButton) {
+        if (composingWord.isNotEmpty()) {
             IconButton(
-                onClick = {
-                    val added = dictManager.addWord(composingWord)
-                    if (added) {
-                        android.widget.Toast.makeText(context, "Added \"$composingWord\" to dictionary", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                },
-                modifier = Modifier
-                    .size(30.dp)
-                    .clip(CircleShape)
-                    .background(accentColor.copy(alpha = 0.16f))
+                onClick = onClearComposing,
+                modifier = Modifier.size(26.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add to dictionary",
-                    tint = accentColor,
-                    modifier = Modifier.size(17.dp)
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Clear",
+                    tint = textColor.copy(alpha = 0.6f),
+                    modifier = Modifier.size(15.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(2.dp))
+        }
+    }
+}
+
+@Composable
+private fun IndicWordSuggestionStrip(
+    languageName: String,
+    composingWord: String,
+    candidates: List<String>,
+    theme: KeyboardThemeOption,
+    onToggleTools: () -> Unit,
+    onSelectCandidate: (String) -> Unit,
+    onClearComposing: () -> Unit
+) {
+    val accentColor = Color(theme.accentHex)
+    val textColor = Color(theme.textHex)
+    val surfaceColor = Color(theme.surfaceHex)
+
+    val displayedCandidates = if (candidates.isEmpty()) {
+        if (composingWord.isNotEmpty()) listOf(composingWord)
+        else emptyList()
+    } else candidates
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(surfaceColor.copy(alpha = 0.40f))
+            .border(0.5.dp, textColor.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(
+            onClick = onToggleTools,
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(accentColor.copy(alpha = 0.12f))
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.GridView,
+                contentDescription = "Toolbar Tools",
+                tint = accentColor,
+                modifier = Modifier.size(17.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        if (displayedCandidates.isEmpty()) {
+            Text(
+                text = "$languageName Suggestions",
+                color = textColor.copy(alpha = 0.5f),
+                fontSize = 12.sp,
+                maxLines = 1,
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                displayedCandidates.forEachIndexed { index, candidate ->
+                    val isFirst = index == 0
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { onSelectCandidate(candidate) },
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isFirst) accentColor.copy(alpha = 0.18f) else surfaceColor.copy(alpha = 0.65f),
+                        border = if (isFirst) BorderStroke(1.dp, accentColor.copy(alpha = 0.60f))
+                                 else BorderStroke(0.5.dp, textColor.copy(alpha = 0.08f))
+                    ) {
+                        Text(
+                            text = candidate,
+                            color = if (isFirst) (if (theme == KeyboardThemeOption.LIGHT) accentColor else Color.White) else textColor.copy(alpha = 0.9f),
+                            fontSize = 13.5.sp,
+                            fontWeight = if (isFirst) FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
+                        )
+                    }
+                }
+            }
         }
 
         if (composingWord.isNotEmpty()) {

@@ -139,6 +139,103 @@ fun PrivacyScreen(
             }
 
             item {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val dictManager = remember { com.example.data.PersonalDictionaryManager.getInstance(context) }
+                val dictRev = dictManager.revision.intValue
+                val enCount = remember(dictRev) { dictManager.getWordCount("en") }
+                val bnCount = remember(dictRev) { dictManager.getWordCount("bn") }
+                val hiCount = remember(dictRev) { dictManager.getWordCount("hi") }
+                val avroCount = remember(dictRev) { dictManager.getWordCount("bn_avro") }
+                var showClearDictDialog by remember { mutableStateOf(false) }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = CardDefaults.outlinedCardBorder()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFF3E8FF)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Lock,
+                                    contentDescription = null,
+                                    tint = Color(0xFF7C3AED),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Learned Words (Personal Dictionary)",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "Automatically learned from normal typing. 100% offline & local.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748B),
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "English: $enCount words", fontSize = 12.sp, color = Color(0xFF334155))
+                            Text(text = "বাংলা: ${bnCount + avroCount} words", fontSize = 12.sp, color = Color(0xFF334155))
+                            Text(text = "हिन्दी: $hiCount words", fontSize = 12.sp, color = Color(0xFF334155))
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        OutlinedButton(
+                            onClick = { showClearDictDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(text = "Clear Learned Vocabulary", fontSize = 13.sp, color = Color(0xFF7C3AED))
+                        }
+
+                        if (showClearDictDialog) {
+                            AlertDialog(
+                                onDismissRequest = { showClearDictDialog = false },
+                                title = { Text("Clear Learned Words?") },
+                                text = { Text("This will remove all automatically learned words and frequencies for English, Bangla, and Hindi.") },
+                                confirmButton = {
+                                    Button(
+                                        onClick = {
+                                            dictManager.clearAll()
+                                            showClearDictDialog = false
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                                    ) {
+                                        Text("Clear All")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showClearDictDialog = false }) {
+                                        Text("Cancel")
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Button(
@@ -160,15 +257,17 @@ fun PrivacyScreen(
     }
 
     if (showResetDialog) {
+        val context = androidx.compose.ui.platform.LocalContext.current
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
             title = { Text("Reset All Local Data?") },
-            text = { Text("This will clear clipboard history, custom snippets, and reset all keyboard preferences to defaults.") },
+            text = { Text("This will clear clipboard history, learned dictionary, custom snippets, and reset all keyboard preferences to defaults.") },
             confirmButton = {
                 Button(
                     onClick = {
                         keyboardPreferences.resetToDefaults()
                         clipboardRepository.clearEverything()
+                        com.example.data.PersonalDictionaryManager.getInstance(context).clearAll()
                         showResetDialog = false
                         resetDone = true
                     },
