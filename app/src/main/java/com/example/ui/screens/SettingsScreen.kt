@@ -290,8 +290,12 @@ fun SettingsScreen(
             }
 
             item {
-                val dictCount = remember {
-                    com.example.data.PersonalDictionaryManager.getInstance(context).getTotalEntryCount()
+                val dictManager = remember {
+                    com.example.data.PersonalDictionaryManager.getInstance(context)
+                }
+                val dictRev = dictManager.revision.intValue
+                val dictCount = remember(dictRev) {
+                    dictManager.getTotalEntryCount()
                 }
                 SettingsCardItem(
                     icon = Icons.Outlined.Book,

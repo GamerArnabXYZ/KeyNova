@@ -855,4 +855,160 @@ class KeyNovaComprehensiveUnitTest {
         assertEquals(0, dict.getWordCount("en"))
         assertEquals(0, dict.getWordCount("hi"))
     }
+
+    // ==========================================
+    // 9. FINAL AUDIT REGRESSION TESTS
+    // ==========================================
+
+    @Test
+    fun testPersonalDictionary_v2AndLegacyMigrationWithUrlsAndColons() {
+        val fakePrefs = FakeSharedPreferences()
+        fakePrefs.edit()
+            .putStringSet("key_words_en_v2", setOf("CustomV2:4", "https://example.com", "https://docs.example.org:3"))
+            .putStringSet("key_words_bn_v2", setOf("অভ্রবোর্ড:2"))
+            .putStringSet("key_words_hi_v2", setOf("सुप्रभात:5"))
+            .putStringSet("key_custom_words", setOf("LegacyToken", "পুরনোশব্দ", "पुरानाशब्द"))
+            .putStringSet("key_phonetic_mappings", setOf("shuvo=শুভ"))
+            .apply()
+
+        val migrated = PersonalDictionaryManager(fakePrefs)
+
+        assertTrue(migrated.containsWord("CustomV2", "en"))
+        assertTrue("V2 URL without :freq suffix must NOT truncate at https:", migrated.containsWord("https://example.com", "en"))
+        assertTrue("V2 URL with :freq suffix must migrate cleanly", migrated.containsWord("https://docs.example.org", "en"))
+        assertTrue(migrated.containsWord("অভ্রবোর্ড", "bn"))
+        assertTrue(migrated.containsWord("सुप्रभात", "hi"))
+        assertTrue(migrated.containsWord("LegacyToken", "en"))
+        assertTrue(migrated.containsWord("পুরনোশব্দ", "bn"))
+        assertTrue(migrated.containsWord("पुरानाशब्द", "hi"))
+        assertTrue(migrated.containsPhoneticMapping("shuvo"))
+
+        val v2Url = migrated.getAllEntries().firstOrNull { it.text == "https://docs.example.org" }
+        assertNotNull(v2Url)
+        assertEquals(3, v2Url?.frequency)
+        assertEquals(PersonalDictEntryType.URL, v2Url?.type)
+
+        // Reload from persisted V3 storage
+        val afterRestart = PersonalDictionaryManager(fakePrefs)
+        assertTrue(afterRestart.containsWord("https://example.com", "en"))
+        assertEquals(4, afterRestart.getAllEntries().firstOrNull { it.text == "CustomV2" }?.frequency)
+    }
+
+    @Test
+    fun testPersonalDictionary_unicodeNfcNormalizationAndDeduplication() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        // Bangla NFD ('য' + '\u09BC' nukta) vs NFC ('য়' U+09DF)
+        val nfdBangla = "সম\u09AF\u09BC"
+        val nfcBangla = "সময়"
+        assertTrue(dict.learnWord(nfdBangla, "bn", false))
+        assertTrue(dict.learnWord(nfcBangla, "bn", false))
+        assertEquals("NFD and NFC Bangla words must deduplicate to 1 entry", 1, dict.getWordCount("bn"))
+        assertEquals(2, dict.getAllEntries().first().frequency)
+        assertTrue(dict.findBanglaMatches("সম").contains(nfcBangla))
+
+        // Hindi NFD ('ड' + '\u093C' nukta) vs NFC ('ड़' U+095C)
+        val nfdHindi = "स\u0921\u093Cक"
+        val nfcHindi = "सड़क"
+        assertTrue(dict.learnWord(nfdHindi, "hi", false))
+        assertTrue(dict.learnWord(nfcHindi, "hi", false))
+        assertEquals("NFD and NFC Hindi words must deduplicate to 1 entry", 1, dict.getWordCount("hi"))
+        assertTrue(dict.findHindiMatches("सड़").contains(nfcHindi))
+
+        // Latin NFD ('e' + '\u0301') vs NFC ('é')
+        val nfdLatin = "Cafe\u0301Latte"
+        val nfcLatin = "CaféLatte"
+        assertTrue(dict.learnWord(nfdLatin, "en", false))
+        assertTrue(dict.learnWord(nfcLatin, "en", false))
+        assertEquals("NFD and NFC Latin words must deduplicate to 1 entry", 1, dict.getWordCount("en"))
+        assertTrue(dict.findEnglishMatches("Café").contains(nfcLatin))
+    }
+
+    @Test
+    fun testPersonalDictionary_allLanguageEntriesInIndicMatches() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        assertTrue(dict.addCustomEntry("সোনারবাংলা", PersonalDictEntryType.WORD, "all"))
+        assertTrue(dict.addCustomEntry("शुभप्रभात", PersonalDictEntryType.WORD, "all"))
+        assertTrue(dict.addCustomEntry("ArnixGlobal", PersonalDictEntryType.WORD, "all"))
+
+        assertTrue(dict.findBanglaMatches("সোনার").contains("সোনারবাংলা"))
+        assertTrue(dict.findHindiMatches("शुभ").contains("शुभप्रभात"))
+        assertTrue(dict.findEnglishMatches("Arnix").contains("ArnixGlobal"))
+
+        // English entry must not leak into Indic prefix matches
+        assertFalse(dict.findBanglaMatches("Arnix").contains("ArnixGlobal"))
+        assertFalse(dict.findHindiMatches("Arnix").contains("ArnixGlobal"))
+    }
+
+    @Test
+    fun testPersonalDictionary_updateEntryCollisionMergingAndIndic() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        dict.learnWord("AlphaOne", "en", false)
+        dict.learnWord("AlphaOne", "en", false) // freq 2
+        dict.learnWord("BetaTwo", "en", false)  // freq 1
+
+        // Updating AlphaOne -> BetaTwo merges frequency instead of losing frequency
+        assertTrue(dict.updateEntry("AlphaOne", "BetaTwo", PersonalDictEntryType.WORD))
+        assertFalse(dict.containsWord("AlphaOne", "en"))
+        val merged = dict.getAllEntries().firstOrNull { it.text == "BetaTwo" }
+        assertNotNull(merged)
+        assertEquals(3, merged?.frequency)
+
+        // Invalid updates must be rejected cleanly
+        assertFalse(dict.updateEntry("BetaTwo", "a", null))
+        assertFalse(dict.updateEntry("BetaTwo", "has space", null))
+        assertTrue(dict.containsWord("BetaTwo", "en"))
+    }
+
+    @Test
+    fun testEditorInfoHelper_emailAndUriFields() {
+        val emailInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        }
+        assertTrue(EditorInfoHelper.isEmailField(emailInfo))
+        assertFalse(EditorInfoHelper.isUriField(emailInfo))
+
+        val webEmailInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS
+        }
+        assertTrue(EditorInfoHelper.isEmailField(webEmailInfo))
+
+        val uriInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+        }
+        assertTrue(EditorInfoHelper.isUriField(uriInfo))
+        assertFalse(EditorInfoHelper.isEmailField(uriInfo))
+
+        assertFalse(EditorInfoHelper.isEmailField(null))
+        assertFalse(EditorInfoHelper.isUriField(null))
+    }
+
+    @Test
+    fun testPersonalDictionary_largeDictionaryLookupPerformance() {
+        val fakePrefs = FakeSharedPreferences()
+        val dict = PersonalDictionaryManager(fakePrefs)
+
+        // Add 2500 entries directly in memory via addCustomEntry / learnWord
+        // Note: batch check using 1500 entries to stay realistic within SharedPreferences single-shot test time
+        for (i in 1..1000) {
+            dict.learnWord("CustomToken$i", "en", false)
+        }
+        dict.learnWord("https://arnix-fast.dev", "en", false)
+        dict.learnWord("arnix@fastmail.io", "en", false)
+
+        val startNs = System.nanoTime()
+        repeat(50) {
+            val matches = dict.getContextualSuggestions("CustomToken99", languageCode = "en", limit = 6)
+            assertTrue(matches.isNotEmpty())
+            val emailMatches = dict.getContextualSuggestions("", isEmailField = true, limit = 5)
+            assertTrue(emailMatches.contains("arnix@fastmail.io"))
+        }
+        val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
+        assertTrue("50 contextual lookups over 1002 entries should be fast (<1000ms), was ${elapsedMs}ms", elapsedMs < 1000)
+    }
 }

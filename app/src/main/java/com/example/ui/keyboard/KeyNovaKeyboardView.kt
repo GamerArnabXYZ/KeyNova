@@ -457,6 +457,14 @@ fun KeyNovaKeyboardView(
         keyboardPreferences.autoLearnPersonalDict
     }
     val isLearningBlocked = isPrivateMode || !isAutoLearningEnabled
+    LaunchedEffect(isPrivateMode) {
+        if (isPrivateMode) {
+            avroComposingText = ""
+            englishComposingWord = ""
+            banglaNativeComposingWord = ""
+            hindiComposingWord = ""
+        }
+    }
     val isAvroActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.id == "bn_avro"
     val isBanglaNativeActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "bn" && currentLayout.id != "bn_avro"
     val isHindiActive = !isPrivateMode && activePage == ActiveKeyboardPage.LETTERS && currentLayout.languageCode == "hi"
@@ -997,19 +1005,98 @@ fun KeyNovaKeyboardView(
                                                     activeKeyPopup = null
                                                 },
                                                 onCommitAlternate = { text ->
+                                                    val isSpaceCollapsePunctuation = text.length == 1 && (text[0] in ",!?;:।.")
+                                                    if (wasLastSpaceAutoAppended && isSpaceCollapsePunctuation) {
+                                                        actionTarget.onDeleteBackward()
+                                                    }
+                                                    wasLastSpaceAutoAppended = false
+
+                                                    val isSentenceBreakPunctuation = text.length == 1 && (
+                                                        (text[0] in ",?;।") ||
+                                                            (text[0] == '!' && englishComposingWord.isNotEmpty()) ||
+                                                            (text[0] == ':' && currentLayout.languageCode != "en")
+                                                        )
+                                                    if (isSentenceBreakPunctuation) {
+                                                        if (currentLayout.languageCode == "en" && englishComposingWord.length >= 2) {
+                                                            val clean = englishComposingWord.trimEnd('.', ',', '!', '?', ';', ':')
+                                                            if (clean.length >= 2) {
+                                                                personalDict.learnWord(clean, "en", isLearningBlocked)
+                                                            }
+                                                            englishComposingWord = ""
+                                                        } else if (currentLayout.languageCode == "bn" && currentLayout.id != "bn_avro" && banglaNativeComposingWord.length >= 2) {
+                                                            personalDict.learnWord(banglaNativeComposingWord, "bn", isLearningBlocked)
+                                                            banglaNativeComposingWord = ""
+                                                        } else if (currentLayout.languageCode == "hi" && hindiComposingWord.length >= 2) {
+                                                            personalDict.learnWord(hindiComposingWord, "hi", isLearningBlocked)
+                                                            hindiComposingWord = ""
+                                                        }
+                                                    }
+
                                                     if (avroComposingText.isNotEmpty()) {
                                                         val primary = avroCandidates.firstOrNull() ?: AvroPhoneticParser.parse(avroComposingText)
+                                                        if (primary.isNotEmpty()) {
+                                                            personalDict.learnAvroPhonetic(avroComposingText, primary, isLearningBlocked)
+                                                        }
                                                         actionTarget.onCommitText(primary)
                                                         avroComposingText = ""
                                                     }
-                                                    englishComposingWord = ""
-                                                    val altEmojis = com.example.util.MediaStickerDispatcher.extractEmojis(text)
-                                                    if (altEmojis.isNotEmpty()) {
-                                                        recentKitchenEmojis = (altEmojis + recentKitchenEmojis.filter { !altEmojis.contains(it) }).take(2)
+
+                                                    if (currentLayout.languageCode == "en") {
+                                                        val isEnglishTokenChar = text.length == 1 && (
+                                                            text[0].isLetterOrDigit() ||
+                                                                text[0] in "@_-.:/'" ||
+                                                                (text == "!" && englishComposingWord.isEmpty())
+                                                            )
+                                                        if (isEnglishTokenChar && !isSentenceBreakPunctuation) {
+                                                            englishComposingWord += text
+                                                            recentKitchenEmojis = emptyList()
+                                                            showToolbarTools = false
+                                                        } else {
+                                                            if (englishComposingWord.length >= 2) {
+                                                                val clean = englishComposingWord.trimEnd('.', ',', '!', '?', ';', ':')
+                                                                if (clean.length >= 2) {
+                                                                    personalDict.learnWord(clean, "en", isLearningBlocked)
+                                                                }
+                                                            }
+                                                            englishComposingWord = ""
+                                                            val altEmojis = com.example.util.MediaStickerDispatcher.extractEmojis(text)
+                                                            if (altEmojis.isNotEmpty()) {
+                                                                recentKitchenEmojis = (altEmojis + recentKitchenEmojis.filter { !altEmojis.contains(it) }).take(2)
+                                                            }
+                                                        }
+                                                    } else if (currentLayout.languageCode == "bn" && currentLayout.id != "bn_avro") {
+                                                        val isBanglaChar = text.any { it in '\u0980'..'\u09FF' && it != '।' }
+                                                        if (isBanglaChar) {
+                                                            banglaNativeComposingWord += text
+                                                            showToolbarTools = false
+                                                        } else {
+                                                            if (banglaNativeComposingWord.length >= 2) {
+                                                                personalDict.learnWord(banglaNativeComposingWord, "bn", isLearningBlocked)
+                                                            }
+                                                            banglaNativeComposingWord = ""
+                                                        }
+                                                    } else if (currentLayout.languageCode == "hi") {
+                                                        val isHindiChar = text.any { it in '\u0900'..'\u097F' && it != '।' }
+                                                        if (isHindiChar) {
+                                                            hindiComposingWord += text
+                                                            showToolbarTools = false
+                                                        } else {
+                                                            if (hindiComposingWord.length >= 2) {
+                                                                personalDict.learnWord(hindiComposingWord, "hi", isLearningBlocked)
+                                                            }
+                                                            hindiComposingWord = ""
+                                                        }
+                                                    } else {
+                                                        englishComposingWord = ""
+                                                        banglaNativeComposingWord = ""
+                                                        hindiComposingWord = ""
+                                                        val altEmojis = com.example.util.MediaStickerDispatcher.extractEmojis(text)
+                                                        if (altEmojis.isNotEmpty()) {
+                                                            recentKitchenEmojis = (altEmojis + recentKitchenEmojis.filter { !altEmojis.contains(it) }).take(2)
+                                                        }
                                                     }
                                                     actionTarget.onCommitText(text)
                                                     lastCommittedChar = text.lastOrNull()
-                                                    wasLastSpaceAutoAppended = false
                                                     if (shiftState == ShiftState.SHIFTED) {
                                                         shiftState = ShiftState.OFF
                                                         isShifted = false
@@ -1025,13 +1112,18 @@ fun KeyNovaKeyboardView(
                                                         KeyAction.CHARACTER -> {
                                                             val charText = keyDef.primaryText
                                                             // Auto-collapse space before punctuation if candidate appended trailing space
-                                                            val isSentencePunctuation = charText.length == 1 && (charText[0] in ",!?;:।")
-                                                            if (wasLastSpaceAutoAppended && (isSentencePunctuation || charText == ".")) {
+                                                            val isSpaceCollapsePunctuation = charText.length == 1 && (charText[0] in ",!?;:।.")
+                                                            if (wasLastSpaceAutoAppended && isSpaceCollapsePunctuation) {
                                                                 actionTarget.onDeleteBackward()
                                                             }
                                                             wasLastSpaceAutoAppended = false
 
-                                                            if (isSentencePunctuation) {
+                                                            val isSentenceBreakPunctuation = charText.length == 1 && (
+                                                                (charText[0] in ",?;।") ||
+                                                                    (charText[0] == '!' && englishComposingWord.isNotEmpty()) ||
+                                                                    (charText[0] == ':' && currentLayout.languageCode != "en")
+                                                                )
+                                                            if (isSentenceBreakPunctuation) {
                                                                 if (currentLayout.languageCode == "en" && englishComposingWord.length >= 2) {
                                                                     val clean = englishComposingWord.trimEnd('.', ',', '!', '?', ';', ':')
                                                                     if (clean.length >= 2) {
@@ -1061,8 +1153,12 @@ fun KeyNovaKeyboardView(
                                                                     avroComposingText = ""
                                                                 }
                                                                 if (currentLayout.languageCode == "en") {
-                                                                    val isEnglishTokenChar = charText.length == 1 && (charText[0].isLetterOrDigit() || charText[0] in "@_-.:/'" || charText == "!")
-                                                                    if (isEnglishTokenChar) {
+                                                                    val isEnglishTokenChar = charText.length == 1 && (
+                                                                        charText[0].isLetterOrDigit() ||
+                                                                            charText[0] in "@_-.:/'" ||
+                                                                            (charText == "!" && englishComposingWord.isEmpty())
+                                                                        )
+                                                                    if (isEnglishTokenChar && !isSentenceBreakPunctuation) {
                                                                         englishComposingWord += charText
                                                                         recentKitchenEmojis = emptyList()
                                                                         showToolbarTools = false

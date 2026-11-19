@@ -59,19 +59,19 @@ object EnglishWordPredictor {
         val matches = dictionary.filter { it.startsWith(lower) && it != lower }
             .take(limit)
 
-        val combinedRaw = (personalMatches + matches).distinct().take(limit)
-        if (combinedRaw.isEmpty()) return emptyList()
-
         val isAllUpper = trimmed.all { it.isUpperCase() }
         val isCapitalized = trimmed[0].isUpperCase()
 
-        val result = combinedRaw.map { word ->
+        val casedStaticMatches = matches.map { word ->
             when {
                 isAllUpper -> word.uppercase()
                 isCapitalized -> word.replaceFirstChar { it.uppercase() }
                 else -> word
             }
         }
+
+        val result = (personalMatches + casedStaticMatches).distinct().take(limit)
+        if (result.isEmpty()) return emptyList()
 
         if (personalMatches.isEmpty()) {
             synchronized(predictionCache) {

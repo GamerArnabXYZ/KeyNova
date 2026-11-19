@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.compose.runtime.mutableIntStateOf
 import com.example.ime.AvroPhoneticParser
 import com.example.ime.EnglishWordPredictor
+import java.text.Normalizer
 
 /**
  * Entry type classifications for Personal Dictionary.
@@ -148,6 +149,20 @@ class PersonalDictionaryManager internal constructor(
 
     data class AvroEntry(val phonetic: String, val bangla: String, var frequency: Int)
 
+    private fun normalizeUnicode(text: String): String {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return ""
+        return if (Normalizer.isNormalized(trimmed, Normalizer.Form.NFC)) {
+            trimmed
+        } else {
+            Normalizer.normalize(trimmed, Normalizer.Form.NFC)
+        }
+    }
+
+    private fun makeEntryId(normalizedText: String, languageCode: String): String {
+        return if (languageCode == "bn" || languageCode == "hi") normalizedText else normalizedText.lowercase()
+    }
+
     init {
         loadFromPreferences()
     }
@@ -169,8 +184,10 @@ class PersonalDictionaryManager internal constructor(
             val enSaved = prefs.getStringSet(KEY_WORDS_EN_V2, emptySet()) ?: emptySet()
             for (entry in enSaved) {
                 val colonIdx = entry.lastIndexOf(':')
-                val text = if (colonIdx > 0) entry.substring(0, colonIdx).trim() else entry.trim()
-                val freq = if (colonIdx > 0) entry.substring(colonIdx + 1).toIntOrNull() ?: 1 else 1
+                val parsedFreq = if (colonIdx > 0) entry.substring(colonIdx + 1).toIntOrNull() else null
+                val rawText = if (parsedFreq != null) entry.substring(0, colonIdx) else entry
+                val text = normalizeUnicode(rawText)
+                val freq = (parsedFreq ?: 1).coerceAtLeast(1)
                 if (text.isNotEmpty()) {
                     val key = text.lowercase()
                     if (!entriesMap.containsKey(key)) {
@@ -180,7 +197,7 @@ class PersonalDictionaryManager internal constructor(
                             text = text,
                             type = detected,
                             languageCode = "en",
-                            frequency = freq.coerceAtLeast(1)
+                            frequency = freq
                         )
                     }
                 }
@@ -190,15 +207,17 @@ class PersonalDictionaryManager internal constructor(
             val bnSaved = prefs.getStringSet(KEY_WORDS_BN_V2, emptySet()) ?: emptySet()
             for (entry in bnSaved) {
                 val colonIdx = entry.lastIndexOf(':')
-                val text = if (colonIdx > 0) entry.substring(0, colonIdx).trim() else entry.trim()
-                val freq = if (colonIdx > 0) entry.substring(colonIdx + 1).toIntOrNull() ?: 1 else 1
+                val parsedFreq = if (colonIdx > 0) entry.substring(colonIdx + 1).toIntOrNull() else null
+                val rawText = if (parsedFreq != null) entry.substring(0, colonIdx) else entry
+                val text = normalizeUnicode(rawText)
+                val freq = (parsedFreq ?: 1).coerceAtLeast(1)
                 if (text.isNotEmpty() && !entriesMap.containsKey(text)) {
                     entriesMap[text] = PersonalDictEntry(
                         id = text,
                         text = text,
                         type = PersonalDictEntryType.WORD,
                         languageCode = "bn",
-                        frequency = freq.coerceAtLeast(1)
+                        frequency = freq
                     )
                 }
             }
@@ -207,15 +226,17 @@ class PersonalDictionaryManager internal constructor(
             val hiSaved = prefs.getStringSet(KEY_WORDS_HI_V2, emptySet()) ?: emptySet()
             for (entry in hiSaved) {
                 val colonIdx = entry.lastIndexOf(':')
-                val text = if (colonIdx > 0) entry.substring(0, colonIdx).trim() else entry.trim()
-                val freq = if (colonIdx > 0) entry.substring(colonIdx + 1).toIntOrNull() ?: 1 else 1
+                val parsedFreq = if (colonIdx > 0) entry.substring(colonIdx + 1).toIntOrNull() else null
+                val rawText = if (parsedFreq != null) entry.substring(0, colonIdx) else entry
+                val text = normalizeUnicode(rawText)
+                val freq = (parsedFreq ?: 1).coerceAtLeast(1)
                 if (text.isNotEmpty() && !entriesMap.containsKey(text)) {
                     entriesMap[text] = PersonalDictEntry(
                         id = text,
                         text = text,
                         type = PersonalDictEntryType.WORD,
                         languageCode = "hi",
-                        frequency = freq.coerceAtLeast(1)
+                        frequency = freq
                     )
                 }
             }
@@ -234,13 +255,13 @@ class PersonalDictionaryManager internal constructor(
     private fun parseV3Entry(raw: String): PersonalDictEntry? {
         val parts = raw.split("\t")
         if (parts.size >= 4) {
-            val text = parts[0].trim()
+            val text = normalizeUnicode(parts[0])
             val type = PersonalDictEntryType.fromId(parts[1])
             val lang = parts[2].trim()
             val freq = parts[3].toIntOrNull() ?: 1
             val timestamp = if (parts.size >= 5) parts[4].toLongOrNull() ?: System.currentTimeMillis() else System.currentTimeMillis()
             if (text.isNotEmpty()) {
-                val id = if (lang == "bn" || lang == "hi") text else text.lowercase()
+                val id = makeEntryId(text, lang)
                 return PersonalDictEntry(
                     id = id,
                     text = text,
@@ -256,15 +277,16 @@ class PersonalDictionaryManager internal constructor(
 
     private fun parseAvroEntry(raw: String): AvroEntry? {
         val colonIdx = raw.lastIndexOf(':')
-        val mappingPart = if (colonIdx > 0) raw.substring(0, colonIdx) else raw
-        val freq = if (colonIdx > 0) raw.substring(colonIdx + 1).toIntOrNull() ?: 1 else 1
+        val parsedFreq = if (colonIdx > 0) raw.substring(colonIdx + 1).toIntOrNull() else null
+        val mappingPart = if (parsedFreq != null) raw.substring(0, colonIdx) else raw
+        val freq = (parsedFreq ?: 1).coerceAtLeast(1)
 
         val eqIdx = mappingPart.indexOf('=')
         if (eqIdx > 0 && eqIdx < mappingPart.length - 1) {
             val p = mappingPart.substring(0, eqIdx).trim().lowercase()
-            val b = mappingPart.substring(eqIdx + 1).trim()
+            val b = normalizeUnicode(mappingPart.substring(eqIdx + 1))
             if (p.isNotEmpty() && b.isNotEmpty()) {
-                return AvroEntry(p, b, freq.coerceAtLeast(1))
+                return AvroEntry(p, b, freq)
             }
         }
         return null
@@ -275,7 +297,7 @@ class PersonalDictionaryManager internal constructor(
         val legacyWords = prefs.getStringSet(KEY_LEGACY_CUSTOM_WORDS, emptySet()) ?: emptySet()
         if (legacyWords.isNotEmpty()) {
             for (word in legacyWords) {
-                val trimmed = word.trim()
+                val trimmed = normalizeUnicode(word)
                 if (trimmed.length < 2) continue
                 val key = if (trimmed.any { it in '\u0980'..'\u09FF' || it in '\u0900'..'\u097F' }) trimmed else trimmed.lowercase()
                 if (!entriesMap.containsKey(key)) {
@@ -302,7 +324,7 @@ class PersonalDictionaryManager internal constructor(
                 val eqIdx = entry.indexOf('=')
                 if (eqIdx > 0 && eqIdx < entry.length - 1) {
                     val p = entry.substring(0, eqIdx).trim().lowercase()
-                    val b = entry.substring(eqIdx + 1).trim()
+                    val b = normalizeUnicode(entry.substring(eqIdx + 1))
                     if (p.isNotEmpty() && b.isNotEmpty() && !avroMap.containsKey(p)) {
                         avroMap[p] = AvroEntry(p, b, 1)
                         needsPersist = true
@@ -355,7 +377,7 @@ class PersonalDictionaryManager internal constructor(
      * Strictly blocks pure numbers/OTPs/PINs, pure symbols, whitespaces, and passwords.
      */
     fun isEligibleForLearning(rawWord: String, languageCode: String): Boolean {
-        val trimmed = rawWord.trim()
+        val trimmed = normalizeUnicode(rawWord)
         if (trimmed.length !in 2..100) return false
 
         // 1. Must NOT contain whitespaces or line breaks
@@ -363,7 +385,6 @@ class PersonalDictionaryManager internal constructor(
 
         // 2. Strict rejection of pure numbers / OTPs / PINs (e.g. 482910, 1234, ১২৩৪৫, १२३४५)
         // Must contain at least one letter or script character if digits are present
-        val hasLetters = trimmed.any { it.isLetter() || it in '\u0980'..'\u09FF' || it in '\u0900'..'\u097F' }
         val allDigits = trimmed.all { it.isDigit() || it in '\u09E6'..'\u09EF' || it in '\u0966'..'\u096F' }
         if (allDigits) return false
 
@@ -404,11 +425,11 @@ class PersonalDictionaryManager internal constructor(
      */
     fun learnWord(rawWord: String, languageCode: String, isPrivateMode: Boolean): Boolean {
         if (isPrivateMode) return false
-        val clean = rawWord.trim()
+        val clean = normalizeUnicode(rawWord)
         if (!isEligibleForLearning(clean, languageCode)) return false
 
         val detectedType = detectEntryType(clean)
-        val normalizedId = if (languageCode == "bn" || languageCode == "hi") clean else clean.lowercase()
+        val normalizedId = makeEntryId(clean, languageCode)
 
         synchronized(this) {
             val existing = entriesMap[normalizedId]
@@ -438,7 +459,7 @@ class PersonalDictionaryManager internal constructor(
     fun learnAvroPhonetic(rawPhonetic: String, rawBangla: String, isPrivateMode: Boolean): Boolean {
         if (isPrivateMode) return false
         val p = rawPhonetic.trim().lowercase()
-        val b = rawBangla.trim()
+        val b = normalizeUnicode(rawBangla)
 
         if (p.length < 2 || b.isEmpty()) return false
         if (!p.all { it in 'a'..'z' }) return false
@@ -502,51 +523,72 @@ class PersonalDictionaryManager internal constructor(
         languageCode: String = "en",
         limit: Int = 6
     ): List<String> {
-        val clean = prefix.trim()
-        val lower = clean.lowercase()
+        val clean = normalizeUnicode(prefix)
 
         return synchronized(this) {
-            val allList = entriesMap.values.toList()
+            if (entriesMap.isEmpty()) return@synchronized emptyList()
 
             // If empty prefix in specialized fields, show top suggestions for that field
             if (clean.isEmpty()) {
                 return@synchronized when {
-                    isEmailField -> allList.filter { it.type == PersonalDictEntryType.EMAIL }
-                        .sortedByDescending { it.frequency }.map { it.text }.take(limit)
-                    isUriField -> allList.filter { it.type == PersonalDictEntryType.URL }
-                        .sortedByDescending { it.frequency }.map { it.text }.take(limit)
+                    isEmailField -> entriesMap.values
+                        .asSequence()
+                        .filter { it.type == PersonalDictEntryType.EMAIL }
+                        .sortedByDescending { it.frequency }
+                        .map { it.text }
+                        .take(limit)
+                        .toList()
+                    isUriField -> entriesMap.values
+                        .asSequence()
+                        .filter { it.type == PersonalDictEntryType.URL }
+                        .sortedByDescending { it.frequency }
+                        .map { it.text }
+                        .take(limit)
+                        .toList()
                     else -> emptyList()
                 }
             }
 
-            allList
-                .filter { entry ->
-                    val textLower = entry.text.lowercase()
-                    val langMatch = entry.languageCode == languageCode || entry.languageCode == "all" ||
-                            (languageCode == "en" && (entry.type == PersonalDictEntryType.EMAIL || entry.type == PersonalDictEntryType.URL || entry.type == PersonalDictEntryType.ALPHANUMERIC || entry.type == PersonalDictEntryType.CUSTOM))
-                    langMatch && (textLower.startsWith(lower) || (clean.length >= 2 && textLower.contains(lower)))
+            val matches = ArrayList<PersonalDictEntry>()
+            val allowContains = clean.length >= 2
+            for (entry in entriesMap.values) {
+                val langMatch = entry.languageCode == languageCode || entry.languageCode == "all" ||
+                    (languageCode == "en" && (
+                        entry.type == PersonalDictEntryType.EMAIL ||
+                            entry.type == PersonalDictEntryType.URL ||
+                            entry.type == PersonalDictEntryType.ALPHANUMERIC ||
+                            entry.type == PersonalDictEntryType.CUSTOM
+                        ))
+                if (langMatch && (entry.text.startsWith(clean, ignoreCase = true) ||
+                        (allowContains && entry.text.contains(clean, ignoreCase = true)))) {
+                    matches.add(entry)
                 }
-                .sortedWith(
-                    compareByDescending<PersonalDictEntry> {
-                        // Priority 1: Match field context type
-                        when {
-                            isEmailField && it.type == PersonalDictEntryType.EMAIL -> 100
-                            isUriField && it.type == PersonalDictEntryType.URL -> 100
-                            else -> 0
-                        }
+            }
+
+            matches.sortWith(
+                compareByDescending<PersonalDictEntry> {
+                    // Priority 1: Match field context type
+                    when {
+                        isEmailField && it.type == PersonalDictEntryType.EMAIL -> 100
+                        isUriField && it.type == PersonalDictEntryType.URL -> 100
+                        else -> 0
                     }
-                    .thenByDescending { it.text.lowercase().startsWith(lower) } // Exact prefix first
-                    .thenByDescending { it.frequency }                           // Higher frequency first
-                    .thenBy { it.text.length }                                   // Shorter text first
-                )
+                }
+                    .thenByDescending { it.text.startsWith(clean, ignoreCase = true) } // Exact prefix first
+                    .thenByDescending { it.frequency }                                 // Higher frequency first
+                    .thenBy { it.text.length }                                         // Shorter text first
+            )
+
+            matches.asSequence()
                 .map { it.text }
                 .distinct()
                 .take(limit)
+                .toList()
         }
     }
 
     fun containsWord(word: String, languageCode: String? = null): Boolean {
-        val trimmed = word.trim()
+        val trimmed = normalizeUnicode(word)
         if (trimmed.isEmpty()) return false
         val key = trimmed.lowercase()
         synchronized(this) {
@@ -573,32 +615,44 @@ class PersonalDictionaryManager internal constructor(
     }
 
     fun findBanglaMatches(prefix: String, limit: Int = 5): List<String> {
-        val clean = prefix.trim()
+        val clean = normalizeUnicode(prefix)
         if (clean.length < 2) return emptyList()
 
         return synchronized(this) {
+            if (entriesMap.isEmpty()) return@synchronized emptyList()
             entriesMap.values
-                .filter { it.languageCode == "bn" && it.text.startsWith(clean) }
+                .asSequence()
+                .filter {
+                    (it.languageCode == "bn" || (it.languageCode == "all" && it.text.any { ch -> ch in '\u0980'..'\u09FF' })) &&
+                        it.text.startsWith(clean)
+                }
                 .sortedWith(compareByDescending<PersonalDictEntry> { it.frequency }
                     .thenBy { it.text.length }
                 )
                 .map { it.text }
                 .take(limit)
+                .toList()
         }
     }
 
     fun findHindiMatches(prefix: String, limit: Int = 5): List<String> {
-        val clean = prefix.trim()
+        val clean = normalizeUnicode(prefix)
         if (clean.length < 2) return emptyList()
 
         return synchronized(this) {
+            if (entriesMap.isEmpty()) return@synchronized emptyList()
             entriesMap.values
-                .filter { it.languageCode == "hi" && it.text.startsWith(clean) }
+                .asSequence()
+                .filter {
+                    (it.languageCode == "hi" || (it.languageCode == "all" && it.text.any { ch -> ch in '\u0900'..'\u097F' })) &&
+                        it.text.startsWith(clean)
+                }
                 .sortedWith(compareByDescending<PersonalDictEntry> { it.frequency }
                     .thenBy { it.text.length }
                 )
                 .map { it.text }
                 .take(limit)
+                .toList()
         }
     }
 
@@ -611,23 +665,30 @@ class PersonalDictionaryManager internal constructor(
         synchronized(this) {
             // Direct phonetic map matches
             val directMatches = avroMap.values
+                .asSequence()
                 .filter { it.phonetic.startsWith(clean) }
                 .sortedWith(compareByDescending<AvroEntry> { it.phonetic == clean }
                     .thenByDescending { it.frequency }
                 )
                 .map { it.bangla }
+                .toList()
             results.addAll(directMatches)
 
             // Bangla vocabulary matching parsed Bangla prefix
             val parsed = try {
-                AvroPhoneticParser.parse(clean)
+                normalizeUnicode(AvroPhoneticParser.parse(clean))
             } catch (_: Exception) { "" }
 
             if (parsed.length >= 2) {
                 val bnVocabMatches = entriesMap.values
-                    .filter { it.languageCode == "bn" && it.text.startsWith(parsed) }
+                    .asSequence()
+                    .filter {
+                        (it.languageCode == "bn" || (it.languageCode == "all" && it.text.any { ch -> ch in '\u0980'..'\u09FF' })) &&
+                            it.text.startsWith(parsed)
+                    }
                     .sortedByDescending { it.frequency }
                     .map { it.text }
+                    .toList()
                 results.addAll(bnVocabMatches)
             }
         }
@@ -660,10 +721,11 @@ class PersonalDictionaryManager internal constructor(
         query: String = "",
         typeFilter: PersonalDictEntryType? = null
     ): List<PersonalDictEntry> = synchronized(this) {
-        val lowerQuery = query.trim().lowercase()
+        val cleanQuery = normalizeUnicode(query)
         entriesMap.values
+            .asSequence()
             .filter { entry ->
-                val matchesQuery = lowerQuery.isEmpty() || entry.text.lowercase().contains(lowerQuery)
+                val matchesQuery = cleanQuery.isEmpty() || entry.text.contains(cleanQuery, ignoreCase = true)
                 val matchesType = typeFilter == null || entry.type == typeFilter
                 matchesQuery && matchesType
             }
@@ -671,6 +733,7 @@ class PersonalDictionaryManager internal constructor(
                 compareByDescending<PersonalDictEntry> { it.frequency }
                     .thenByDescending { it.timestamp }
             )
+            .toList()
     }
 
     fun getEntriesFiltered(
@@ -686,12 +749,12 @@ class PersonalDictionaryManager internal constructor(
         type: PersonalDictEntryType? = null,
         languageCode: String = "all"
     ): Boolean {
-        val clean = text.trim()
+        val clean = normalizeUnicode(text)
         if (clean.length !in 2..100) return false
         if (clean.any { it.isWhitespace() }) return false
 
         val detectedType = type ?: detectEntryType(clean)
-        val id = if (languageCode == "bn" || languageCode == "hi") clean else clean.lowercase()
+        val id = makeEntryId(clean, languageCode)
 
         synchronized(this) {
             val existing = entriesMap[id]
@@ -722,27 +785,35 @@ class PersonalDictionaryManager internal constructor(
         newText: String,
         newType: PersonalDictEntryType? = null
     ): Boolean {
-        val cleanOriginal = originalText.trim()
-        val cleanNew = newText.trim()
+        val cleanOriginal = normalizeUnicode(originalText)
+        val cleanNew = normalizeUnicode(newText)
         if (cleanNew.length !in 2..100) return false
         if (cleanNew.any { it.isWhitespace() }) return false
 
         val origKey = cleanOriginal.lowercase()
-        val newKey = cleanNew.lowercase()
 
         synchronized(this) {
             val existing = entriesMap[origKey] ?: entriesMap[cleanOriginal] ?: return false
             val updatedType = newType ?: detectEntryType(cleanNew)
+            val newKey = makeEntryId(cleanNew, existing.languageCode)
 
+            entriesMap.remove(existing.id)
             entriesMap.remove(origKey)
             entriesMap.remove(cleanOriginal)
+
+            val collidingTarget = entriesMap[newKey]
+            val mergedFreq = if (collidingTarget != null) {
+                (existing.frequency + collidingTarget.frequency).coerceAtMost(9999)
+            } else {
+                existing.frequency
+            }
 
             entriesMap[newKey] = PersonalDictEntry(
                 id = newKey,
                 text = cleanNew,
                 type = updatedType,
                 languageCode = existing.languageCode,
-                frequency = existing.frequency,
+                frequency = mergedFreq,
                 timestamp = System.currentTimeMillis()
             )
             persistAll()
@@ -757,7 +828,7 @@ class PersonalDictionaryManager internal constructor(
      * Deletes a single entry by text or normalized key.
      */
     fun deleteEntry(text: String): Boolean {
-        val clean = text.trim()
+        val clean = normalizeUnicode(text)
         val key = clean.lowercase()
         var removed = false
 
@@ -790,7 +861,7 @@ class PersonalDictionaryManager internal constructor(
         var count = 0
         synchronized(this) {
             for (text in texts) {
-                val clean = text.trim()
+                val clean = normalizeUnicode(text)
                 val key = clean.lowercase()
                 if (entriesMap.remove(key) != null || entriesMap.remove(clean) != null) {
                     count++

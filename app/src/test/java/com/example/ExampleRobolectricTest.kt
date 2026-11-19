@@ -9,6 +9,7 @@ import com.example.data.KeyboardThemeOption
 import com.example.ime.KeyboardLayoutModel
 import com.example.ime.ShiftState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -309,6 +310,36 @@ class ExampleRobolectricTest {
         val candidates = parser.getCandidates("ami")
         assertTrue("Candidates must include 'আমি'", candidates.contains("আমি"))
         assertTrue("Candidates list should have suggestions", candidates.isNotEmpty())
+    }
+
+    @Test
+    fun testPersonalDictionary_predictorCasingPreservationAndCacheInvalidation() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val dict = com.example.data.PersonalDictionaryManager.getInstance(context)
+        dict.clearAll()
+
+        // 1. Prime cache with "arn" before anything is learned
+        assertTrue(com.example.ime.EnglishWordPredictor.predict("arn", context = context).isEmpty())
+
+        // 2. Learn email, alphanumeric, and special entries
+        assertTrue(dict.learnWord("arnix@example.com", "en", false))
+        assertTrue(dict.learnWord("Arnix90", "en", false))
+        assertTrue(dict.learnWord("https://arnix.io", "en", false))
+
+        // 3. Query with capitalized prefix "Arn" (e.g. start of sentence auto-cap):
+        // Saved personal entries must preserve exact casing ("arnix@example.com", "Arnix90") without duplicating
+        val preds = com.example.ime.EnglishWordPredictor.predict("Arn", limit = 6, context = context)
+        assertTrue(preds.contains("arnix@example.com"))
+        assertTrue(preds.contains("Arnix90"))
+        assertFalse("Must NOT corrupt saved email casing to capitalized duplicate", preds.contains("Arnix@example.com"))
+
+        // 4. Delete entry and verify immediate invalidation in predictor
+        assertTrue(dict.deleteEntry("arnix@example.com"))
+        val afterDelete = com.example.ime.EnglishWordPredictor.predict("Arn", limit = 6, context = context)
+        assertFalse(afterDelete.contains("arnix@example.com"))
+        assertTrue(afterDelete.contains("Arnix90"))
+
+        dict.clearAll()
     }
 }
 
